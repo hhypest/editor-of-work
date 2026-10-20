@@ -1,8 +1,10 @@
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, session } from 'electron'
-import { join, resolve, sep } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerIpcHandlers } from './ipc/handlers'
 import { registerPlanFileHandlers } from './ipc/plan-files'
+import { registerPassportHandlers } from './ipc/passport'
+import { openPortablePassport } from '@eow/passport/infrastructure'
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -86,46 +88,81 @@ if (!app.requestSingleInstanceLock()) {
     }
   })
 
-  void app.whenReady().then(() => {
-    applySecurity()
-    registerAppProtocol()
-    registerIpcHandlers(ipcMain, app)
-    const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
-    const stopPlanFiles = registerPlanFileHandlers(
-      ipcMain,
-      {
-        async openPrototype() {
-          const chosen = await dialog.showOpenDialog({
-            title: 'Импорт проекта HTML-прототипа',
-            filters: [{ name: 'Проект прототипа', extensions: ['json'] }],
-            properties: ['openFile'],
-          })
-          return chosen.canceled ? undefined : chosen.filePaths[0]
+  void app
+    .whenReady()
+    .then(async () => {
+      const passport = await openPortablePassport({
+        executableDirectory: app.isPackaged
+          ? (process.env['PORTABLE_EXECUTABLE_DIR'] ?? dirname(app.getPath('exe')))
+          : resolve(__dirname, '../../../private-data'),
+        localDataDirectory: process.env['LOCALAPPDATA'] ?? app.getPath('appData'),
+        migrationsDirectory: join(__dirname, 'migrations'),
+      })
+      applySecurity()
+      registerAppProtocol()
+      registerIpcHandlers(ipcMain, app)
+      registerPassportHandlers(ipcMain, passport)
+      const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
+      const stopPlanFiles = registerPlanFileHandlers(
+        ipcMain,
+        {
+          async openPrototype() {
+            const chosen = await dialog.showOpenDialog({
+              title: 'Импорт проекта HTML-прототипа',
+              filters: [{ name: 'Проект прототипа', extensions: ['json'] }],
+              properties: ['openFile'],
+            })
+            return chosen.canceled ? undefined : chosen.filePaths[0]
+          },
+          async open() {
+            const chosen = await dialog.showOpenDialog({
+              title: 'Открыть план',
+              filters,
+              properties: ['openFile'],
+            })
+            return chosen.canceled ? undefined : chosen.filePaths[0]
+          },
+          async save() {
+            const chosen = await dialog.showSaveDialog({
+              title: 'Сохранить план',
+              filters,
+              defaultPath: 'План.ppr.json',
+            })
+            return chosen.canceled ? undefined : chosen.filePath
+          },
         },
-        async open() {
-          const chosen = await dialog.showOpenDialog({
-            title: 'Открыть план',
-            filters,
-            properties: ['openFile'],
+        app.getVersion(),
+      )
+      let closing = false
+      let canQuit = false
+      app.on('will-quit', (event) => {
+        if (canQuit) return
+        event.preventDefault()
+        if (closing) return
+        closing = true
+        void Promise.all([stopPlanFiles(), passport.close()])
+          .catch(() => {
+            dialog.showErrorBox(
+              'Закрытие паспорта',
+              'Не удалось корректно закрыть хранилище. Проверьте доступ к папке данных.',
+            )
           })
-          return chosen.canceled ? undefined : chosen.filePaths[0]
-        },
-        async save() {
-          const chosen = await dialog.showSaveDialog({
-            title: 'Сохранить план',
-            filters,
-            defaultPath: 'План.ppr.json',
+          .finally(() => {
+            canQuit = true
+            app.quit()
           })
-          return chosen.canceled ? undefined : chosen.filePath
-        },
-      },
-      app.getVersion(),
-    )
-    app.once('will-quit', () => {
-      void stopPlanFiles()
+      })
+      createMainWindow()
     })
-    createMainWindow()
-  })
+    .catch((error: unknown) => {
+      dialog.showErrorBox(
+        'Паспорт не открыт',
+        error instanceof Error
+          ? error.message
+          : 'Не удалось открыть базу паспорта. Проверьте доступ к папке данных.',
+      )
+      app.quit()
+    })
 
   app.on('window-all-closed', () => app.quit())
 }

@@ -15,6 +15,10 @@ export default defineConfig(() => ({
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {
+      enabled: true,
+      include: ['src/lib/**/*.ts'],
+      exclude: ['src/**/*.spec.ts'],
+      thresholds: { lines: 90 },
       reportsDirectory: '../../../coverage/libs/passport/domain',
       provider: 'v8' as const,
     },

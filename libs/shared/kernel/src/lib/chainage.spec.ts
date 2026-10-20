@@ -38,29 +38,29 @@ function at(km: number, m: number, l: KmLengths = KmLengths.standard()): Chainag
   return r.value
 }
 
-// Нестандартные километры из реальной выгрузки (ADR-0005): 972 и 1030 м.
-const uzRz = lengths([
-  [374, 972],
-  [375, 1030],
+// Вымышленное направление с короткими и длинными километрами (ADR-0005, ADR-0008).
+const oddKm = lengths([
+  [41, 964],
+  [42, 1045],
 ])
 
 describe('Chainage', () => {
   it('принимает метр внутри километра и отклоняет за его длиной', () => {
-    expect(chainage(374, 971, uzRz).ok).toBe(true)
-    expect(describeChainageError(failure(chainage(374, 972, uzRz)))).toBe(
-      '972 м вне 374 км: его длина 972 м',
+    expect(chainage(41, 963, oddKm).ok).toBe(true)
+    expect(describeChainageError(failure(chainage(41, 964, oddKm)))).toBe(
+      '964 м вне 41 км: его длина 964 м',
     )
-    expect(chainage(375, 1029, uzRz).ok).toBe(true)
+    expect(chainage(42, 1044, oddKm).ok).toBe(true)
   })
 
   it('отклоняет дробные и отрицательные значения', () => {
-    expect(chainage(1.5, 0, uzRz).ok).toBe(false)
-    expect(chainage(1, -1, uzRz).ok).toBe(false)
+    expect(chainage(1.5, 0, oddKm).ok).toBe(false)
+    expect(chainage(1, -1, oddKm).ok).toBe(false)
   })
 
   it('отклоняет километр за пределами точной целой арифметики', () => {
-    expect(failure(parseChainage('9007199254740993 км', uzRz)).kind).toBe('value')
-    expect(chainage(Number.MAX_SAFE_INTEGER + 1, 0, uzRz).ok).toBe(false)
+    expect(failure(parseChainage('9007199254740993 км', oddKm)).kind).toBe('value')
+    expect(chainage(Number.MAX_SAFE_INTEGER + 1, 0, oddKm).ok).toBe(false)
     expect(offset(at(1, 0), 2 ** 53, KmLengths.standard()).ok).toBe(false)
   })
 })
@@ -70,7 +70,7 @@ describe('KmLengths', () => {
     expect(
       failure(
         KmLengths.of([
-          [5, 972],
+          [5, 964],
           [5, 1000],
         ]),
       ),
@@ -79,24 +79,24 @@ describe('KmLengths', () => {
       failure(
         KmLengths.of([
           [5, 1000],
-          [5, 972],
+          [5, 964],
         ]),
       ),
     ).toEqual({ kind: 'duplicate-km', km: 5 })
   })
 
   it('отклоняет числа за пределами точной целой арифметики', () => {
-    expect(KmLengths.of([[2 ** 53, 972]]).ok).toBe(false)
+    expect(KmLengths.of([[2 ** 53, 964]]).ok).toBe(false)
     expect(KmLengths.of([[5, 2 ** 53]]).ok).toBe(false)
   })
 })
 
 describe('distance', () => {
   it('учитывает нестандартные километры', () => {
-    // 374+335 → 375+531: 972 − 335 + 531 = 1168 (а не 1196 по формуле км·1000 + м)
-    expect(distance(at(374, 335, uzRz), at(375, 531, uzRz), uzRz)).toBe(1168)
-    // 375+716 → 376+030: 1030 − 716 + 30 = 344
-    expect(distance(at(375, 716, uzRz), at(376, 30, uzRz), uzRz)).toBe(344)
+    // 41+335 → 42+531: 964 − 335 + 531 = 1160 (а не 1196 по формуле км·1000 + м)
+    expect(distance(at(41, 335, oddKm), at(42, 531, oddKm), oddKm)).toBe(1160)
+    // 42+716 → 43+030: 1045 − 716 + 30 = 359
+    expect(distance(at(42, 716, oddKm), at(43, 30, oddKm), oddKm)).toBe(359)
   })
 
   it('со знаком: в обратную сторону отрицательно', () => {
@@ -106,16 +106,16 @@ describe('distance', () => {
 
 describe('пикеты', () => {
   it('пк 1–9 по 100 м, пк 10 забирает всю разницу', () => {
-    const pk9 = picketBounds(374, 9)
-    const pk10s = picketBounds(374, 10)
-    const pk10l = picketBounds(375, 10)
-    expect(distance(value(pk9).start, value(pk9).end, uzRz)).toBe(100)
-    expect(distance(value(pk10s).start, value(pk10s).end, uzRz)).toBe(72)
-    expect(distance(value(pk10l).start, value(pk10l).end, uzRz)).toBe(130)
+    const pk9 = picketBounds(41, 9)
+    const pk10s = picketBounds(41, 10)
+    const pk10l = picketBounds(42, 10)
+    expect(distance(value(pk9).start, value(pk9).end, oddKm)).toBe(100)
+    expect(distance(value(pk10s).start, value(pk10s).end, oddKm)).toBe(64)
+    expect(distance(value(pk10l).start, value(pk10l).end, oddKm)).toBe(145)
   })
 
-  it('пикет точки: 375+1029 лежит в пк 10', () => {
-    expect(picketOf(at(375, 1029, uzRz))).toBe(10)
+  it('пикет точки: 42+1044 лежит в пк 10', () => {
+    expect(picketOf(at(42, 1044, oddKm))).toBe(10)
     expect(picketOf(at(227, 350))).toBe(4)
   })
 
@@ -159,8 +159,8 @@ describe('формат и разбор', () => {
     expect(describeParseError(failure(parsePicketRef('222+916')))).toBe(
       'Не удалось разобрать «222+916»: ожидается пикет вида «227 км пк 4»',
     )
-    expect(describeParseError(failure(parseChainage('374+990', uzRz)))).toBe(
-      '990 м вне 374 км: его длина 972 м',
+    expect(describeParseError(failure(parseChainage('41+990', oddKm)))).toBe(
+      '990 м вне 41 км: его длина 964 м',
     )
   })
 

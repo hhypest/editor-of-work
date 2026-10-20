@@ -1,4 +1,5 @@
 import { err, ok, type Result } from '@eow/shared/kernel'
+import { areaExists, areaKey, areaLabel, type PlanArea } from './distribution'
 import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
 import { workErrors, type PlannedWork, type WorkId, type WorkInput } from './planned-work'
@@ -22,6 +23,22 @@ export interface AnnualPlan {
   readonly basis: PlanBasis
   readonly approval: Approval
   readonly works: readonly PlannedWork[]
+  /** Значения, введённые вручную, по ключу области ({@link areaKey}). */
+  readonly manual: ReadonlyMap<string, AreaManual>
+}
+
+/** Ручные значения таблиц одной области. Ключ — код вида работ. */
+export interface AreaManual {
+  /** Значение плана вместо рассчитанного. */
+  readonly overrides: ReadonlyMap<string, number>
+  /** Потребность (столбец таблицы текущего содержания). */
+  readonly needs: ReadonlyMap<string, number>
+}
+
+const NO_MANUAL: AreaManual = { overrides: new Map(), needs: new Map() }
+
+export function manualOf(plan: AnnualPlan, area: PlanArea): AreaManual {
+  return plan.manual.get(areaKey(area)) ?? NO_MANUAL
 }
 
 export const MIN_PLAN_YEAR = 2000
@@ -45,7 +62,7 @@ export function createAnnualPlan(
 ): Result<AnnualPlan, readonly PlanError[]> {
   const checked = failIfAny([...yearErrors(year), ...yearErrors(approval.year)])
   if (!checked.ok) return checked
-  return ok({ year, basis, approval, works: [] })
+  return ok({ year, basis, approval, works: [], manual: new Map() })
 }
 
 export function setApproval(
@@ -88,4 +105,40 @@ export function updateWork(
 export function removeWork(plan: AnnualPlan, id: WorkId): Result<AnnualPlan, readonly PlanError[]> {
   if (!findWork(plan, id)) return err([{ kind: 'work-not-found', id }])
   return ok({ ...plan, works: plan.works.filter((w) => w.id !== id) })
+}
+
+function withEntry(
+  map: ReadonlyMap<string, number>,
+  key: string,
+  value: number | undefined,
+): ReadonlyMap<string, number> {
+  const next = new Map(map)
+  if (value === undefined) next.delete(key)
+  else next.set(key, value)
+  return next
+}
+
+/**
+ * Записать или стереть (undefined) ручное значение: field «overrides» — план вместо
+ * расчёта, «needs» — потребность. Значение переживает пересчёт: расчёт его не трогает.
+ */
+export function setManualValue(
+  plan: AnnualPlan,
+  area: PlanArea,
+  field: keyof AreaManual,
+  code: string,
+  value: number | undefined,
+): Result<AnnualPlan, readonly PlanError[]> {
+  const errors: PlanError[] = []
+  if (!areaExists(area, plan.basis)) errors.push({ kind: 'unknown-area', area: areaLabel(area) })
+  if (!plan.basis.workKinds.has(code)) errors.push({ kind: 'unknown-work-kind', code })
+  if (value !== undefined && !(Number.isFinite(value) && value >= 0))
+    errors.push({ kind: 'invalid-manual-value', value })
+  const checked = failIfAny(errors)
+  if (!checked.ok) return checked
+  const current = manualOf(plan, area)
+  const updated: AreaManual = { ...current, [field]: withEntry(current[field], code, value) }
+  const manual = new Map(plan.manual)
+  manual.set(areaKey(area), updated)
+  return ok({ ...plan, manual })
 }

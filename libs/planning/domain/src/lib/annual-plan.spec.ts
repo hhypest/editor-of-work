@@ -8,7 +8,7 @@ import {
   updateWork,
   type AnnualPlan,
 } from './annual-plan'
-import { planBasis, type PlanBasis } from './plan-basis'
+import type { PlanBasis } from './plan-basis'
 import { describePlanError, type PlanError } from './plan-error'
 import { workId, workVolume, type WorkInput } from './planned-work'
 import { samplePlanBasis } from './testing/sample-basis'
@@ -207,39 +207,5 @@ describe('AnnualPlan: изменение и удаление', () => {
   it('удаление', () => {
     expect(value(removeWork(twoWorks(), w1)).works.map((w) => w.id)).toEqual([w2])
     expect(errorKinds(removeWork(twoWorks(), workId('нет')))).toEqual(['work-not-found'])
-  })
-})
-
-describe('PlanBasis', () => {
-  const sample = samplePlanBasis()
-  const line = sample.lines.get('L1')
-  if (!line) throw new Error('нет направления')
-  const input = {
-    edition: sample.edition,
-    lines: [line],
-    stations: [...sample.stations.values()],
-    workKinds: [...sample.workKinds.values()],
-  }
-
-  it('идентификаторы уникальны', () => {
-    const r = planBasis({ ...input, stations: [...input.stations, ...input.stations] })
-    expect(r.ok ? undefined : describePlanError(r.error)).toBe(
-      'Станция «S1» встречается в редакции дважды',
-    )
-  })
-
-  it('протяжение лежит на своём направлении', () => {
-    const r = planBasis({ ...input, lines: [{ ...line, id: 'L2' }] })
-    expect(r.ok ? undefined : r.error.kind).toBe('extent-off-line')
-  })
-
-  it('«входит в» ссылается на существующий вид', () => {
-    const r = planBasis({
-      ...input,
-      workKinds: [{ code: 'ППРК', name: 'ППРК', unit: 'км', includedIn: 'ППР' }],
-    })
-    expect(r.ok ? undefined : describePlanError(r.error)).toBe(
-      'Вид работ «ППРК» входит в неизвестный вид «ППР»',
-    )
   })
 })

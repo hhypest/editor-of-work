@@ -4,6 +4,9 @@ export type PlanError =
   | { readonly kind: 'duplicate-basis'; readonly what: BasisPart; readonly id: string }
   | { readonly kind: 'extent-off-line'; readonly line: string }
   | { readonly kind: 'unknown-included-in'; readonly code: string; readonly includedIn: string }
+  | { readonly kind: 'pd-off-line'; readonly pd: string; readonly line: string }
+  | { readonly kind: 'pd-overlap'; readonly a: string; readonly b: string }
+  | { readonly kind: 'unknown-pd'; readonly station: string; readonly pd: string }
   | { readonly kind: 'duplicate-work'; readonly id: string }
   | { readonly kind: 'work-not-found'; readonly id: string }
   | { readonly kind: 'unknown-work-kind'; readonly code: string }
@@ -15,8 +18,11 @@ export type PlanError =
   | { readonly kind: 'outside-line'; readonly line: NamedRef; readonly place: string }
   | { readonly kind: 'invalid-volume'; readonly volume: number }
   | { readonly kind: 'volume-required'; readonly code: string; readonly unit: string }
+  /** area — подпись для текста: «ПД «ПД-9»», «Станция «S9»». */
+  | { readonly kind: 'unknown-area'; readonly area: string }
+  | { readonly kind: 'invalid-manual-value'; readonly value: number }
 
-export type BasisPart = 'line' | 'station' | 'work-kind'
+export type BasisPart = 'line' | 'station' | 'pd' | 'work-kind'
 
 /** Идентификатор и название объекта редакции: название идёт в текст ошибки. */
 export interface NamedRef {
@@ -27,6 +33,7 @@ export interface NamedRef {
 const BASIS_PART: Record<BasisPart, string> = {
   line: 'Направление',
   station: 'Станция',
+  pd: 'ПД',
   'work-kind': 'Вид работ',
 }
 
@@ -41,6 +48,12 @@ export function describePlanError(e: PlanError): string {
       return `Протяжение направления «${e.line}» задано участками другого направления`
     case 'unknown-included-in':
       return `Вид работ «${e.code}» входит в неизвестный вид «${e.includedIn}»`
+    case 'pd-off-line':
+      return `Граница ${e.pd} лежит на неизвестном направлении «${e.line}»`
+    case 'pd-overlap':
+      return `Границы ${e.a} и ${e.b} перекрываются`
+    case 'unknown-pd':
+      return `Станция «${e.station}» отнесена к неизвестному ПД «${e.pd}»`
     case 'duplicate-work':
       return `Работа ${e.id} уже есть в плане`
     case 'work-not-found':
@@ -63,5 +76,9 @@ export function describePlanError(e: PlanError): string {
       return `Объём должен быть неотрицательным числом, а не ${e.volume}`
     case 'volume-required':
       return `Укажите объём: для вида «${e.code}» в единицах «${e.unit}» он не считается по участкам`
+    case 'unknown-area':
+      return `${e.area} нет в редакции паспорта плана`
+    case 'invalid-manual-value':
+      return `Значение должно быть неотрицательным числом, а не ${e.value}`
   }
 }

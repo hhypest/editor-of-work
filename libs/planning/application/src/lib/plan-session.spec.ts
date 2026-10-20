@@ -7,6 +7,7 @@ import {
 import {
   createAnnualPlan,
   describePlanError,
+  planRows,
   samplePlanBasis,
   workVolume,
   type AnnualPlan,
@@ -21,6 +22,7 @@ import {
   openPlanSession,
   redoPlan,
   removeWorkFromPlan,
+  setPlanValue,
   undoPlan,
   type PlanSession,
   type WorkCommand,
@@ -175,5 +177,30 @@ describe('Сценарий: отмена и повтор', () => {
     session = undoPlan(session)
     expect(addWorkToPlan(session, pprk('61 км'), ids).ok).toBe(false)
     expect(canRedoPlan(session)).toBe(true)
+  })
+})
+
+describe('Сценарий: ручное значение в таблице', () => {
+  const pd1 = { kind: 'pd', pd: 'ПД-1' } as const
+
+  it('ввод в ячейку по цифрам — один шаг; значение помечено и отменяется', () => {
+    const first = add(newSession(), pprk('12 км'), sequentialIds('w'))
+    let session = first.session
+    for (const v of [1, 12, 12.5]) {
+      session = value(setPlanValue(session, pd1, 'overrides', 'ППР', v, { group: 'cell:ПД-1:ППР' }))
+    }
+    session = finishEditing(session)
+    expect(planRows(session.present, pd1, 'current')[0]).toMatchObject({
+      computed: 1,
+      value: 12.5,
+      manual: true,
+    })
+    session = undoPlan(session)
+    expect(planRows(session.present, pd1, 'current')[0]).toMatchObject({ value: 1, manual: false })
+  })
+
+  it('ошибка ручного значения не меняет план', () => {
+    const e = failure(setPlanValue(newSession(), pd1, 'needs', 'ППР', -3))
+    expect(e).toMatchObject({ kind: 'plan', errors: [{ kind: 'invalid-manual-value' }] })
   })
 })

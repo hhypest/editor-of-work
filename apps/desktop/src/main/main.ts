@@ -1,7 +1,8 @@
-import { app, BrowserWindow, ipcMain, net, protocol, session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, session } from 'electron'
 import { join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerIpcHandlers } from './ipc/handlers'
+import { registerPlanFileHandlers } from './ipc/plan-files'
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -89,6 +90,32 @@ if (!app.requestSingleInstanceLock()) {
     applySecurity()
     registerAppProtocol()
     registerIpcHandlers(ipcMain, app)
+    const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
+    const stopPlanFiles = registerPlanFileHandlers(
+      ipcMain,
+      {
+        async open() {
+          const chosen = await dialog.showOpenDialog({
+            title: 'Открыть план',
+            filters,
+            properties: ['openFile'],
+          })
+          return chosen.canceled ? undefined : chosen.filePaths[0]
+        },
+        async save() {
+          const chosen = await dialog.showSaveDialog({
+            title: 'Сохранить план',
+            filters,
+            defaultPath: 'План.ppr.json',
+          })
+          return chosen.canceled ? undefined : chosen.filePath
+        },
+      },
+      app.getVersion(),
+    )
+    app.once('will-quit', () => {
+      void stopPlanFiles()
+    })
     createMainWindow()
   })
 

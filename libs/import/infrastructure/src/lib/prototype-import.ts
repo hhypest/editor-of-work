@@ -10,6 +10,7 @@ import {
   parsePlaceSpec,
   placeLength,
   spanContains,
+  spanContainsPoint,
   spansOverlap,
   type Chainage,
   type IdGenerator,
@@ -136,7 +137,14 @@ export function importPrototype(
   }
   const pds: PrototypeTransfer['basis']['pds'][number][] = p.pd.map((pd, i) => {
     const segments = pd.segs.flatMap((s, n) => {
-      const result = span(s.line, s.from, s.to, `pd.${i}.segs.${n}`)
+      const path = `pd.${i}.segs.${n}`
+      const result = span(s.line, s.from, s.to, path)
+      const line = lines.find((candidate) => candidate.id === s.line)
+      if (result && (!line || !line.extent.some((extent) => spanContains(extent, result))))
+        errors.push({
+          path,
+          message: 'Граница ПД выходит за протяжение направления или пересекает его разрыв',
+        })
       return result ? [result] : []
     })
     if (segments.some((s, n) => segments.slice(n + 1).some((other) => spansOverlap(s, other))))
@@ -154,7 +162,7 @@ export function importPrototype(
         path: `stations.${i}.layout.tracks`,
         message: 'Идентификатор пути станции повторяется',
       })
-    const numbers = tracks.filter((t) => t.num).map((t) => t.num)
+    const numbers = tracks.map((t) => t.num || t.id)
     if (new Set(numbers).size !== numbers.length)
       errors.push({
         path: `stations.${i}.layout.tracks`,
@@ -180,14 +188,13 @@ export function importPrototype(
         at = point(s.pos[0].axis, `stations.${i}.pos.0.axis`)
       if (at)
         pd = pds.find((d) =>
-          d.segments.some(
-            (g) =>
-              g.line === pos.line &&
-              compareChainage(g.from, at) <= 0 &&
-              compareChainage(at, g.to) <= 0,
-          ),
+          d.segments.some((g) => spanContainsPoint(g, { line: pos.line, at })),
         )?.id
-      if (pd) warn(`stations.${i}.pd`, 'Привязка к ПД восстановлена по первой оси, как в прототипе')
+      if (pd)
+        warn(
+          `stations.${i}.pd`,
+          'Привязка к ПД восстановлена по первой оси; конец границы ПД не включён',
+        )
     }
     for (const key of Object.keys(s))
       if (!['id', 'name', 'pd'].includes(key))

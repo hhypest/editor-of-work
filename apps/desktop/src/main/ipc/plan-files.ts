@@ -1,4 +1,4 @@
-import { channels, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
+import { channels, planDocumentSchema, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
 import {
   decodePlan,
   encodePlan,
@@ -49,13 +49,25 @@ export function registerPlanFileHandlers(
     },
   )
 
+  function encodeDocument(plan: AnnualPlan): ReturnType<typeof encodePlan> {
+    const encoded = encodePlan(plan, appVersion)
+    if (encoded.ok && !planDocumentSchema.safeParse(encoded.value).success)
+      return {
+        ok: false,
+        error: {
+          kind: 'invalid-file',
+          message: 'План превышает допустимый размер. Текущий план не изменён.',
+        },
+      }
+    return encoded
+  }
+
   async function state(): Promise<Response> {
-    const encoded = current ? encodePlan(current, appVersion) : undefined
+    const encoded = current ? encodeDocument(current) : undefined
     if (encoded && !encoded.ok) return failure(encoded.error.message)
     const recovery = store ? await store.recovery() : undefined
     if (recovery && !recovery.ok) return failure(recovery.error.message)
-    const recovered =
-      recovery?.ok && recovery.value ? encodePlan(recovery.value, appVersion) : undefined
+    const recovered = recovery?.ok && recovery.value ? encodeDocument(recovery.value) : undefined
     if (recovered && !recovered.ok) return failure(recovered.error.message)
     return {
       status: 'ok',
@@ -80,6 +92,8 @@ export function registerPlanFileHandlers(
         const imported = buildImportedPlan(parsed.value)
         if (!imported.ok)
           return failure(imported.error.map((e) => `${e.path}: ${e.message}`).join('; '))
+        const encoded = encodeDocument(imported.value)
+        if (!encoded.ok) return failure(encoded.error.message)
         current = imported.value
         store = undefined
         dirty = true
@@ -92,6 +106,8 @@ export function registerPlanFileHandlers(
         const selected = new FilePlanStore(path, appVersion)
         const loaded = await selected.load()
         if (!loaded.ok) return failure(loaded.error.message)
+        const encoded = encodeDocument(loaded.value)
+        if (!encoded.ok) return failure(encoded.error.message)
         store = selected
         current = loaded.value
         dirty = false
@@ -101,6 +117,8 @@ export function registerPlanFileHandlers(
       case 'save': {
         const plan = decodePlan(request.document)
         if (!plan.ok) return failure(plan.error.message)
+        const encoded = encodeDocument(plan.value)
+        if (!encoded.ok) return failure(encoded.error.message)
         let selected = store
         if (!selected || request.saveAs) {
           const path = await dialogs.save()
@@ -118,6 +136,8 @@ export function registerPlanFileHandlers(
       case 'update': {
         const plan = decodePlan(request.document)
         if (!plan.ok) return failure(plan.error.message)
+        const encoded = encodeDocument(plan.value)
+        if (!encoded.ok) return failure(encoded.error.message)
         current = plan.value
         dirty = true
         return state()
@@ -130,6 +150,8 @@ export function registerPlanFileHandlers(
           const recovery = await store.recovery()
           if (!recovery.ok) return failure(recovery.error.message)
           if (recovery.value) {
+            const encoded = encodeDocument(recovery.value)
+            if (!encoded.ok) return failure(encoded.error.message)
             current = recovery.value
             dirty = true
           }

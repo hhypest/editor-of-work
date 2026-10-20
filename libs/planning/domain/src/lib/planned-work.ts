@@ -27,7 +27,12 @@ export type StationObject =
 
 /** Место работы: участки на направлении или станция, путь или стрелочный перевод. */
 export type WorkPlace =
-  | { readonly kind: 'line'; readonly spec: PlaceSpec }
+  | {
+      readonly kind: 'line'
+      readonly spec: PlaceSpec
+      readonly station?: string
+      readonly object?: StationObject
+    }
   | { readonly kind: 'station'; readonly station: string; readonly object?: StationObject }
 
 /** Данные работы, которые вводит пользователь. */
@@ -94,9 +99,21 @@ function stationPlaceErrors(
 }
 
 function placeErrors(place: WorkPlace, basis: PlanBasis): PlanError[] {
-  return place.kind === 'line'
-    ? linePlaceErrors(place.spec, basis)
-    : stationPlaceErrors(place, basis)
+  if (place.kind === 'station') return stationPlaceErrors(place, basis)
+  return [
+    ...linePlaceErrors(place.spec, basis),
+    ...(place.object && place.station === undefined ? [{ kind: 'station-required' } as const] : []),
+    ...(place.station === undefined
+      ? []
+      : stationPlaceErrors(
+          {
+            kind: 'station',
+            station: place.station,
+            ...(place.object ? { object: place.object } : {}),
+          },
+          basis,
+        )),
+  ]
 }
 
 function volumeErrors(input: WorkInput, kind: WorkKind | undefined): PlanError[] {
@@ -153,6 +170,8 @@ function ownPlace(place: WorkPlace): WorkPlace {
     return Object.freeze({
       kind: 'line',
       spec: Object.freeze({ line: place.spec.line, items: Object.freeze(items) }),
+      ...(place.station === undefined ? {} : { station: place.station }),
+      ...(place.object ? { object: Object.freeze({ ...place.object }) } : {}),
     })
   }
   const object = place.object
@@ -192,6 +211,9 @@ function sameItem(a: PlaceItem, b: PlaceItem): boolean {
 function samePlace(a: WorkPlace, b: WorkPlace): boolean {
   if (a.kind === 'line' && b.kind === 'line') {
     return (
+      a.station === b.station &&
+      a.object?.kind === b.object?.kind &&
+      a.object?.number === b.object?.number &&
       a.spec.line === b.spec.line &&
       a.spec.items.length === b.spec.items.length &&
       a.spec.items.every((item, i) => {

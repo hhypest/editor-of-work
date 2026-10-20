@@ -94,6 +94,14 @@ if (!app.requestSingleInstanceLock()) {
     const stopPlanFiles = registerPlanFileHandlers(
       ipcMain,
       {
+        async openPrototype() {
+          const chosen = await dialog.showOpenDialog({
+            title: 'Импорт проекта HTML-прототипа',
+            filters: [{ name: 'Проект прототипа', extensions: ['json'] }],
+            properties: ['openFile'],
+          })
+          return chosen.canceled ? undefined : chosen.filePaths[0]
+        },
         async open() {
           const chosen = await dialog.showOpenDialog({
             title: 'Открыть план',

@@ -6,10 +6,15 @@ import {
   startPlanAutosave,
 } from '@eow/planning/infrastructure'
 import type { AnnualPlan } from '@eow/planning/domain'
+import { importPrototype } from '@eow/import/infrastructure'
+import { buildImportedPlan } from '@eow/planning/application'
+import { readFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { registerHandler, type IpcMainLike } from './register'
 
 /** Диалоги main. Через IPC путь не принимается и не возвращается. */
 export interface PlanFileDialogs {
+  openPrototype(): Promise<string | undefined>
   open(): Promise<string | undefined>
   save(): Promise<string | undefined>
 }
@@ -62,6 +67,25 @@ export function registerPlanFileHandlers(
 
   async function handle(request: Request): Promise<Response> {
     switch (request.action) {
+      case 'importPrototype': {
+        const path = await dialogs.openPrototype()
+        if (!path) return { status: 'cancelled' }
+        const parsed = importPrototype(await readFile(path, 'utf8'), {
+          edition: request.edition,
+          ids: { next: randomUUID },
+          ...(request.catalog === undefined ? {} : { catalog: request.catalog }),
+        })
+        if (!parsed.ok)
+          return failure(parsed.error.map((e) => `${e.path}: ${e.message}`).join('; '))
+        const imported = buildImportedPlan(parsed.value)
+        if (!imported.ok)
+          return failure(imported.error.map((e) => `${e.path}: ${e.message}`).join('; '))
+        current = imported.value
+        store = undefined
+        dirty = true
+        autosaveError = null
+        return state()
+      }
       case 'open': {
         const path = await dialogs.open()
         if (!path) return { status: 'cancelled' }

@@ -1,0 +1,31 @@
+# Зависимости и сборка
+node_modules/
+dist/
+tmp/
+out/
+coverage/
+.nx/
+.angular/
+release/
+
+# Служебные данные дистанции — никогда не в Git (ADR-0008)
+private-data/
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.ppr.json
+*.ppr.json.autosave
+*.bak
+
+# Отчёты тестов
+playwright-report/
+test-results/
+
+# Окружение и редакторы
+.env
+.env.*
+.DS_Store
+Thumbs.db
+.idea/
+*.log

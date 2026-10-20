@@ -57,6 +57,38 @@ describe('Chainage', () => {
     expect(chainage(1.5, 0, uzRz).ok).toBe(false)
     expect(chainage(1, -1, uzRz).ok).toBe(false)
   })
+
+  it('отклоняет километр за пределами точной целой арифметики', () => {
+    expect(failure(parseChainage('9007199254740993 км', uzRz)).kind).toBe('value')
+    expect(chainage(Number.MAX_SAFE_INTEGER + 1, 0, uzRz).ok).toBe(false)
+    expect(offset(at(1, 0), 2 ** 53, KmLengths.standard()).ok).toBe(false)
+  })
+})
+
+describe('KmLengths', () => {
+  it('отклоняет повтор километра, даже если одна из длин стандартная', () => {
+    expect(
+      failure(
+        KmLengths.of([
+          [5, 972],
+          [5, 1000],
+        ]),
+      ),
+    ).toEqual({ kind: 'duplicate-km', km: 5 })
+    expect(
+      failure(
+        KmLengths.of([
+          [5, 1000],
+          [5, 972],
+        ]),
+      ),
+    ).toEqual({ kind: 'duplicate-km', km: 5 })
+  })
+
+  it('отклоняет числа за пределами точной целой арифметики', () => {
+    expect(KmLengths.of([[2 ** 53, 972]]).ok).toBe(false)
+    expect(KmLengths.of([[5, 2 ** 53]]).ok).toBe(false)
+  })
 })
 
 describe('distance', () => {
@@ -74,9 +106,9 @@ describe('distance', () => {
 
 describe('пикеты', () => {
   it('пк 1–9 по 100 м, пк 10 забирает всю разницу', () => {
-    const pk9 = picketBounds(374, 9, uzRz)
-    const pk10s = picketBounds(374, 10, uzRz)
-    const pk10l = picketBounds(375, 10, uzRz)
+    const pk9 = picketBounds(374, 9)
+    const pk10s = picketBounds(374, 10)
+    const pk10l = picketBounds(375, 10)
     expect(distance(value(pk9).start, value(pk9).end, uzRz)).toBe(100)
     expect(distance(value(pk10s).start, value(pk10s).end, uzRz)).toBe(72)
     expect(distance(value(pk10l).start, value(pk10l).end, uzRz)).toBe(130)
@@ -88,14 +120,14 @@ describe('пикеты', () => {
   })
 
   it('пикет 11 и пикет 0 — ошибка с понятным текстом', () => {
-    expect(describeChainageError(failure(picketBounds(227, 11, uzRz)))).toBe(
-      'Пикет 11 вне 1–10 (227 км)',
-    )
-    expect(picketBounds(227, 0, uzRz).ok).toBe(false)
+    expect(describeChainageError(failure(picketBounds(227, 11)))).toBe('Пикет 11 вне 1–10 (227 км)')
+    expect(picketBounds(227, 0).ok).toBe(false)
   })
 
-  it('километр короче девяти пикетов не делится на пикеты', () => {
-    expect(picketBounds(5, 1, lengths([[5, 850]])).ok).toBe(false)
+  it('километр не длиннее девяти пикетов не принимается в таблицу длин', () => {
+    expect(failure(KmLengths.of([[5, 850]])).kind).toBe('km-too-short-for-pickets')
+    expect(failure(KmLengths.of([[5, 900]])).kind).toBe('km-too-short-for-pickets')
+    expect(KmLengths.of([[5, 901]]).ok).toBe(true)
   })
 })
 
@@ -118,8 +150,14 @@ describe('формат и разбор', () => {
   })
 
   it('сообщает о синтаксической ошибке и о метре вне километра', () => {
-    expect(describeParseError(failure(parseChainage('222,9', KmLengths.standard())))).toContain(
-      'Не удалось разобрать «222,9»',
+    expect(describeParseError(failure(parseChainage('222,9', KmLengths.standard())))).toBe(
+      'Не удалось разобрать «222,9»: ожидается точка вида «222+916» или «222 км 916 м»',
+    )
+    expect(
+      describeParseError(failure(parseChainage('227 км пк 4', KmLengths.standard()))),
+    ).toContain('ожидается точка')
+    expect(describeParseError(failure(parsePicketRef('222+916')))).toBe(
+      'Не удалось разобрать «222+916»: ожидается пикет вида «227 км пк 4»',
     )
     expect(describeParseError(failure(parseChainage('374+990', uzRz)))).toBe(
       '990 м вне 374 км: его длина 972 м',
@@ -191,7 +229,7 @@ describe('свойства километража', () => {
         let total = 0
         let prevEnd: Chainage = { km, m: 0 }
         for (let pk = 1; pk <= 10; pk++) {
-          const bounds = value(picketBounds(km, pk, l))
+          const bounds = value(picketBounds(km, pk))
           expect(bounds.start).toEqual(prevEnd)
           total += distance(bounds.start, bounds.end, l)
           prevEnd = bounds.end
@@ -203,8 +241,8 @@ describe('свойства километража', () => {
 
   it('точка лежит в своём пикете', () => {
     fc.assert(
-      fc.property(arbCase, ([l, a]) => {
-        const bounds = value(picketBounds(a.km, picketOf(a), l))
+      fc.property(arbCase, ([, a]) => {
+        const bounds = value(picketBounds(a.km, picketOf(a)))
         expect(compareChainage(bounds.start, a)).toBeLessThanOrEqual(0)
         expect(compareChainage(a, bounds.end)).toBeLessThan(0)
       }),

@@ -8,7 +8,7 @@ import {
 import { err, ok, type Result } from './result'
 
 export type ChainageParseError =
-  | { readonly kind: 'syntax'; readonly text: string }
+  | { readonly kind: 'syntax'; readonly text: string; readonly expected: 'point' | 'picket' }
   | { readonly kind: 'value'; readonly text: string; readonly cause: ChainageError }
 
 /** Ссылка на пикет «227 км пк 4». */
@@ -35,7 +35,7 @@ export function parseChainage(
 ): Result<Chainage, ChainageParseError> {
   const t = normalize(text)
   const match = PLUS.exec(t) ?? KM_M.exec(t)
-  if (!match?.[1]) return err({ kind: 'syntax', text })
+  if (!match?.[1]) return err({ kind: 'syntax', text, expected: 'point' })
   const result = chainage(Number(match[1]), Number(match[2] ?? 0), lengths)
   return result.ok ? result : err({ kind: 'value', text, cause: result.error })
 }
@@ -43,14 +43,16 @@ export function parseChainage(
 /** Разбор ссылки на пикет: «227 км пк 4», «227км пк4». Номер пикета проверяется отдельно. */
 export function parsePicketRef(text: string): Result<PicketRef, ChainageParseError> {
   const match = KM_PK.exec(normalize(text))
-  if (!match?.[1] || !match[2]) return err({ kind: 'syntax', text })
+  if (!match?.[1] || !match[2]) return err({ kind: 'syntax', text, expected: 'picket' })
   return ok({ km: Number(match[1]), pk: Number(match[2]) })
 }
 
 export function describeParseError(e: ChainageParseError): string {
   switch (e.kind) {
     case 'syntax':
-      return `Не удалось разобрать «${e.text}»: ожидается «222+916», «222 км 916 м» или «227 км пк 4»`
+      return e.expected === 'point'
+        ? `Не удалось разобрать «${e.text}»: ожидается точка вида «222+916» или «222 км 916 м»`
+        : `Не удалось разобрать «${e.text}»: ожидается пикет вида «227 км пк 4»`
     case 'value':
       return describeChainageError(e.cause)
   }

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { defineChannel } from './channel'
 import { planFile } from './plan-file-channel'
+import { passport } from './passport-channel'
 
 /** Сведения о программе: имя и версия. Первый канал, на котором проверяется контракт. */
 export const appInfo = defineChannel(
@@ -18,6 +19,7 @@ export const appInfo = defineChannel(
 export const channels = {
   appInfo,
   planFile,
+  passport,
 } as const
 
 export type Channels = typeof channels

@@ -1,6 +1,6 @@
 // Сборка main- и preload-процессов Electron в dist/apps/desktop.
 import { build } from 'esbuild'
-import { readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
@@ -29,6 +29,11 @@ await build({
   ...common,
   entryPoints: { preload: resolve(here, 'src/preload/preload.ts') },
   outdir,
+})
+
+// SQL остаётся отдельными нумерованными файлами для проверки истории миграций.
+cpSync(resolve(root, 'libs/passport/infrastructure/migrations'), resolve(outdir, 'migrations'), {
+  recursive: true,
 })
 
 // package.json рядом с main.js: из него Electron берёт имя и версию программы (app.getName/getVersion).

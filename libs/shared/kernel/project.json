@@ -1,0 +1,23 @@
+{
+  "name": "shared-kernel",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shared/kernel/src",
+  "projectType": "library",
+  "tags": [
+    "type:kernel",
+    "scope:shared"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/shared/kernel/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "name": "editor-of-work",
+  "version": "0.0.0",
+  "description": "Паспорт дистанции инфраструктуры и годовые схемы ППР",
+  "license": "MIT",
+  "author": "Манченко Иван Григорьевич",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hhypest/editor-of-work.git"
+  },
+  "private": true,
+  "scripts": {
+    "build": "nx run-many -t build",
+    "test": "nx run-many -t test",
+    "lint": "nx run-many -t lint",
+    "typecheck": "nx run-many -t typecheck"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "devDependencies": {
+    "@analogjs/vite-plugin-angular": "~2.9.0",
+    "@analogjs/vitest-angular": "~2.9.0",
+    "@angular-devkit/core": "~22.2.3",
+    "@angular-devkit/schematics": "~22.2.3",
+    "@angular/build": "~22.2.3",
+    "@angular/cli": "~22.2.3",
+    "@angular/compiler-cli": "~22.2.3",
+    "@angular/language-service": "~22.2.3",
+    "@eslint/js": "^9.8.0",
+    "@nx/angular": "23.3.0",
+    "@nx/eslint": "23.3.0",
+    "@nx/eslint-plugin": "23.3.0",
+    "@nx/js": "23.3.0",
+    "@nx/vite": "23.3.0",
+    "@nx/vitest": "23.3.0",
+    "@nx/web": "23.3.0",
+    "@nx/workspace": "23.3.0",
+    "@oxc-project/runtime": "^0.115.0",
+    "@schematics/angular": "~22.2.3",
+    "@swc/helpers": "~0.5.18",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/utils": "^8.58.0",
+    "@vitest/coverage-v8": "^4.0.0",
+    "@vitest/ui": "^4.0.0",
+    "angular-eslint": "^22.6.0",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^10.0.0",
+    "jsdom": "^27.1.0",
+    "nx": "23.3.0",
+    "tslib": "^2.3.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "^8.58.0",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.8"
+  },
+  "dependencies": {
+    "@angular/common": "~22.2.3",
+    "@angular/compiler": "~22.2.3",
+    "@angular/core": "~22.2.3",
+    "@angular/forms": "~22.2.3",
+    "@angular/platform-browser": "~22.2.3",
+    "@angular/router": "~22.2.3",
+    "rxjs": "~7.8.0"
+  },
+  "overrides": {
+    "undici": "^7.30.1"
+  }
+}

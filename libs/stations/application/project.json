@@ -1,0 +1,23 @@
+{
+  "name": "stations-application",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/stations/application/src",
+  "projectType": "library",
+  "tags": [
+    "type:application",
+    "scope:stations"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/stations/application/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

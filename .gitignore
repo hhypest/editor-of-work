@@ -29,3 +29,10 @@ test-results/
 Thumbs.db
 .idea/
 *.log
+
+# Vitest
+.vitest/
+vitest.config.*.timestamp*
+.vitest
+
+.angular

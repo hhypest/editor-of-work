@@ -1,0 +1,23 @@
+{
+  "name": "import-infrastructure",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/import/infrastructure/src",
+  "projectType": "library",
+  "tags": [
+    "type:infrastructure",
+    "scope:import"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/import/infrastructure/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

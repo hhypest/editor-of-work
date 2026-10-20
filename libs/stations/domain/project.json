@@ -1,0 +1,23 @@
+{
+  "name": "stations-domain",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/stations/domain/src",
+  "projectType": "library",
+  "tags": [
+    "type:domain",
+    "scope:stations"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/stations/domain/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

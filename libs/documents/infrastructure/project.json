@@ -1,0 +1,23 @@
+{
+  "name": "documents-infrastructure",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/documents/infrastructure/src",
+  "projectType": "library",
+  "tags": [
+    "type:infrastructure",
+    "scope:documents"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/documents/infrastructure/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

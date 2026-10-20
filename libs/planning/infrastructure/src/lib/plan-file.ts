@@ -28,20 +28,34 @@ import type { PlanStoreError } from '@eow/planning/application'
 import {
   formatHeader,
   planFileSchema,
+  planFileV1Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 1
+export const PLAN_FORMAT_VERSION = 2
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
   return { kind: 'invalid-file', message: `Не удалось открыть план: ${message}` }
 }
 
-/** В будущих версиях здесь добавляются последовательные преобразования vN → vN+1. */
-const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map()
+/** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
+const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    1,
+    (file) => {
+      const parsed = planFileV1Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 2 },
+        plan: { ...parsed.data.plan, prototype: null },
+      }
+    },
+  ],
+])
 
 export function readPlanFile(text: string): FileResult<PlanFile> {
   let value: unknown
@@ -108,6 +122,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
     format: { version: PLAN_FORMAT_VERSION, appVersion },
     edition: { ...basis.edition, checksum: checksum(snapshot), snapshot },
     plan: {
+      prototype: plan.prototype ?? null,
       year: plan.year,
       approval: plan.approval,
       works: plan.works.map((w) => ({ ...w, volume: w.volume ?? null })),
@@ -146,7 +161,14 @@ function restoreBasis(file: PlanFile): FileResult<PlanBasis> {
   const basis = planBasis({
     edition: { number: file.edition.number, date: file.edition.date },
     lines,
-    stations: snapshot.stations.map((s) => ({ ...s, pd: s.pd ?? undefined })),
+    stations: snapshot.stations.map((s) => {
+      const { legacyLayout, ...rest } = s
+      return {
+        ...rest,
+        pd: s.pd ?? undefined,
+        ...(legacyLayout === undefined ? {} : { legacyLayout }),
+      }
+    }),
     pds: snapshot.pds,
     workKinds: snapshot.workKinds.map((k) => {
       const { includedIn, ...rest } = k
@@ -181,7 +203,12 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
     const p = work.place
     const place: WorkPlace =
       p.kind === 'line'
-        ? p
+        ? {
+            kind: 'line',
+            spec: p.spec,
+            ...(p.station === undefined ? {} : { station: p.station }),
+            ...(p.object ? { object: p.object } : {}),
+          }
         : p.object
           ? { kind: 'station', station: p.station, object: p.object }
           : { kind: 'station', station: p.station }
@@ -208,7 +235,17 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
       }
     }
   }
-  return ok(plan)
+  return ok(
+    file.plan.prototype === null
+      ? plan
+      : {
+          ...plan,
+          prototype: Object.freeze({
+            source: file.plan.prototype.source,
+            report: Object.freeze(file.plan.prototype.report.map((r) => Object.freeze({ ...r }))),
+          }),
+        },
+  )
 }
 
 export function decodePlan(text: string): FileResult<AnnualPlan> {

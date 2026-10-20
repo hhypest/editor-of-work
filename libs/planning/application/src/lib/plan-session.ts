@@ -40,7 +40,13 @@ export function openPlanSession(plan: AnnualPlan): PlanSession {
 
 /** Место в том виде, в каком его вводит пользователь. */
 export type PlaceCommand =
-  | { readonly kind: 'line'; readonly line: string; readonly text: string }
+  | {
+      readonly kind: 'line'
+      readonly line: string
+      readonly text: string
+      readonly station?: string
+      readonly object?: StationObject
+    }
   | { readonly kind: 'station'; readonly station: string; readonly object?: StationObject }
 
 export interface WorkCommand {
@@ -66,7 +72,12 @@ function resolvePlace(place: PlaceCommand, plan: AnnualPlan): Result<WorkPlace, 
   if (!line) return err(planError([{ kind: 'unknown-line', line: place.line }]))
   const spec = parsePlaceSpec(place.text, line.id, line.kmLengths)
   return spec.ok
-    ? ok({ kind: 'line', spec: spec.value })
+    ? ok({
+        kind: 'line',
+        spec: spec.value,
+        ...(place.station === undefined ? {} : { station: place.station }),
+        ...(place.object ? { object: place.object } : {}),
+      })
     : err({ kind: 'place', errors: spec.error })
 }
 

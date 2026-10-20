@@ -8,6 +8,13 @@ const document = z
 export const planFile = defineChannel(
   'plan:file',
   z.discriminatedUnion('action', [
+    z
+      .object({
+        action: z.literal('importPrototype'),
+        edition: z.object({ number: z.string().min(1), date: z.iso.date() }).strict(),
+        catalog: z.array(z.json()).optional(),
+      })
+      .strict(),
     z.object({ action: z.literal('open') }).strict(),
     z.object({ action: z.literal('save'), document, saveAs: z.boolean() }).strict(),
     z.object({ action: z.literal('update'), document }).strict(),

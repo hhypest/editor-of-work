@@ -133,6 +133,6 @@ export function shareIn(work: PlannedWork, area: PlanArea, basis: PlanBasis): nu
     case 'pd':
       return workShares(work, basis).byPd.get(area.pd) ?? 0
     case 'station':
-      return work.place.kind === 'station' && work.place.station === area.station ? 1 : 0
+      return work.place.station === area.station ? 1 : 0
   }
 }

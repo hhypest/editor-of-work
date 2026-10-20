@@ -64,7 +64,7 @@ describe('файл плана на диске', () => {
   )
 
   it('не перезаписывает файл будущей версии даже без его открытия', async () => {
-    const future = '{"format":{"version":2},"data":"будущие данные"}'
+    const future = '{"format":{"version":3},"data":"будущие данные"}'
     await writeFile(path, future)
     expect(await store.save(plan(2027))).toMatchObject({
       ok: false,

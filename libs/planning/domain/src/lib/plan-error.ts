@@ -24,6 +24,7 @@ export type PlanError =
   | { readonly kind: 'unknown-track'; readonly station: NamedRef; readonly number: string }
   | { readonly kind: 'unknown-switch'; readonly station: NamedRef; readonly number: string }
   | { readonly kind: 'empty-place' }
+  | { readonly kind: 'station-required' }
   | { readonly kind: 'outside-line'; readonly line: NamedRef; readonly place: string }
   | { readonly kind: 'invalid-volume'; readonly volume: number }
   | { readonly kind: 'volume-required'; readonly code: string; readonly unit: string }
@@ -87,6 +88,8 @@ export function describePlanError(e: PlanError): string {
       return `На станции «${e.station.name}» нет стрелочного перевода № ${e.number}`
     case 'empty-place':
       return 'Укажите место работы: участки на направлении или станцию'
+    case 'station-required':
+      return 'Привязка работы к пути или стрелке требует станции'
     case 'outside-line':
       return `${e.place} — вне протяжения направления «${e.line.name}» в дистанции`
     case 'invalid-volume':

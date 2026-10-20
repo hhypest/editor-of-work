@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { channels, type RequestOf } from '@eow/ipc/contracts'
@@ -21,6 +21,7 @@ describe('планы в main', () => {
   let stop: () => Promise<void>
   let listener: (event: unknown, ...args: unknown[]) => unknown
   const dialogs = {
+    openPrototype: vi.fn<() => Promise<string | undefined>>(),
     open: vi.fn<() => Promise<string | undefined>>(),
     save: vi.fn<() => Promise<string | undefined>>(),
   }
@@ -31,6 +32,7 @@ describe('планы в main', () => {
     directory = await mkdtemp(join(tmpdir(), 'eow-main-'))
     path = join(directory, 'test.ppr.json')
     dialogs.open.mockReset().mockResolvedValue(path)
+    dialogs.openPrototype.mockReset().mockResolvedValue(path)
     dialogs.save.mockReset().mockResolvedValue(path)
     const ipc: IpcMainLike = {
       handle: (_name, fn) => {
@@ -80,6 +82,99 @@ describe('планы в main', () => {
       'неверный запрос',
     )
   })
+
+  it('импортирует выбранный JSON в новый план и сохраняет его отдельным файлом', async () => {
+    const sourcePath = join(directory, 'legacy.json')
+    const source = JSON.stringify({
+      v: 1,
+      meta: { year: 2027 },
+      catalog: [{ id: 'X', name: 'Тест', group: 'cur', unit: 'км', inTable: true }],
+      lines: [{ id: 'L', name: 'Тестовая линия', from: 10, to: 20 }],
+      stations: [
+        {
+          id: 'S',
+          name: 'Тестовая станция',
+          layout: {
+            tracks: [{ id: 't', num: 'I', kind: 'главный', row: 2, x1: 4, x2: 40, full: 900 }],
+            objects: [{ id: 'o', type: 'здание', text: 'Тест', x: 20, y: -1, w: 3, h: 1 }],
+          },
+        },
+      ],
+      works: [{ id: 'w', kind: 'X', line: 'L', rangesText: '11 км — 12 км', qty: null }],
+    })
+    await writeFile(sourcePath, source)
+    dialogs.openPrototype.mockResolvedValue(sourcePath)
+    const imported = await invoke({
+      action: 'importPrototype',
+      edition: { number: 'test', date: '2026-10-20' },
+    })
+    expect(imported.status).toBe('ok')
+    if (imported.status !== 'ok' || !imported.document) throw new Error('нет плана')
+    expect(decodePlan(imported.document)).toMatchObject({
+      ok: true,
+      value: { works: [{ id: 'w' }] },
+    })
+    await invoke({ action: 'save', document: imported.document, saveAs: false })
+    expect(await readFile(sourcePath, 'utf8')).toBe(source)
+    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { prototype: { source } },
+    })
+    const reopened = decodePlan(await readFile(path, 'utf8'))
+    if (!reopened.ok) throw new Error('нет повторно открытого плана')
+    expect(reopened.value.basis.stations.get('S')?.legacyLayout).toMatchObject({
+      tracks: [{ id: 't', number: 'I', row: 2, x1: 4, x2: 40, fullMeters: 900 }],
+      objects: [{ id: 'o', type: 'здание', x: 20, y: -1, width: 3, height: 1 }],
+    })
+  })
+
+  it('ошибка импорта оставляет ранее открытый план', async () => {
+    await invoke({ action: 'update', document: document(2026) })
+    await writeFile(path, '{')
+    expect(
+      await invoke({ action: 'importPrototype', edition: { number: 'test', date: '2026-10-20' } }),
+    ).toMatchObject({ status: 'error' })
+    expect(await invoke({ action: 'state' })).toMatchObject({
+      status: 'ok',
+      document: document(2026),
+    })
+  })
+
+  it.each(['kind', 'outside', 'duplicate'] as const)(
+    'доменная ошибка %s отклоняет весь импорт без смены текущего плана',
+    async (change) => {
+      await invoke({ action: 'update', document: document(2026) })
+      const project = {
+        v: 1,
+        meta: { year: 2027 },
+        catalog: [{ id: 'X', name: 'Тест', group: 'cur', unit: 'км', inTable: true }],
+        lines: [{ id: 'L', name: 'Тест', from: 10, to: 20 }],
+        works: [{ id: 'w', kind: 'X', line: 'L', rangesText: '11 км — 12 км', qty: null }],
+      }
+      switch (change) {
+        case 'kind':
+          project.works[0]!.kind = 'нет'
+          break
+        case 'outside':
+          project.works[0]!.rangesText = '25 км — 26 км'
+          break
+        case 'duplicate':
+          project.works.push({ ...project.works[0]! })
+          break
+      }
+      await writeFile(path, JSON.stringify(project))
+      expect(
+        await invoke({
+          action: 'importPrototype',
+          edition: { number: 'test', date: '2026-10-20' },
+        }),
+      ).toMatchObject({ status: 'error' })
+      expect(await invoke({ action: 'state' })).toMatchObject({
+        status: 'ok',
+        document: document(2026),
+      })
+    },
+  )
 
   it('открывает основной документ и восстанавливает автокопию только по выбору', async () => {
     await invoke({ action: 'save', document: document(2026), saveAs: false })

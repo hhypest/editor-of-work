@@ -37,6 +37,8 @@ export interface BasisLine {
 }
 
 export interface BasisStation {
+  /** Координаты сетки прототипа, а не метры пути или мм листа. */
+  readonly legacyLayout?: LegacyStationLayout
   readonly id: string
   readonly name: string
   /** Номера станционных путей. */
@@ -45,6 +47,33 @@ export interface BasisStation {
   readonly switches: readonly string[]
   /** ПД, к которому относится станция (форма «Станции → ПД»). */
   readonly pd: string | undefined
+}
+
+/** Перенесённая раскладка в координатах сетки HTML-прототипа. */
+export interface LegacyStationLayout {
+  readonly tracks: readonly {
+    readonly id: string
+    readonly number: string
+    readonly purpose: string
+    readonly label: string
+    readonly row: number
+    readonly x1: number | null
+    readonly x2: number | null
+    readonly fullMeters: number | null
+    readonly usefulMeters: number | null
+    readonly capacity: string
+    readonly left: { readonly switchNumber: string; readonly parent: string | null }
+    readonly right: { readonly switchNumber: string; readonly parent: string | null }
+  }[]
+  readonly objects: readonly {
+    readonly id: string
+    readonly type: string
+    readonly text: string
+    readonly x: number
+    readonly y: number | null
+    readonly width: number | null
+    readonly height: number | null
+  }[]
 }
 
 /** Линейный участок (ПД) и его границы на главных путях. */
@@ -95,11 +124,30 @@ function index<T>(
   return ok(map)
 }
 
+function ownStation(station: BasisStation): BasisStation {
+  if (!station.legacyLayout) return station
+  return Object.freeze({
+    ...station,
+    legacyLayout: Object.freeze({
+      tracks: Object.freeze(
+        station.legacyLayout.tracks.map((t) =>
+          Object.freeze({
+            ...t,
+            left: Object.freeze({ ...t.left }),
+            right: Object.freeze({ ...t.right }),
+          }),
+        ),
+      ),
+      objects: Object.freeze(station.legacyLayout.objects.map((o) => Object.freeze({ ...o }))),
+    }),
+  })
+}
+
 /** Собрать срез: идентификаторы уникальны, протяжение лежит на своём направлении. */
 export function planBasis(input: PlanBasisInput): Result<PlanBasis, PlanError> {
   const lines = index(input.lines, (l) => l.id, 'line')
   if (!lines.ok) return lines
-  const stations = index(input.stations, (s) => s.id, 'station')
+  const stations = index(input.stations.map(ownStation), (s) => s.id, 'station')
   if (!stations.ok) return stations
   const workKinds = index(input.workKinds, (k) => k.code, 'work-kind')
   if (!workKinds.ok) return workKinds

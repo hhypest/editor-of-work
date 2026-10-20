@@ -66,6 +66,11 @@
 | Редакция паспорта                  | `PassportEdition` |
 | Годовой план                       | `AnnualPlan`      |
 | Работа                             | `PlannedWork`     |
+| Срез редакции в плане              | `PlanBasis`       |
+| Вид работ                          | `WorkKind`        |
+| Объём                              | `Volume`          |
+| Гриф утверждения                   | `Approval`        |
+| История отмены                     | `History`         |
 | Переезд                            | `LevelCrossing`   |
 | Стрелочный перевод                 | `Switch`          |
 | Период действия                    | `ValidityPeriod`  |

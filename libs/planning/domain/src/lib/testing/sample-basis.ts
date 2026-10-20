@@ -1,0 +1,47 @@
+import { chainage, KmLengths, type Chainage, type TrackSpan } from '@eow/shared/kernel'
+import { planBasis, type PlanBasis } from '../plan-basis'
+
+function lengthsOrThrow(entries: [number, number][]): KmLengths {
+  const r = KmLengths.of(entries)
+  if (!r.ok) throw new Error(`неверная таблица длин: ${r.error.kind}`)
+  return r.value
+}
+
+function point(km: number, m: number, lengths: KmLengths): Chainage {
+  const r = chainage(km, m, lengths)
+  if (!r.ok) throw new Error(`неверная точка ${km}+${m}`)
+  return r.value
+}
+
+/**
+ * Вымышленный срез редакции для тестов и примеров (ADR-0008).
+ * Направление «L1» — два участка протяжения, между ними чужая дистанция (25–30 км);
+ * 20 км короче обычного (964 м). Станция «S1» с путями 1–3 и стрелками 1, 3, 5.
+ */
+export function samplePlanBasis(): PlanBasis {
+  const lengths = lengthsOrThrow([[20, 964]])
+  const span = (from: [number, number], to: [number, number]): TrackSpan => ({
+    line: 'L1',
+    from: point(from[0], from[1], lengths),
+    to: point(to[0], to[1], lengths),
+  })
+  const r = planBasis({
+    edition: { number: '7', date: '2026-01-15' },
+    lines: [
+      {
+        id: 'L1',
+        name: 'Северная — Южная, 1',
+        extent: [span([10, 0], [25, 0]), span([30, 0], [60, 500])],
+        kmLengths: lengths,
+      },
+    ],
+    stations: [{ id: 'S1', name: 'Озёрная', tracks: ['1', '2', '3'], switches: ['1', '3', '5'] }],
+    workKinds: [
+      { code: 'ППР', name: 'Планово-предупредительная выправка', unit: 'км' },
+      { code: 'ППРК', name: 'ППРК (входит в ППР)', unit: 'км', includedIn: 'ППР' },
+      { code: 'КСП', name: 'Капитальный ремонт стрелочных переводов', unit: 'компл' },
+    ],
+  })
+  if (!r.ok) throw new Error(`неверный срез: ${r.error.kind}`)
+  return r.value
+}

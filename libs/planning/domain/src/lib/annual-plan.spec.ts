@@ -2,6 +2,7 @@ import { parsePlaceSpec, type PlaceSpec, type Result } from '@eow/shared/kernel'
 import {
   addWork,
   createAnnualPlan,
+  MIN_PLAN_YEAR,
   findWork,
   removeWork,
   setApproval,
@@ -67,7 +68,7 @@ describe('AnnualPlan: создание и гриф', () => {
     expect(errorKinds(createAnnualPlan(27, basis))).toContain('invalid-year')
     expect(errorKinds(createAnnualPlan(2027.5, basis))).toContain('invalid-year')
     expect(errorKinds(setApproval(emptyPlan(), { title: 'Начальник', name: '', year: 0 }))).toEqual(
-      ['invalid-year'],
+      ['invalid-approval-year'],
     )
     expect(
       value(setApproval(emptyPlan(), { title: 'Начальник', name: '', year: 2026 })).approval.title,
@@ -158,7 +159,7 @@ describe('AnnualPlan: инварианты работы', () => {
 
   it('собирает все нарушения сразу', () => {
     const r = addWork(emptyPlan(), w1, onLine('61 км', { kind: 'НЕТ', volume: -2 }))
-    expect(errorKinds(r)).toEqual(['unknown-work-kind', 'outside-line'])
+    expect(errorKinds(r)).toEqual(['unknown-work-kind', 'outside-line', 'invalid-volume'])
   })
 })
 
@@ -210,36 +211,70 @@ describe('AnnualPlan: изменение и удаление', () => {
   })
 })
 
-describe('PlanBasis', () => {
-  const sample = samplePlanBasis()
-  const line = sample.lines.get('L1')
-  if (!line) throw new Error('нет направления')
-  const input = {
-    edition: sample.edition,
-    lines: [line],
-    stations: [...sample.stations.values()],
-    workKinds: [...sample.workKinds.values()],
-  }
+function splitExtentBasis(): PlanBasis {
+  // Протяжение L1 задано двумя смежными кусками: 10–15 и 15–25 км.
+  const line = basis.lines.get('L1')
+  const [first] = line?.extent ?? []
+  if (!line || !first) throw new Error('нет направления')
+  const r = planBasis({
+    edition: basis.edition,
+    lines: [
+      {
+        ...line,
+        extent: [
+          { ...first, to: { km: 15, m: 0 } },
+          { ...first, from: { km: 15, m: 0 } },
+        ],
+      },
+    ],
+    stations: [...basis.stations.values()],
+    pds: [...basis.pds.values()],
+    workKinds: [...basis.workKinds.values()],
+  })
+  if (!r.ok) throw new Error(describePlanError(r.error))
+  return r.value
+}
 
-  it('идентификаторы уникальны', () => {
-    const r = planBasis({ ...input, stations: [...input.stations, ...input.stations] })
-    expect(r.ok ? undefined : describePlanError(r.error)).toBe(
-      'Станция «S1» встречается в редакции дважды',
-    )
+describe('AnnualPlan: правки по ревью', () => {
+  it('минимальный год плана создаётся с грифом по умолчанию', () => {
+    expect(value(createAnnualPlan(MIN_PLAN_YEAR, basis)).approval.year).toBe(MIN_PLAN_YEAR - 1)
+    expect(
+      errorKinds(createAnnualPlan(2027, basis, { title: '', name: '', year: MIN_PLAN_YEAR - 2 })),
+    ).toEqual(['invalid-approval-year'])
   })
 
-  it('протяжение лежит на своём направлении', () => {
-    const r = planBasis({ ...input, lines: [{ ...line, id: 'L2' }] })
-    expect(r.ok ? undefined : r.error.kind).toBe('extent-off-line')
+  it('участок на стыке смежных кусков протяжения лежит на направлении', () => {
+    const plan = value(createAnnualPlan(2027, splitExtentBasis()))
+    expect(addWork(plan, w1, onLine('14 км пк 6 – 15 км пк 5')).ok).toBe(true)
   })
 
-  it('«входит в» ссылается на существующий вид', () => {
-    const r = planBasis({
-      ...input,
-      workKinds: [{ code: 'ППРК', name: 'ППРК', unit: 'км', includedIn: 'ППР' }],
+  it('при неизвестном виде работ объём всё равно проверяется', () => {
+    expect(
+      errorKinds(addWork(emptyPlan(), w1, onLine('12 км', { kind: 'НЕТ', volume: -2 }))),
+    ).toEqual(['unknown-work-kind', 'invalid-volume'])
+  })
+
+  it('изменение объекта команды после добавления не меняет работу в плане', () => {
+    const place = {
+      kind: 'station' as const,
+      station: 'S1',
+      object: { kind: 'track' as const, number: '1' },
+    }
+    const input: WorkInput = { ...onLine('12 км', { kind: 'КСП', volume: 1 }), place }
+    const plan = value(addWork(emptyPlan(), w1, input))
+    place.object.number = '7'
+    expect(findWork(plan, w1)?.place).toEqual({
+      kind: 'station',
+      station: 'S1',
+      object: { kind: 'track', number: '1' },
     })
-    expect(r.ok ? undefined : describePlanError(r.error)).toBe(
-      'Вид работ «ППРК» входит в неизвестный вид «ППР»',
-    )
+    expect(Object.isFrozen(findWork(plan, w1)?.place)).toBe(true)
+  })
+
+  it('правка без изменений возвращает ту же версию плана', () => {
+    const plan = value(addWork(emptyPlan(), w1, onLine('12 км пк 1 – 12 км пк 5', { note: 'а' })))
+    expect(value(updateWork(plan, w1, onLine('12 км пк 1–5', { note: 'а' })))).toBe(plan)
+    expect(value(updateWork(plan, w1, onLine('12 км пк 1–6', { note: 'а' })))).not.toBe(plan)
+    expect(value(setApproval(plan, plan.approval))).toBe(plan)
   })
 })

@@ -18,9 +18,12 @@ import {
 import {
   addWork,
   removeWork,
+  setManualValue,
   updateWork,
   workId,
   type AnnualPlan,
+  type AreaManual,
+  type PlanArea,
   type PlanError,
   type StationObject,
   type WorkId,
@@ -120,6 +123,21 @@ export function removeWorkFromPlan(
   id: WorkId,
 ): Result<PlanSession, WorkCommandError> {
   return applied(endGroup(session), removeWork(session.present, id))
+}
+
+/**
+ * Ввести или стереть ручное значение таблицы области: план вместо расчёта
+ * («overrides») или потребность («needs»). Ввод в одну ячейку подряд — один шаг отмены.
+ */
+export function setPlanValue(
+  session: PlanSession,
+  area: PlanArea,
+  field: keyof AreaManual,
+  code: string,
+  value: number | undefined,
+  options?: CommitOptions,
+): Result<PlanSession, WorkCommandError> {
+  return applied(session, setManualValue(session.present, area, field, code, value), options)
 }
 
 /** Закончить группу правок: например, поле ввода потеряло фокус или кнопка мыши отпущена. */

@@ -11,6 +11,7 @@ import {
 import {
   describeTrackSpanError,
   intersectSpans,
+  mergeSpans,
   spanContains,
   spanContainsPoint,
   spanLength,
@@ -74,6 +75,23 @@ describe('TrackSpan', () => {
     expect(spanContains(outer, span(at(41, 0), at(42, 0), 'B'))).toBe(false)
     expect(spanContainsPoint(outer, { line: 'A', at: at(40, 0) })).toBe(true)
     expect(spanContainsPoint(outer, { line: 'A', at: at(42, 0) })).toBe(false)
+  })
+})
+
+describe('mergeSpans', () => {
+  it('сливает перекрывающиеся и стыкующиеся участки одного направления', () => {
+    const merged = mergeSpans([
+      span(at(15, 0), at(20, 0)),
+      span(at(10, 0), at(15, 0)),
+      span(at(12, 0), at(13, 0)),
+      span(at(22, 0), at(23, 0)),
+      span(at(10, 0), at(11, 0), 'B'),
+    ])
+    expect(merged).toEqual([
+      span(at(10, 0), at(20, 0)),
+      span(at(22, 0), at(23, 0)),
+      span(at(10, 0), at(11, 0), 'B'),
+    ])
   })
 })
 
@@ -153,6 +171,28 @@ describe('TrackSpan: свойства', () => {
           compareChainage(ab.from, b.from) === 0 &&
           compareChainage(ab.to, b.to) === 0
         expect(spanContains(a, b)).toBe(same)
+      }),
+    )
+  })
+})
+
+describe('mergeSpans: свойства', () => {
+  it('точка покрыта объединением тогда и только тогда, когда покрыта хотя бы одним участком', () => {
+    const arb = arbLengths.chain((l) =>
+      fc.tuple(fc.array(arbSpan(l), { maxLength: 6 }), fc.array(arbPoint(l), { maxLength: 10 })),
+    )
+    fc.assert(
+      fc.property(arb, ([spans, points]) => {
+        const merged = mergeSpans(spans)
+        for (const p of points) {
+          const inAny = spans.some((s) => spanContainsPoint(s, { line: 'A', at: p }))
+          const inMerged = merged.some((s) => spanContainsPoint(s, { line: 'A', at: p }))
+          expect(inMerged).toBe(inAny)
+        }
+        merged.slice(1).forEach((s, i) => {
+          const prev = merged[i]
+          expect(prev && compareChainage(prev.to, s.from) < 0).toBe(true)
+        })
       }),
     )
   })

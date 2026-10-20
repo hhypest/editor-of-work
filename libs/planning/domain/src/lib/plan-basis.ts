@@ -1,4 +1,11 @@
-import { err, ok, type KmLengths, type Result, type TrackSpan } from '@eow/shared/kernel'
+import {
+  err,
+  ok,
+  spansOverlap,
+  type KmLengths,
+  type Result,
+  type TrackSpan,
+} from '@eow/shared/kernel'
 import type { BasisPart, PlanError } from './plan-error'
 
 /**
@@ -9,6 +16,8 @@ export interface PlanBasis {
   readonly edition: EditionRef
   readonly lines: ReadonlyMap<string, BasisLine>
   readonly stations: ReadonlyMap<string, BasisStation>
+  /** Линейные участки (ПД), отмеченные действующими при импорте. */
+  readonly pds: ReadonlyMap<string, BasisPd>
   readonly workKinds: ReadonlyMap<string, WorkKind>
 }
 
@@ -34,7 +43,22 @@ export interface BasisStation {
   readonly tracks: readonly string[]
   /** Номера стрелочных переводов. */
   readonly switches: readonly string[]
+  /** ПД, к которому относится станция (форма «Станции → ПД»). */
+  readonly pd: string | undefined
 }
+
+/** Линейный участок (ПД) и его границы на главных путях. */
+export interface BasisPd {
+  readonly id: string
+  /** Обозначение для листов: «ПД-1». */
+  readonly name: string
+  /** ПЧУ, в который входит ПД. */
+  readonly pchu: string
+  readonly segments: readonly TrackSpan[]
+}
+
+/** Группа вида работ: строка какой таблицы плана. */
+export type WorkGroup = 'current' | 'capital' | 'other'
 
 /** Вид работ из нормативов редакции. */
 export interface WorkKind {
@@ -42,6 +66,9 @@ export interface WorkKind {
   readonly name: string
   /** Единица объёма: «км», «шт», «компл», … */
   readonly unit: string
+  readonly group: WorkGroup
+  /** Показывать ли вид строкой в таблице плана. */
+  readonly inPlanTable: boolean
   /** Код строки плана, в которую объём входит дополнительно (ППРК → ППР). */
   readonly includedIn?: string
 }
@@ -50,6 +77,7 @@ export interface PlanBasisInput {
   readonly edition: EditionRef
   readonly lines: readonly BasisLine[]
   readonly stations: readonly BasisStation[]
+  readonly pds: readonly BasisPd[]
   readonly workKinds: readonly WorkKind[]
 }
 
@@ -75,20 +103,55 @@ export function planBasis(input: PlanBasisInput): Result<PlanBasis, PlanError> {
   if (!stations.ok) return stations
   const workKinds = index(input.workKinds, (k) => k.code, 'work-kind')
   if (!workKinds.ok) return workKinds
+  const pds = index(input.pds, (d) => d.id, 'pd')
+  if (!pds.ok) return pds
   for (const line of input.lines) {
     if (line.extent.some((span) => span.line !== line.id))
       return err({ kind: 'extent-off-line', line: line.id })
   }
+  const pdProblem = pdErrors(input.pds, lines.value)
+  if (pdProblem) return err(pdProblem)
+  for (const station of input.stations) {
+    if (station.pd !== undefined && !pds.value.has(station.pd))
+      return err({ kind: 'unknown-pd', station: station.id, pd: station.pd })
+  }
   for (const kind of input.workKinds) {
-    if (kind.includedIn !== undefined && !workKinds.value.has(kind.includedIn))
+    if (kind.includedIn === undefined) continue
+    const target = workKinds.value.get(kind.includedIn)
+    if (!target)
       return err({ kind: 'unknown-included-in', code: kind.code, includedIn: kind.includedIn })
+    if (kind.code === target.code) return err({ kind: 'self-included-in', code: kind.code })
+    if (kind.unit.trim() !== target.unit.trim())
+      return err({
+        kind: 'included-in-unit-mismatch',
+        code: kind.code,
+        includedIn: target.code,
+        unit: kind.unit,
+        targetUnit: target.unit,
+      })
   }
   return ok({
     edition: input.edition,
     lines: lines.value,
     stations: stations.value,
+    pds: pds.value,
     workKinds: workKinds.value,
   })
+}
+
+/** Любое перекрытие границ даёт двойной учёт длины, в том числе внутри одного ПД. */
+function pdErrors(
+  pds: readonly BasisPd[],
+  lines: ReadonlyMap<string, BasisLine>,
+): PlanError | undefined {
+  const all = pds.flatMap((pd) => pd.segments.map((span) => ({ pd: pd.id, span })))
+  const offLine = all.find(({ span }) => !lines.has(span.line))
+  if (offLine) return { kind: 'pd-off-line', pd: offLine.pd, line: offLine.span.line }
+  for (const [i, a] of all.entries()) {
+    const b = all.slice(i + 1).find((x) => spansOverlap(x.span, a.span))
+    if (b) return { kind: 'pd-overlap', a: a.pd, b: b.pd }
+  }
+  return undefined
 }
 
 /** Объём вида считается по длине участков только в километрах. */

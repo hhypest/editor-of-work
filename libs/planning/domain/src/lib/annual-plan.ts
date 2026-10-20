@@ -26,12 +26,19 @@ export interface Approval {
  * работы переходят в неё теми же объектами — на этом держится история отмены.
  */
 export interface AnnualPlan {
+  /** Неизменённый JSON прототипа и отчёт: раскладка и прочие ещё не перенесённые поля. */
+  readonly prototype?: PrototypeArchive
   readonly year: number
   readonly basis: PlanBasis
   readonly approval: Approval
   readonly works: readonly PlannedWork[]
   /** Значения, введённые вручную, по ключу области ({@link areaKey}). */
   readonly manual: ReadonlyMap<string, AreaManual>
+}
+
+export interface PrototypeArchive {
+  readonly source: string
+  readonly report: readonly { readonly path: string; readonly message: string }[]
 }
 
 /** Ручные значения таблиц одной области. Ключ — код вида работ. */

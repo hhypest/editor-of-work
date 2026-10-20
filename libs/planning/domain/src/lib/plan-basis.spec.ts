@@ -20,6 +20,40 @@ function message(patch: Partial<PlanBasisInput>): string | undefined {
 }
 
 describe('PlanBasis', () => {
+  it('владеет неизменяемым срезом перенесённой раскладки станции', () => {
+    const layout = {
+      tracks: [
+        {
+          id: 't',
+          number: '1',
+          purpose: '',
+          label: '',
+          row: 0,
+          x1: 0,
+          x2: 20,
+          fullMeters: null,
+          usefulMeters: null,
+          capacity: '',
+          left: { switchNumber: '', parent: null },
+          right: { switchNumber: '', parent: null },
+        },
+      ],
+      objects: [{ id: 'o', type: 'здание', text: '', x: 2, y: null, width: null, height: null }],
+    }
+    const r = planBasis({
+      ...input(),
+      stations: input().stations.map((s) => ({ ...s, legacyLayout: layout })),
+    })
+    if (!r.ok) throw new Error('не собран срез')
+    layout.tracks[0]!.left.switchNumber = '99'
+    layout.objects[0]!.x = 99
+    const saved = r.value.stations.get('S1')!.legacyLayout!
+    expect(saved.tracks[0]!.left.switchNumber).toBe('')
+    expect(saved.objects[0]!.x).toBe(2)
+    expect(Object.isFrozen(saved.tracks[0]!.left)).toBe(true)
+    expect(Object.isFrozen(saved.objects)).toBe(true)
+  })
+
   it('вымышленный срез собирается', () => {
     expect(planBasis(input()).ok).toBe(true)
   })

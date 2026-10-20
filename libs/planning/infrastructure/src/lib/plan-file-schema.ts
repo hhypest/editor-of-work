@@ -26,7 +26,7 @@ const area = z.discriminatedUnion('kind', [
 ])
 const valueEntries = z.array(z.tuple([id, z.number().nonnegative()]))
 
-export const snapshotSchema = z
+const snapshotV1Schema = z
   .object({
     lines: z.array(
       z
@@ -68,7 +68,7 @@ export const snapshotSchema = z
   .strict()
 
 /** Первая версия формата. Строгая схема не позволяет незаметно потерять неизвестные поля. */
-export const planFileSchema = z
+export const planFileV1Schema = z
   .object({
     format: z.object({ version: z.literal(1), appVersion: id }).strict(),
     edition: z
@@ -76,7 +76,7 @@ export const planFileSchema = z
         number: id,
         date: z.iso.date(),
         checksum: z.string().regex(/^[a-f0-9]{64}$/),
-        snapshot: snapshotSchema,
+        snapshot: snapshotV1Schema,
       })
       .strict(),
     plan: z
@@ -98,6 +98,91 @@ export const planFileSchema = z
             .strict(),
         ),
         manual: z.array(z.object({ area, overrides: valueEntries, needs: valueEntries }).strict()),
+      })
+      .strict(),
+  })
+  .strict()
+
+const layoutConnection = z.object({ switchNumber: z.string(), parent: id.nullable() }).strict()
+const legacyLayout = z
+  .object({
+    tracks: z.array(
+      z
+        .object({
+          id,
+          number: z.string(),
+          purpose: z.string(),
+          label: z.string(),
+          row: z.number(),
+          x1: z.number().nullable(),
+          x2: z.number().nullable(),
+          fullMeters: z.number().nullable(),
+          usefulMeters: z.number().nullable(),
+          capacity: z.string(),
+          left: layoutConnection,
+          right: layoutConnection,
+        })
+        .strict(),
+    ),
+    objects: z.array(
+      z
+        .object({
+          id,
+          type: z.string(),
+          text: z.string(),
+          x: z.number(),
+          y: z.number().nullable(),
+          width: z.number().nullable(),
+          height: z.number().nullable(),
+        })
+        .strict(),
+    ),
+  })
+  .strict()
+export const snapshotSchema = snapshotV1Schema
+  .extend({
+    stations: z.array(
+      snapshotV1Schema.shape.stations.element
+        .extend({ legacyLayout: legacyLayout.optional() })
+        .strict(),
+    ),
+  })
+  .strict()
+
+const linePlaceV2 = z
+  .object({
+    kind: z.literal('line'),
+    spec: z.object({ line: id, items: z.array(item).min(1) }).strict(),
+    station: id.optional(),
+    object: stationObject.optional(),
+  })
+  .strict()
+  .refine((p) => !p.object || p.station !== undefined, 'Объект станции требует станцию')
+const placeV2 = z.union([
+  linePlaceV2,
+  z.object({ kind: z.literal('station'), station: id, object: stationObject.optional() }).strict(),
+])
+export const planFileSchema = planFileV1Schema
+  .extend({
+    format: z.object({ version: z.literal(2), appVersion: id }).strict(),
+    edition: planFileV1Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
+    plan: planFileV1Schema.shape.plan
+      .extend({
+        works: z.array(planFileV1Schema.shape.plan.shape.works.element.extend({ place: placeV2 })),
+        prototype: z
+          .object({
+            source: z.string().refine((text) => {
+              try {
+                JSON.parse(text)
+                return true
+              } catch {
+                return false
+              }
+            }, 'Неверный JSON прототипа'),
+            report: z.array(z.object({ path: z.string(), message: z.string() }).strict()),
+          })
+          .strict()
+          .nullable(),
       })
       .strict(),
   })

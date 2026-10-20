@@ -12,6 +12,7 @@ import { parsePlaceSpec, type Result } from '@eow/shared/kernel'
 import { decodePlan, encodePlan, readPlanFile, restorePlan } from './plan-file'
 import { snapshotSchema, type PlanFile } from './plan-file-schema'
 import { v1Fixture } from './testing/v1-fixture'
+import { v2Fixture } from './testing/v2-fixture'
 
 function value<T, E>(result: Result<T, E>): T {
   if (!result.ok) throw new Error(JSON.stringify(result.error))
@@ -55,6 +56,19 @@ function rehash(f: PlanFile): void {
 }
 
 describe('формат плана v1', () => {
+  it('мигрирует v1 в v2 и сохраняет закреплённый образец v2 со снимком и принадлежностью к станции', () => {
+    const migrated = value(readPlanFile(JSON.stringify(v1Fixture)))
+    expect(migrated.format.version).toBe(2)
+    expect(migrated.plan.prototype).toBeNull()
+    const plan = value(decodePlan(JSON.stringify(v2Fixture)))
+    expect(plan.works[0]!.place).toMatchObject({ kind: 'line', station: 'S' })
+    expect(planRows(plan, { kind: 'station', station: 'S' }, 'current')).toMatchObject([
+      { computed: 0.964 },
+    ])
+    const reopened = value(decodePlan(value(encodePlan(plan, '0.2.0'))))
+    expect(reopened.prototype).toEqual(v2Fixture.plan.prototype)
+    expect(Object.isFrozen(reopened.prototype!.report)).toBe(true)
+  })
   it('открывает закреплённый вымышленный образец первой версии', () => {
     const plan = value(decodePlan(JSON.stringify(v1Fixture)))
     expect(plan.year).toBe(2027)
@@ -77,7 +91,7 @@ describe('формат плана v1', () => {
 
   it('возвращает понятную ошибку для обрезанного файла и будущего формата', () => {
     expect(decodePlan('{')).toMatchObject({ ok: false, error: { kind: 'invalid-file' } })
-    expect(decodePlan('{"format":{"version":2}}')).toMatchObject({
+    expect(decodePlan('{"format":{"version":3}}')).toMatchObject({
       ok: false,
       error: { kind: 'future-version' },
     })

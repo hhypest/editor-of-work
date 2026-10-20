@@ -1,3 +1,5 @@
 export * from './lib/result'
 export * from './lib/chainage'
 export * from './lib/chainage-parse'
+export * from './lib/track-span'
+export * from './lib/place-spec'

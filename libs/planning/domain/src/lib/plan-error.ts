@@ -5,6 +5,14 @@ export type PlanError =
   | { readonly kind: 'duplicate-basis'; readonly what: BasisPart; readonly id: string }
   | { readonly kind: 'extent-off-line'; readonly line: string }
   | { readonly kind: 'unknown-included-in'; readonly code: string; readonly includedIn: string }
+  | { readonly kind: 'self-included-in'; readonly code: string }
+  | {
+      readonly kind: 'included-in-unit-mismatch'
+      readonly code: string
+      readonly includedIn: string
+      readonly unit: string
+      readonly targetUnit: string
+    }
   | { readonly kind: 'pd-off-line'; readonly pd: string; readonly line: string }
   | { readonly kind: 'pd-overlap'; readonly a: string; readonly b: string }
   | { readonly kind: 'unknown-pd'; readonly station: string; readonly pd: string }
@@ -51,10 +59,16 @@ export function describePlanError(e: PlanError): string {
       return `Протяжение направления «${e.line}» задано участками другого направления`
     case 'unknown-included-in':
       return `Вид работ «${e.code}» входит в неизвестный вид «${e.includedIn}»`
+    case 'self-included-in':
+      return `Вид работ «${e.code}» не может входить сам в себя`
+    case 'included-in-unit-mismatch':
+      return `Вид работ «${e.code}» (${e.unit}) не может входить в «${e.includedIn}» (${e.targetUnit}): единицы различаются`
     case 'pd-off-line':
       return `Граница ${e.pd} лежит на неизвестном направлении «${e.line}»`
     case 'pd-overlap':
-      return `Границы ${e.a} и ${e.b} перекрываются`
+      return e.a === e.b
+        ? `Границы внутри ${e.a} перекрываются`
+        : `Границы ${e.a} и ${e.b} перекрываются`
     case 'unknown-pd':
       return `Станция «${e.station}» отнесена к неизвестному ПД «${e.pd}»`
     case 'duplicate-work':

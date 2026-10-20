@@ -44,6 +44,54 @@ describe('PlanBasis', () => {
     expect(message({ workKinds: kinds })).toBe('Вид работ «ППРК» входит в неизвестный вид «ППР»')
   })
 
+  it('вид работ не может входить сам в себя', () => {
+    const kinds = input().workKinds.map((k) => ({ ...k, includedIn: k.code }))
+    expect(message({ workKinds: kinds })).toBe('Вид работ «ППР» не может входить сам в себя')
+  })
+
+  it('«входит в» складывает только одинаковые единицы', () => {
+    const kinds = input().workKinds.map((k) => (k.code === 'КСП' ? { ...k, includedIn: 'ППР' } : k))
+    expect(message({ workKinds: kinds })).toBe(
+      'Вид работ «КСП» (компл) не может входить в «ППР» (км): единицы различаются',
+    )
+    const spaced = input().workKinds.map((k) =>
+      k.code === 'ППРК' ? { ...k, unit: ` ${k.unit} ` } : k,
+    )
+    expect(planBasis({ ...input(), workKinds: spaced }).ok).toBe(true)
+  })
+
+  it('отклоняет пересекающиеся и повторяющиеся границы одного ПД', () => {
+    const [pd] = input().pds
+    const segment = pd?.segments[0]
+    if (!pd || !segment) throw new Error('нет границы')
+    for (const extra of [segment, { ...segment, from: { ...segment.from, m: 500 } }]) {
+      expect(message({ pds: [{ ...pd, segments: [segment, extra] }] })).toBe(
+        'Границы внутри ПД-1 перекрываются',
+      )
+    }
+  })
+
+  it('принимает смежные границы одного ПД', () => {
+    const [pd] = input().pds
+    const segment = pd?.segments[0]
+    if (!pd || !segment) throw new Error('нет границы')
+    const middle = { ...segment.from, m: 500 }
+    expect(
+      message({
+        stations: [],
+        pds: [
+          {
+            ...pd,
+            segments: [
+              { ...segment, to: middle },
+              { ...segment, from: middle },
+            ],
+          },
+        ],
+      }),
+    ).toBeUndefined()
+  })
+
   it('границы ПД — на известных направлениях и не перекрываются', () => {
     const [pd1, pd2] = input().pds
     if (!pd1 || !pd2) throw new Error('нет ПД')

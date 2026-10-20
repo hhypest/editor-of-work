@@ -116,8 +116,19 @@ export function planBasis(input: PlanBasisInput): Result<PlanBasis, PlanError> {
       return err({ kind: 'unknown-pd', station: station.id, pd: station.pd })
   }
   for (const kind of input.workKinds) {
-    if (kind.includedIn !== undefined && !workKinds.value.has(kind.includedIn))
+    if (kind.includedIn === undefined) continue
+    const target = workKinds.value.get(kind.includedIn)
+    if (!target)
       return err({ kind: 'unknown-included-in', code: kind.code, includedIn: kind.includedIn })
+    if (kind.code === target.code) return err({ kind: 'self-included-in', code: kind.code })
+    if (kind.unit.trim() !== target.unit.trim())
+      return err({
+        kind: 'included-in-unit-mismatch',
+        code: kind.code,
+        includedIn: target.code,
+        unit: kind.unit,
+        targetUnit: target.unit,
+      })
   }
   return ok({
     edition: input.edition,
@@ -128,7 +139,7 @@ export function planBasis(input: PlanBasisInput): Result<PlanBasis, PlanError> {
   })
 }
 
-/** Границы ПД лежат на известных направлениях, и ПД не перекрывают друг друга (раздел 6.1). */
+/** Любое перекрытие границ даёт двойной учёт длины, в том числе внутри одного ПД. */
 function pdErrors(
   pds: readonly BasisPd[],
   lines: ReadonlyMap<string, BasisLine>,
@@ -137,7 +148,7 @@ function pdErrors(
   const offLine = all.find(({ span }) => !lines.has(span.line))
   if (offLine) return { kind: 'pd-off-line', pd: offLine.pd, line: offLine.span.line }
   for (const [i, a] of all.entries()) {
-    const b = all.slice(i + 1).find((x) => x.pd !== a.pd && spansOverlap(x.span, a.span))
+    const b = all.slice(i + 1).find((x) => spansOverlap(x.span, a.span))
     if (b) return { kind: 'pd-overlap', a: a.pd, b: b.pd }
   }
   return undefined

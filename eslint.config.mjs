@@ -5,29 +5,72 @@ import { fileURLToPath } from 'node:url'
 
 /**
  * Границы модулей: docs/architecture.md, раздел 11; ADR-0001.
- * Слой (type:) — что может импортировать библиотека этого слоя.
- * Контекст (scope:) — из каких контекстов разрешены импорты.
+ * Ограничения складываются: импорт должен пройти все, под которые подходит библиотека.
  */
+
+/** Внешние пакеты, которых не должно быть в чистых слоях (ядро, домен, приложение). */
+const frameworkAndIo = [
+  '@angular/*',
+  'rxjs',
+  'rxjs/*',
+  'electron',
+  'node:*',
+  'fs',
+  'path',
+  'os',
+  'child_process',
+  'zod',
+  'better-sqlite3',
+  'kysely',
+  'exceljs',
+  'node-html-parser',
+  'pdf-lib',
+]
+/** Пакеты, доступные только main-процессу. */
+const mainProcessOnly = ['electron', 'node:*', 'fs', 'path', 'better-sqlite3', 'kysely', 'exceljs']
+
+/** Слой (type:) — от каких слоёв может зависеть библиотека и какие внешние пакеты ей запрещены. */
 const layerConstraints = [
-  { sourceTag: 'type:kernel', onlyDependOnLibsWithTags: ['type:kernel'] },
-  { sourceTag: 'type:domain', onlyDependOnLibsWithTags: ['type:kernel'] },
+  {
+    sourceTag: 'type:kernel',
+    onlyDependOnLibsWithTags: ['type:kernel'],
+    bannedExternalImports: frameworkAndIo,
+  },
+  {
+    sourceTag: 'type:domain',
+    onlyDependOnLibsWithTags: ['type:kernel'],
+    bannedExternalImports: frameworkAndIo,
+  },
   {
     sourceTag: 'type:application',
     onlyDependOnLibsWithTags: ['type:application', 'type:domain', 'type:kernel'],
+    bannedExternalImports: frameworkAndIo,
   },
-  { sourceTag: 'type:contracts', onlyDependOnLibsWithTags: ['type:kernel'] },
+  {
+    sourceTag: 'type:contracts',
+    onlyDependOnLibsWithTags: ['type:kernel'],
+    bannedExternalImports: ['@angular/*', 'rxjs', 'rxjs/*', ...mainProcessOnly],
+  },
   {
     sourceTag: 'type:infrastructure',
     onlyDependOnLibsWithTags: ['type:application', 'type:domain', 'type:kernel', 'type:contracts'],
   },
-  { sourceTag: 'type:ui-kit', onlyDependOnLibsWithTags: ['type:ui-kit', 'type:kernel'] },
+  {
+    sourceTag: 'type:ui-kit',
+    onlyDependOnLibsWithTags: ['type:ui-kit', 'type:kernel'],
+    bannedExternalImports: mainProcessOnly,
+  },
   {
     sourceTag: 'type:feature-ui',
     onlyDependOnLibsWithTags: ['type:application', 'type:kernel', 'type:ui-kit'],
+    bannedExternalImports: mainProcessOnly,
   },
   { sourceTag: 'type:app', onlyDependOnLibsWithTags: ['*'] },
 ]
 
+const contexts = ['passport', 'stations', 'planning', 'import', 'documents']
+
+/** Контекст (scope:) — из каких контекстов разрешены импорты. */
 const scopeConstraints = [
   { sourceTag: 'scope:shared', onlyDependOnLibsWithTags: ['scope:shared'] },
   { sourceTag: 'scope:passport', onlyDependOnLibsWithTags: ['scope:passport', 'scope:shared'] },
@@ -55,6 +98,19 @@ const scopeConstraints = [
   },
   { sourceTag: 'scope:ui', onlyDependOnLibsWithTags: ['*'] },
   { sourceTag: 'scope:desktop', onlyDependOnLibsWithTags: ['*'] },
+  // Домен контекста не виден другим контекстам: связь только через порты и запросы слоя приложения.
+  ...contexts.map((ctx) => ({
+    sourceTag: `scope:${ctx}`,
+    notDependOnLibsWithTags: contexts
+      .filter((other) => other !== ctx)
+      .map((other) => `domain:${other}`),
+  })),
+  // Сценарии планирования и станций получают паспорт через свои порты (PassportView);
+  // адаптер к паспорту живёт в инфраструктуре или в composition root.
+  ...['planning', 'stations'].map((ctx) => ({
+    allSourceTags: ['type:application', `scope:${ctx}`],
+    onlyDependOnLibsWithTags: [`scope:${ctx}`, 'scope:shared'],
+  })),
 ]
 
 export default [
@@ -115,7 +171,6 @@ export default [
         {
           enforceBuildableLibDependency: true,
           banTransitiveDependencies: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
           depConstraints: [...layerConstraints, ...scopeConstraints],
         },
       ],

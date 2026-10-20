@@ -3,7 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/stations/domain/src",
   "projectType": "library",
-  "tags": ["type:domain", "scope:stations"],
+  "tags": ["type:domain", "scope:stations", "domain:stations"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",

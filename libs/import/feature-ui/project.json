@@ -11,7 +11,7 @@
       "cache": true,
       "inputs": ["default", "^default"],
       "options": {
-        "command": "tsc -p libs/import/feature-ui/tsconfig.lib.json --noEmit"
+        "command": "ngc -p libs/import/feature-ui/tsconfig.lib.json --noEmit"
       }
     }
   }

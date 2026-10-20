@@ -3,7 +3,7 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/passport/domain/src",
   "projectType": "library",
-  "tags": ["type:domain", "scope:passport"],
+  "tags": ["type:domain", "scope:passport", "domain:passport"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",

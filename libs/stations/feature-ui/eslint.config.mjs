@@ -1,3 +1,4 @@
+import noNode from '../../../eslint.no-node.mjs'
 import nx from '@nx/eslint-plugin'
 import baseConfig from '../../../eslint.config.mjs'
 
@@ -36,4 +37,5 @@ export default [
       '@angular-eslint/template/no-inline-styles': 'error',
     },
   },
+  ...noNode,
 ]

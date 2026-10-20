@@ -171,6 +171,14 @@ describe('Сценарий: отмена и повтор', () => {
     expect(places(undoPlan(session).present)).toEqual(['1 а'])
   })
 
+  it('сохранение формы без изменений после отмены не сбрасывает повтор', () => {
+    const first = add(newSession(), pprk('12 км'), sequentialIds('w'))
+    let session = value(editWork(first.session, first.id, pprk('12 км', 'а')))
+    session = undoPlan(session)
+    session = value(editWork(session, first.id, pprk('12 км')))
+    expect(canRedoPlan(session)).toBe(true)
+  })
+
   it('неудачная команда не добавляет шаг и не сбрасывает повтор', () => {
     const ids = sequentialIds('w')
     let { session } = add(newSession(), pprk('12 км'), ids)

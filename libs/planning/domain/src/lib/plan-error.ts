@@ -1,6 +1,7 @@
 /** Нарушения правил годового плана (docs/architecture.md, раздел 6.2). */
 export type PlanError =
   | { readonly kind: 'invalid-year'; readonly year: number }
+  | { readonly kind: 'invalid-approval-year'; readonly year: number }
   | { readonly kind: 'duplicate-basis'; readonly what: BasisPart; readonly id: string }
   | { readonly kind: 'extent-off-line'; readonly line: string }
   | { readonly kind: 'unknown-included-in'; readonly code: string; readonly includedIn: string }
@@ -42,6 +43,8 @@ export function describePlanError(e: PlanError): string {
   switch (e.kind) {
     case 'invalid-year':
       return `Год плана должен быть целым числом от 2000 до 2100, а не ${e.year}`
+    case 'invalid-approval-year':
+      return `Год утверждения должен быть целым числом от 1999 до 2100, а не ${e.year}`
     case 'duplicate-basis':
       return `${BASIS_PART[e.what]} «${e.id}» встречается в редакции дважды`
     case 'extent-off-line':

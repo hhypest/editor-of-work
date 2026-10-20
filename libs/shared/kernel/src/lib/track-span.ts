@@ -80,3 +80,26 @@ export function spanContainsPoint(span: TrackSpan, point: TrackPoint): boolean {
     compareChainage(point.at, span.to) < 0
   )
 }
+
+function byLine(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
+/**
+ * Объединение участков: перекрывающиеся и стыкующиеся участки одного направления
+ * сливаются в один. Результат упорядочен по направлению и началу.
+ */
+export function mergeSpans(spans: readonly TrackSpan[]): TrackSpan[] {
+  const sorted = spans.toSorted((a, b) => byLine(a.line, b.line) || compareChainage(a.from, b.from))
+  const merged: TrackSpan[] = []
+  for (const span of sorted) {
+    const last = merged.at(-1)
+    if (last && last.line === span.line && compareChainage(span.from, last.to) <= 0) {
+      if (compareChainage(span.to, last.to) > 0)
+        merged[merged.length - 1] = { ...last, to: span.to }
+    } else {
+      merged.push(span)
+    }
+  }
+  return merged
+}

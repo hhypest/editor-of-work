@@ -2,7 +2,14 @@ import { err, ok, type Result } from '@eow/shared/kernel'
 import { areaExists, areaKey, areaLabel, type PlanArea } from './distribution'
 import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
-import { workErrors, type PlannedWork, type WorkId, type WorkInput } from './planned-work'
+import {
+  ownWork,
+  sameWorkInput,
+  workErrors,
+  type PlannedWork,
+  type WorkId,
+  type WorkInput,
+} from './planned-work'
 
 /** Гриф «Утверждаю» на листах. */
 export interface Approval {
@@ -50,6 +57,13 @@ function yearErrors(year: number): PlanError[] {
     : [{ kind: 'invalid-year', year }]
 }
 
+/** Гриф по умолчанию утверждается годом раньше, поэтому нижняя граница на год меньше. */
+function approvalYearErrors(year: number): PlanError[] {
+  return Number.isInteger(year) && year >= MIN_PLAN_YEAR - 1 && year <= MAX_PLAN_YEAR
+    ? []
+    : [{ kind: 'invalid-approval-year', year }]
+}
+
 function failIfAny(errors: readonly PlanError[]): Result<void, readonly PlanError[]> {
   return errors.length > 0 ? err(errors) : ok(undefined)
 }
@@ -60,17 +74,22 @@ export function createAnnualPlan(
   basis: PlanBasis,
   approval: Approval = { title: '', name: '', year: year - 1 },
 ): Result<AnnualPlan, readonly PlanError[]> {
-  const checked = failIfAny([...yearErrors(year), ...yearErrors(approval.year)])
+  const checked = failIfAny([...yearErrors(year), ...approvalYearErrors(approval.year)])
   if (!checked.ok) return checked
-  return ok({ year, basis, approval, works: [], manual: new Map() })
+  return ok({ year, basis, approval: Object.freeze({ ...approval }), works: [], manual: new Map() })
 }
 
 export function setApproval(
   plan: AnnualPlan,
   approval: Approval,
 ): Result<AnnualPlan, readonly PlanError[]> {
-  const checked = failIfAny(yearErrors(approval.year))
-  return checked.ok ? ok({ ...plan, approval }) : checked
+  const checked = failIfAny(approvalYearErrors(approval.year))
+  if (!checked.ok) return checked
+  const same =
+    approval.title === plan.approval.title &&
+    approval.name === plan.approval.name &&
+    approval.year === plan.approval.year
+  return ok(same ? plan : { ...plan, approval: Object.freeze({ ...approval }) })
 }
 
 export function findWork(plan: AnnualPlan, id: WorkId): PlannedWork | undefined {
@@ -86,7 +105,7 @@ export function addWork(
   if (findWork(plan, id)) return err([{ kind: 'duplicate-work', id }])
   const checked = failIfAny(workErrors(input, plan.basis))
   if (!checked.ok) return checked
-  return ok({ ...plan, works: [...plan.works, { ...input, id }] })
+  return ok({ ...plan, works: [...plan.works, ownWork(id, input)] })
 }
 
 /** Заменить данные работы; место работы в списке не меняется. */
@@ -96,10 +115,13 @@ export function updateWork(
   input: WorkInput,
 ): Result<AnnualPlan, readonly PlanError[]> {
   const index = plan.works.findIndex((w) => w.id === id)
-  if (index < 0) return err([{ kind: 'work-not-found', id }])
+  const current = plan.works[index]
+  if (!current) return err([{ kind: 'work-not-found', id }])
   const checked = failIfAny(workErrors(input, plan.basis))
   if (!checked.ok) return checked
-  return ok({ ...plan, works: plan.works.with(index, { ...input, id }) })
+  // Та же версия плана, если ничего не изменилось: история не сбросит повтор.
+  if (sameWorkInput(current, input)) return ok(plan)
+  return ok({ ...plan, works: plan.works.with(index, ownWork(id, input)) })
 }
 
 export function removeWork(plan: AnnualPlan, id: WorkId): Result<AnnualPlan, readonly PlanError[]> {
@@ -137,6 +159,7 @@ export function setManualValue(
   const checked = failIfAny(errors)
   if (!checked.ok) return checked
   const current = manualOf(plan, area)
+  if (Object.is(current[field].get(code), value)) return ok(plan)
   const updated: AreaManual = { ...current, [field]: withEntry(current[field], code, value) }
   const manual = new Map(plan.manual)
   manual.set(areaKey(area), updated)

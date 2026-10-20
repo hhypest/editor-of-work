@@ -167,6 +167,11 @@ describe('Ручные значения', () => {
     expect(planRows(plan, pd1, 'current')[0]).toMatchObject({ value: 4, manual: false })
   })
 
+  it('то же ручное значение повторно — та же версия плана', () => {
+    const plan = value(setManualValue(planWith(), pd1, 'overrides', 'ППР', 4))
+    expect(value(setManualValue(plan, pd1, 'overrides', 'ППР', 4))).toBe(plan)
+  })
+
   it('потребность хранится отдельно от плана', () => {
     const plan = value(setManualValue(planWith(), pd2, 'needs', 'ППР', 12.5))
     expect(planRows(plan, pd2, 'current')[0]).toMatchObject({ need: 12.5, value: 0, manual: false })

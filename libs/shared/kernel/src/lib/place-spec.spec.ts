@@ -144,6 +144,27 @@ describe('PlaceSpec: ошибки с позицией', () => {
     expect(first(text).at).toEqual({ start: 14, end: 25 })
   })
 
+  it('голое число после пикета — пикет того же км, даже если вне 1–10', () => {
+    const text = '1 км пк 4–13'
+    expect(first(text)).toMatchObject({ kind: 'value', text: '13', at: { start: 10, end: 12 } })
+    expect(describePlaceSpecError(first(text))).toBe('Позиция 11, «13»: Пикет 13 вне 1–10 (1 км)')
+  })
+
+  it('конец пк 10 последнего безопасного километра — ошибка, а не неточная точка', () => {
+    expect(first(`${Number.MAX_SAFE_INTEGER} км пк 10`).kind).toBe('value')
+  })
+
+  it('ошибки обеих границ участка сообщаются вместе', () => {
+    const list = errors(parsePlaceSpec('20+980 – 30+1100', 'A', oddKm))
+    expect(list.map((e) => e.text)).toEqual(['20+980', '30+1100'])
+  })
+
+  it('конец, записанный от начала, при ошибке в начале не проверяется', () => {
+    expect(errors(parsePlaceSpec('у моста – пк 7', 'A', standard)).map((e) => e.text)).toEqual([
+      'у моста',
+    ])
+  })
+
   it('собирает все ошибки строки по порядку', () => {
     const list = errors(
       parsePlaceSpec('22,5; 227 км пк 4 – 226 км; 1 км – 2 км – 3 км; 227 –', 'A', standard),

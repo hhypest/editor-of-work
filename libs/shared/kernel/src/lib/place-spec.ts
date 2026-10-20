@@ -173,11 +173,12 @@ function readPoint(
   const pk = firstMatch(PICKET, t)
   if (pk) return ok({ kind: 'pk', km: pk[0], pk: pk[1] })
   if (start && role === 'end') {
-    // «227 км пк 4 – пк 7» и «227 км пк 4–7»: конец на том же километре.
+    // «227 км пк 4 – пк 7» и «227 км пк 4–7»: конец на том же километре. Голое число
+    // после пикета — всегда пикет: опечатка «пк 4–13» должна стать ошибкой «пикет 13»,
+    // а не участком до 13 км. Конец на другом километре пишется с «км».
     const only = PICKET_ONLY.exec(t)?.[1]
     if (only) return ok({ kind: 'pk', km: start.km, pk: Number(only) })
-    if (start.wasPicket && NUMBER.test(t) && Number(t) <= PICKETS_PER_KM)
-      return ok({ kind: 'pk', km: start.km, pk: Number(t) })
+    if (start.wasPicket && NUMBER.test(t)) return ok({ kind: 'pk', km: start.km, pk: Number(t) })
   }
   const km = KM.exec(t)?.[1]
   if (km) return ok({ kind: 'km', km: Number(km) })
@@ -207,17 +208,23 @@ function boundary(
     case 'pk': {
       const b = picketBounds(p.km, p.pk)
       if (!b.ok) return err({ kind: 'value', cause: b.error })
-      return ok(side === 'start' ? b.value.start : b.value.end)
+      // Конец пк 10 — начало следующего километра; он тоже должен быть допустимой точкой.
+      const c = side === 'start' ? b.value.start : b.value.end
+      return checked(c.km, c.m, lengths)
     }
   }
 }
 
 // --- Разбор части: точка, пикет, километр или участок ----------------------
 
-type PartResult = Result<PlaceItem, PlaceSpecError>
+type PartResult = Result<PlaceItem, readonly PlaceSpecError[]>
+
+function located(problem: PlaceSpecProblem, where: Fragment): PlaceSpecError {
+  return { ...problem, at: { start: where.start, end: where.end }, text: where.text }
+}
 
 function fail(problem: PlaceSpecProblem, where: Fragment): PartResult {
-  return err({ ...problem, at: { start: where.start, end: where.end }, text: where.text })
+  return err([located(problem, where)])
 }
 
 /** «227 км» — весь километр, «227 км пк 4» — пикет, «222+916» — точка. */
@@ -236,6 +243,21 @@ function readSingle(f: Fragment, line: string, lengths: KmLengths): PartResult {
   return to.ok ? ok({ kind: 'span', line, from: from.value, to: to.value }) : fail(to.error, f)
 }
 
+/** «пк 7» и «7» в конце участка берут километр из начала. */
+function dependsOnStart(text: string): boolean {
+  const t = normalize(text)
+  return PICKET_ONLY.test(t) || NUMBER.test(t)
+}
+
+function readPointAt(
+  text: string,
+  context: StartContext | undefined,
+  lengths: KmLengths,
+): Result<Chainage, PlaceSpecProblem> {
+  const p = readPoint(text, 'end', context)
+  return p.ok ? boundary(p.value, 'end', lengths) : p
+}
+
 function readRange(
   part: Fragment,
   a: Fragment,
@@ -246,13 +268,15 @@ function readRange(
   if (a.text === '') return fail({ kind: 'missing-start' }, part)
   if (b.text === '') return fail({ kind: 'missing-end' }, part)
   const pa = readPoint(a.text, 'start', undefined)
-  if (!pa.ok) return fail(pa.error, a)
-  const from = boundary(pa.value, 'start', lengths)
-  if (!from.ok) return fail(from.error, a)
-  const pb = readPoint(b.text, 'end', { km: pa.value.km, wasPicket: pa.value.kind === 'pk' })
-  if (!pb.ok) return fail(pb.error, b)
-  const to = boundary(pb.value, 'end', lengths)
-  if (!to.ok) return fail(to.error, b)
+  const from = pa.ok ? boundary(pa.value, 'start', lengths) : pa
+  // Конец проверяется и при ошибке в начале, если он записан без опоры на начало.
+  const context = pa.ok ? { km: pa.value.km, wasPicket: pa.value.kind === 'pk' } : undefined
+  const to = pa.ok || !dependsOnStart(b.text) ? readPointAt(b.text, context, lengths) : undefined
+  const errors = [
+    ...(from.ok ? [] : [located(from.error, a)]),
+    ...(to === undefined || to.ok ? [] : [located(to.error, b)]),
+  ]
+  if (!from.ok || !to?.ok) return err(errors)
   const order = compareChainage(from.value, to.value)
   if (order > 0) return fail({ kind: 'reversed' }, part)
   if (order === 0) return fail({ kind: 'zero-length' }, part)
@@ -303,7 +327,7 @@ export function parsePlaceSpec(
     if (part.text === '') continue
     const r = readPart(text, part, line, lengths)
     if (r.ok) parsed.push([part, r.value])
-    else errors.push(r.error)
+    else errors.push(...r.error)
   }
   errors.push(...overlapErrors(parsed))
   if (errors.length > 0) return err(errors.toSorted((x, y) => x.at.start - y.at.start))

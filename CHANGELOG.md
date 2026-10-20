@@ -10,6 +10,7 @@
 - Приложение `apps/desktop` на Electron 44: main, preload с единственным объектом `window.eow`, отдача интерфейса по схеме `app://ui` с CSP, запрет навигации, новых окон и разрешений, один экземпляр программы; типизированный IPC-контракт `libs/ipc/contracts` с проверкой запросов и ответов zod в main (#3).
 - Качество кода: строгие настройки TypeScript для всего репозитория (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` и др.), ESLint с типизированными правилами и правилами Angular, oxlint, Prettier; команды `lint`, `lint:fix`, `format`, `format:check`, `typecheck` и сводная `npm run check` (#4).
 - CI GitHub Actions на Ubuntu и Windows (Node 24): `npm run check` на каждый PR и push в `main`; проверка `check:public` (в индексе нет выгрузок, баз, планов, PDF и архивов) и `check:licenses` (лицензии зависимостей, попадающих в exe) (#5).
+- Километраж в общем ядре (`@eow/shared/kernel`): `Chainage {км, м}`, `KmLengths` с нестандартными километрами, расстояние и сдвиг только через длины километров, пикеты (пк 1–9 по 100 м, вся разница — на пк 10), печать и разбор «222+916», «222 км 916 м», «227 км пк 4»; `Result` для ошибок без исключений (#7).
 - Архитектурный документ (`docs/architecture.md`) и ADR 0001–0008.
 - README, правила разработки (`CONTRIBUTING.md`), правила для ИИ-агентов (`AGENTS.md`), лицензия MIT.
 - Служебные файлы репозитория: `.gitignore`, `.gitattributes`, `.editorconfig`, шаблон pull request.

@@ -191,6 +191,50 @@ describe('планы в main', () => {
     expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', document: original })
   })
 
+  it.each(['oversized', 'corrupt'] as const)(
+    'не переключает файл сохранения, если автокопия выбранного плана %s',
+    async (problem) => {
+      const original = document(2026)
+      await invoke({ action: 'save', document: original, saveAs: false })
+      const selectedPath = join(directory, 'other.ppr.json')
+      const selected = document(2027)
+      await writeFile(selectedPath, selected)
+      let recovery = '{'
+      if (problem === 'oversized') {
+        const plan = decodePlan(document(2028))
+        if (!plan.ok) throw new Error('нет плана')
+        const encoded = encodePlan(
+          {
+            ...plan.value,
+            prototype: {
+              source: JSON.stringify({ extra: '"'.repeat(6 * 1024 * 1024) }),
+              report: [],
+            },
+          },
+          '0.1.0',
+        )
+        if (!encoded.ok) throw new Error('нет файла')
+        recovery = encoded.value
+      }
+      await writeFile(`${selectedPath}.autosave`, recovery)
+      dialogs.open.mockResolvedValue(selectedPath)
+      expect(await invoke({ action: 'open' })).toMatchObject({ status: 'error' })
+      expect(await invoke({ action: 'state' })).toMatchObject({
+        status: 'ok',
+        document: original,
+        recovery: null,
+      })
+      const changed = document(2029)
+      expect(await invoke({ action: 'save', document: changed, saveAs: false })).toMatchObject({
+        status: 'ok',
+      })
+      expect(dialogs.save).toHaveBeenCalledTimes(1)
+      expect(await readFile(path, 'utf8')).toBe(changed)
+      expect(await readFile(selectedPath, 'utf8')).toBe(selected)
+      expect(await readFile(`${selectedPath}.autosave`, 'utf8')).toBe(recovery)
+    },
+  )
+
   it.each(['kind', 'outside', 'duplicate'] as const)(
     'доменная ошибка %s отклоняет весь импорт без смены текущего плана',
     async (change) => {

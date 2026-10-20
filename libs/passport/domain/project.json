@@ -3,18 +3,12 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/passport/domain/src",
   "projectType": "library",
-  "tags": [
-    "type:domain",
-    "scope:passport"
-  ],
+  "tags": ["type:domain", "scope:passport", "domain:passport"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/passport/domain/tsconfig.lib.json --noEmit"
       }

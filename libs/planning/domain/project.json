@@ -3,18 +3,12 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/planning/domain/src",
   "projectType": "library",
-  "tags": [
-    "type:domain",
-    "scope:planning"
-  ],
+  "tags": ["type:domain", "scope:planning", "domain:planning"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/planning/domain/tsconfig.lib.json --noEmit"
       }

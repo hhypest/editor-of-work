@@ -10,13 +10,21 @@
   },
   "private": true,
   "scripts": {
+    "start": "nx run desktop:serve",
     "build": "nx run-many -t build",
     "test": "nx run-many -t test",
-    "lint": "nx run-many -t lint",
-    "typecheck": "nx run-many -t typecheck"
+    "typecheck": "nx run-many -t typecheck",
+    "lint": "oxlint && nx run-many -t lint",
+    "lint:fix": "oxlint --fix && nx run-many -t lint -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run check:public && npm run check:licenses && npm run test:scripts && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check:public": "node scripts/check-public-files.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\""
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
   },
   "devDependencies": {
     "@analogjs/vite-plugin-angular": "~2.9.0",
@@ -44,10 +52,15 @@
     "@vitest/coverage-v8": "^4.0.0",
     "@vitest/ui": "^4.0.0",
     "angular-eslint": "^22.6.0",
+    "electron": "44.9.0",
+    "esbuild": "0.28.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-oxlint": "1.89.0",
     "jsdom": "^27.1.0",
     "nx": "23.3.0",
+    "oxlint": "1.89.0",
+    "prettier": "3.9.10",
     "tslib": "^2.3.0",
     "typescript": "6.0.3",
     "typescript-eslint": "^8.58.0",
@@ -61,7 +74,8 @@
     "@angular/forms": "~22.2.3",
     "@angular/platform-browser": "~22.2.3",
     "@angular/router": "~22.2.3",
-    "rxjs": "~7.8.0"
+    "rxjs": "~7.8.0",
+    "zod": "4.6.7"
   },
   "overrides": {
     "undici": "^7.30.1"

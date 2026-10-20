@@ -4,20 +4,14 @@
   "sourceRoot": "libs/documents/ui-sheets/src",
   "prefix": "eow",
   "projectType": "library",
-  "tags": [
-    "type:feature-ui",
-    "scope:documents"
-  ],
+  "tags": ["type:feature-ui", "scope:documents"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
-        "command": "tsc -p libs/documents/ui-sheets/tsconfig.lib.json --noEmit"
+        "command": "ngc -p libs/documents/ui-sheets/tsconfig.lib.json --noEmit"
       }
     }
   }

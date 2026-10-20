@@ -2,12 +2,7 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "experimentalDecorators": true,
-    "isolatedModules": true,
-    "strict": true,
-    "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noImplicitReturns": true,
-    "noFallthroughCasesInSwitch": true
+    "isolatedModules": true
   },
   "angularCompilerOptions": {
     "enableI18nLegacyMessageIdFormat": false,

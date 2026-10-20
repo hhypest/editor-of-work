@@ -1,5 +1,4 @@
-import baseConfig from "../../../eslint.config.mjs";
+import noNode from '../../../eslint.no-node.mjs'
+import baseConfig from '../../../eslint.config.mjs'
 
-export default [
-    ...baseConfig
-];
+export default [...baseConfig, ...noNode]

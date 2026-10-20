@@ -179,4 +179,69 @@ describe('импорт JSON прототипа', () => {
     expect(plan.basis.workKinds.find((k) => k.code === 'B')?.unit).toBe('км пути')
     expect(plan.prototype!.report).toContainEqual(expect.objectContaining({ path: 'works.0.qty' }))
   })
+
+  it.each([false, true])(
+    'ось на общей границе относится к следующему ПД при любом порядке (%s)',
+    (reversed) => {
+      const p = prototypeFixture()
+      p.stations[0]!.pos[0]!.axis = 13
+      if (reversed) p.pd.reverse()
+      expect(imported(p).basis.stations[0]!.pd).toBe('D2')
+    },
+  )
+
+  it.each([15, 20])('ось на исключённом конце участка %s не относится к прежнему ПД', (axis) => {
+    const p = prototypeFixture()
+    p.stations[0]!.pos[0]!.axis = axis
+    expect(imported(p).basis.stations[0]!.pd).toBeUndefined()
+  })
+
+  it.each(['explicit', 'fallback'] as const)(
+    'отклоняет совпадение номеров путей после преобразования (%s)',
+    (kind) => {
+      const p = prototypeFixture()
+      const tracks = p.stations[0]!.layout.tracks
+      tracks[0]!.num = kind === 'explicit' ? '2' : 'side'
+      if (kind === 'fallback') tracks[1]!.num = ''
+      const result = importPrototype(JSON.stringify(p), options())
+      expect(result).toMatchObject({
+        ok: false,
+        error: expect.arrayContaining([
+          expect.objectContaining({
+            path: 'stations.0.layout.tracks',
+            message: expect.stringContaining('Номер пути станции повторяется'),
+          }),
+        ]),
+      })
+    },
+  )
+
+  it.each([
+    { line: 'L', from: 9, to: 11 },
+    { line: 'L', from: 19, to: 21 },
+    { line: 'L', from: 21, to: 22 },
+    { line: 'L', from: 14, to: 17 },
+    { line: 'L', from: 15.1, to: 15.9 },
+    { line: 'missing', from: 11, to: 12 },
+  ])('отклоняет границу ПД вне протяжения направления: %j', (segment) => {
+    const p = prototypeFixture()
+    p.pd[0]!.segs = [segment]
+    const result = importPrototype(JSON.stringify(p), options())
+    expect(result).toMatchObject({
+      ok: false,
+      error: expect.arrayContaining([
+        expect.objectContaining({
+          path: 'pd.0.segs.0',
+          message: expect.stringContaining('Граница ПД выходит за протяжение'),
+        }),
+      ]),
+    })
+  })
+
+  it('допускает границы ПД, совпадающие с краями протяжения и разрыва', () => {
+    const p = prototypeFixture()
+    p.pd[0]!.segs = [{ line: 'L', from: 10.25, to: 15 }]
+    p.pd[1]!.segs = [{ line: 'L', from: 16, to: 20 }]
+    expect(imported(p).basis.pds.map((pd) => pd.segments)).toHaveLength(2)
+  })
 })

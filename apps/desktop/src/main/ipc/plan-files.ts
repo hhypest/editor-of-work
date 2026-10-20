@@ -1,4 +1,4 @@
-import { channels, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
+import { channels, planDocumentSchema, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
 import {
   decodePlan,
   encodePlan,
@@ -49,20 +49,56 @@ export function registerPlanFileHandlers(
     },
   )
 
-  async function state(): Promise<Response> {
-    const encoded = current ? encodePlan(current, appVersion) : undefined
+  function encodeDocument(plan: AnnualPlan): ReturnType<typeof encodePlan> {
+    const encoded = encodePlan(plan, appVersion)
+    if (encoded.ok && !planDocumentSchema.safeParse(encoded.value).success)
+      return {
+        ok: false,
+        error: {
+          kind: 'invalid-file',
+          message: 'План превышает допустимый размер. Текущий план не изменён.',
+        },
+      }
+    return encoded
+  }
+
+  async function responseFor(
+    plan: AnnualPlan | undefined,
+    selected: FilePlanStore | undefined,
+    error: string | null,
+  ): Promise<Response> {
+    const encoded = plan ? encodeDocument(plan) : undefined
     if (encoded && !encoded.ok) return failure(encoded.error.message)
-    const recovery = store ? await store.recovery() : undefined
+    const recovery = selected ? await selected.recovery() : undefined
     if (recovery && !recovery.ok) return failure(recovery.error.message)
-    const recovered =
-      recovery?.ok && recovery.value ? encodePlan(recovery.value, appVersion) : undefined
+    const recovered = recovery?.ok && recovery.value ? encodeDocument(recovery.value) : undefined
     if (recovered && !recovered.ok) return failure(recovered.error.message)
     return {
       status: 'ok',
       document: encoded?.ok ? encoded.value : null,
       recovery: recovered?.ok ? recovered.value : null,
-      autosaveError,
+      autosaveError: error,
     }
+  }
+
+  function state(): Promise<Response> {
+    return responseFor(current, store, autosaveError)
+  }
+
+  /** Ошибка подготовки ответа оставляет прежние документ, путь и признак правок. */
+  async function replaceCurrent(
+    plan: AnnualPlan,
+    selected: FilePlanStore | undefined,
+    changed: boolean,
+    error = autosaveError,
+  ): Promise<Response> {
+    const response = await responseFor(plan, selected, error)
+    if (response.status !== 'ok') return response
+    current = plan
+    store = selected
+    dirty = changed
+    autosaveError = error
+    return response
   }
 
   async function handle(request: Request): Promise<Response> {
@@ -80,11 +116,7 @@ export function registerPlanFileHandlers(
         const imported = buildImportedPlan(parsed.value)
         if (!imported.ok)
           return failure(imported.error.map((e) => `${e.path}: ${e.message}`).join('; '))
-        current = imported.value
-        store = undefined
-        dirty = true
-        autosaveError = null
-        return state()
+        return replaceCurrent(imported.value, undefined, true, null)
       }
       case 'open': {
         const path = await dialogs.open()
@@ -92,15 +124,13 @@ export function registerPlanFileHandlers(
         const selected = new FilePlanStore(path, appVersion)
         const loaded = await selected.load()
         if (!loaded.ok) return failure(loaded.error.message)
-        store = selected
-        current = loaded.value
-        dirty = false
-        autosaveError = null
-        return state()
+        return replaceCurrent(loaded.value, selected, false, null)
       }
       case 'save': {
         const plan = decodePlan(request.document)
         if (!plan.ok) return failure(plan.error.message)
+        const encoded = encodeDocument(plan.value)
+        if (!encoded.ok) return failure(encoded.error.message)
         let selected = store
         if (!selected || request.saveAs) {
           const path = await dialogs.save()
@@ -109,18 +139,12 @@ export function registerPlanFileHandlers(
         }
         const saved = await selected.save(plan.value)
         if (!saved.ok) return failure(saved.error.message)
-        store = selected
-        current = plan.value
-        dirty = false
-        autosaveError = null
-        return state()
+        return replaceCurrent(plan.value, selected, false, null)
       }
       case 'update': {
         const plan = decodePlan(request.document)
         if (!plan.ok) return failure(plan.error.message)
-        current = plan.value
-        dirty = true
-        return state()
+        return replaceCurrent(plan.value, store, true)
       }
       case 'state':
         return state()
@@ -130,8 +154,7 @@ export function registerPlanFileHandlers(
           const recovery = await store.recovery()
           if (!recovery.ok) return failure(recovery.error.message)
           if (recovery.value) {
-            current = recovery.value
-            dirty = true
+            return replaceCurrent(recovery.value, store, true)
           }
           // Автокопия остаётся до явного сохранения восстановленного документа.
         } else {

@@ -13,6 +13,8 @@ test('находит выгрузки, базы, планы, PDF и архивы
     'archive.7z',
     'private-data/readme.txt',
     'apps/ui/src/app/app.ts',
+    'data/passport.sqlite-wal',
+    'backup.tar.gz',
   ]
   assert.deepEqual(findForbiddenFiles(paths), [
     'fixtures/96857397.xls',
@@ -22,6 +24,8 @@ test('находит выгрузки, базы, планы, PDF и архивы
     'out/лист.pdf',
     'archive.7z',
     'private-data/readme.txt',
+    'data/passport.sqlite-wal',
+    'backup.tar.gz',
   ])
 })
 

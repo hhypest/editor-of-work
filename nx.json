@@ -24,7 +24,13 @@
     },
     "lint": {
       "cache": true,
-      "inputs": ["default", "^default", "{workspaceRoot}/eslint.config.mjs"]
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/eslint.config.mjs",
+        "{workspaceRoot}/eslint.no-node.mjs",
+        "{workspaceRoot}/.oxlintrc.json"
+      ]
     }
   },
   "generators": {

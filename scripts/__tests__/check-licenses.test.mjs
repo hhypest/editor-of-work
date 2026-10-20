@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isAllowedLicense, licenseOf } from '../check-licenses.mjs'
+import { findPackageDir, isAllowedLicense, licenseOf, parseSpdx } from '../check-licenses.mjs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const rootDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 test('разрешительные лицензии проходят', () => {
   for (const l of ['MIT', 'ISC', 'Apache-2.0', 'BSD-3-Clause', '(MIT OR Apache-2.0)']) {
@@ -26,4 +30,18 @@ test('читает лицензию из старых форматов package.j
     'MIT OR Apache-2.0',
   )
   assert.equal(licenseOf({}), '')
+})
+
+test('вложенные скобки и WITH', () => {
+  assert.equal(isAllowedLicense('(MIT OR Apache-2.0) AND ISC'), true)
+  assert.equal(isAllowedLicense('((MIT AND ISC) OR GPL-3.0) AND BSD-3-Clause'), true)
+  assert.equal(isAllowedLicense('(MIT OR Apache-2.0) AND GPL-3.0'), false)
+  assert.equal(isAllowedLicense('GPL-2.0 WITH Classpath-exception-2.0'), false)
+  assert.equal(isAllowedLicense('(MIT'), false)
+  assert.deepEqual(parseSpdx('MIT OR ISC'), { or: [{ license: 'MIT' }, { license: 'ISC' }] })
+})
+
+test('находит пакет, который не экспортирует package.json', () => {
+  // @standard-schema/spec экспортирует только точку входа; раньше он пропускался молча.
+  assert.notEqual(findPackageDir('@standard-schema/spec', rootDir), null)
 })

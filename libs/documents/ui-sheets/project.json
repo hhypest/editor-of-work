@@ -1,0 +1,24 @@
+{
+  "name": "documents-ui-sheets",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/documents/ui-sheets/src",
+  "prefix": "eow",
+  "projectType": "library",
+  "tags": [
+    "type:feature-ui",
+    "scope:documents"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/documents/ui-sheets/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "planning-infrastructure",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/planning/infrastructure/src",
+  "projectType": "library",
+  "tags": [
+    "type:infrastructure",
+    "scope:planning"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/planning/infrastructure/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

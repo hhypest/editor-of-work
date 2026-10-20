@@ -1,0 +1,23 @@
+{
+  "name": "planning-application",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/planning/application/src",
+  "projectType": "library",
+  "tags": [
+    "type:application",
+    "scope:planning"
+  ],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "default",
+        "^default"
+      ],
+      "options": {
+        "command": "tsc -p libs/planning/application/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

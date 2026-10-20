@@ -18,7 +18,10 @@
     "lint:fix": "oxlint --fix && nx run-many -t lint -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build"
+    "check": "npm run check:public && npm run check:licenses && npm run test:scripts && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check:public": "node scripts/check-public-files.mjs",
+    "check:licenses": "node scripts/check-licenses.mjs",
+    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\""
   },
   "engines": {
     "node": ">=22.12.0"

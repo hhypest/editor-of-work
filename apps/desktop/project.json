@@ -1,0 +1,38 @@
+{
+  "name": "desktop",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/desktop/src",
+  "tags": ["type:app", "scope:desktop"],
+  "implicitDependencies": ["ui"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": [{ "projects": ["ui"], "target": "build" }],
+      "inputs": ["production", "^production"],
+      "outputs": ["{workspaceRoot}/dist/apps/desktop"],
+      "options": { "command": "node apps/desktop/build.mjs" }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "dependsOn": [{ "projects": ["ui"], "target": "serve" }],
+      "options": {
+        "command": "node apps/desktop/build.mjs && electron dist/apps/desktop",
+        "env": { "EOW_DEV_SERVER_URL": "http://localhost:4200" }
+      }
+    },
+    "start": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
+      "options": { "command": "electron dist/apps/desktop" }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^default"],
+      "options": { "command": "tsc -p apps/desktop/tsconfig.app.json --noEmit" }
+    }
+  }
+}

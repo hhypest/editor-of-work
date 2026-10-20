@@ -180,11 +180,13 @@ export async function openPassportDatabase(
   const database = new DatabaseSync(path)
   try {
     database.exec(
-      'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;',
+      'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;',
     )
     await migratePassport(database, migrations, async () => {
       if (existing) await copyDatabase(database, path, 'migration')
     })
+    // Режим журнала меняет файл: только после проверки совместимости и копии до миграции.
+    database.exec('PRAGMA journal_mode = WAL')
     const queries = sqliteQueries<Schema>(database)
     // Инициализируем драйвер до передачи владения close() адаптеру.
     await sql`SELECT 1`.execute(queries)

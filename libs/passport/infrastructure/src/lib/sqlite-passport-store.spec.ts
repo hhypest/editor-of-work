@@ -236,6 +236,73 @@ describe('SQLite паспорта', () => {
     expect(value(await store.createDraft(input)).status).toBe('draft')
   })
 
+  it('продолжает прежнюю резервную базу после восстановления доступа к папке программы', async () => {
+    const portable = join(root, 'portable')
+    await mkdir(portable)
+    await writeFile(join(portable, 'data'), 'недоступный каталог')
+    const options = {
+      executableDirectory: portable,
+      localDataDirectory: join(root, 'local'),
+      migrationsDirectory: migrations,
+    }
+    const first = await openPortablePassport(options)
+    stores.push(first)
+    const edition = value(await first.createDraft(input))
+    await first.close()
+    await rm(join(portable, 'data'))
+    const reopened = await openPortablePassport(options)
+    stores.push(reopened)
+    expect(reopened.path).toBe(first.path)
+    expect(value(await reopened.list())).toEqual([edition])
+    expect(await readdir(portable)).not.toContain('data')
+  })
+
+  it('не создаёт новую переносную базу вместо повреждённой существующей резервной', async () => {
+    const fallback = join(root, 'local', 'editor-of-work')
+    await mkdir(fallback, { recursive: true })
+    await writeFile(join(fallback, 'passport.sqlite'), 'учебный повреждённый файл')
+    await expect(
+      openPortablePassport({
+        executableDirectory: join(root, 'portable'),
+        localDataDirectory: join(root, 'local'),
+        migrationsDirectory: migrations,
+      }),
+    ).rejects.toThrow('file is not a database')
+    expect(await readdir(root)).not.toContain('portable')
+  })
+
+  it('использует явно перенесённую базу рядом с exe при наличии резервной', async () => {
+    const options = {
+      executableDirectory: join(root, 'portable'),
+      localDataDirectory: join(root, 'local'),
+      migrationsDirectory: migrations,
+    }
+    const fallbackDirectory = join(root, 'local', 'editor-of-work')
+    await mkdir(fallbackDirectory, { recursive: true })
+    const fallback = await openPassportDatabase(
+      join(fallbackDirectory, 'passport.sqlite'),
+      migrations,
+    )
+    stores.push(fallback)
+    value(await fallback.createDraft(input))
+    await fallback.close()
+    const primaryDirectory = join(root, 'portable', 'data')
+    await mkdir(primaryDirectory, { recursive: true })
+    const primary = await openPassportDatabase(
+      join(primaryDirectory, 'passport.sqlite'),
+      migrations,
+    )
+    stores.push(primary)
+    const carried = value(
+      await primary.createDraft({ ...input, label: 'Переносимая учебная редакция' }),
+    )
+    await primary.close()
+    const reopened = await openPortablePassport(options)
+    stores.push(reopened)
+    expect(reopened.path).toBe(primary.path)
+    expect(value(await reopened.list())).toEqual([carried])
+  })
+
   it('не подменяет повреждённую переносную базу пустой резервной', async () => {
     const portable = join(root, 'portable')
     await mkdir(join(portable, 'data'), { recursive: true })
@@ -388,4 +455,43 @@ describe('SQLite паспорта', () => {
     expect(await store.createDraft(input)).toMatchObject({ ok: false, error: { kind: 'storage' } })
     expect(value(await store.list())).toHaveLength(1)
   })
+
+  it.each(['unknown', 'future', 'checksum'] as const)(
+    'отказ открытия %s не меняет байты файла и режим DELETE',
+    async (problem) => {
+      const database = new DatabaseSync(path)
+      const chain = await loadPassportMigrations(migrations)
+      if (problem === 'unknown') database.exec('CREATE TABLE unrelated (id INTEGER)')
+      else {
+        await migratePassport(database, chain, async () => undefined)
+        if (problem === 'future')
+          await migratePassport(
+            database,
+            [
+              ...chain,
+              { version: 3, name: '003_future.sql', sql: 'CREATE TABLE future (id INTEGER)' },
+            ],
+            async () => undefined,
+          )
+        else database.exec("UPDATE schema_migrations SET sha256 = 'changed' WHERE version = 1")
+      }
+      expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({
+        journal_mode: 'delete',
+      })
+      database.close()
+      const before = await readFile(path)
+      await expect(open()).rejects.toThrow(
+        problem === 'future'
+          ? 'более новой'
+          : problem === 'unknown'
+            ? 'Неизвестная схема'
+            : 'не совпадает',
+      )
+      expect(await readFile(path)).toEqual(before)
+      expect(await readdir(root)).toEqual(['passport.sqlite'])
+      expect(inspect().prepare('PRAGMA journal_mode').get()).toMatchObject({
+        journal_mode: 'delete',
+      })
+    },
+  )
 })

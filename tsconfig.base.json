@@ -7,78 +7,40 @@
     "moduleResolution": "bundler",
     "module": "esnext",
     "target": "es2022",
-    "lib": [
-      "es2023",
-      "dom"
-    ],
+    "lib": ["es2023", "dom"],
     "importHelpers": true,
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "paths": {
-      "@eow/shared/kernel": [
-        "./libs/shared/kernel/src/index.ts"
-      ],
-      "@eow/passport/domain": [
-        "./libs/passport/domain/src/index.ts"
-      ],
-      "@eow/passport/application": [
-        "./libs/passport/application/src/index.ts"
-      ],
-      "@eow/stations/domain": [
-        "./libs/stations/domain/src/index.ts"
-      ],
-      "@eow/stations/application": [
-        "./libs/stations/application/src/index.ts"
-      ],
-      "@eow/planning/domain": [
-        "./libs/planning/domain/src/index.ts"
-      ],
-      "@eow/planning/application": [
-        "./libs/planning/application/src/index.ts"
-      ],
-      "@eow/passport/infrastructure": [
-        "./libs/passport/infrastructure/src/index.ts"
-      ],
-      "@eow/planning/infrastructure": [
-        "./libs/planning/infrastructure/src/index.ts"
-      ],
-      "@eow/documents/infrastructure": [
-        "./libs/documents/infrastructure/src/index.ts"
-      ],
-      "@eow/import/infrastructure": [
-        "./libs/import/infrastructure/src/index.ts"
-      ],
-      "@eow/documents/application": [
-        "./libs/documents/application/src/index.ts"
-      ],
-      "@eow/import/application": [
-        "./libs/import/application/src/index.ts"
-      ],
-      "@eow/ipc/contracts": [
-        "./libs/ipc/contracts/src/index.ts"
-      ],
-      "@eow/passport/feature-ui": [
-        "./libs/passport/feature-ui/src/index.ts"
-      ],
-      "@eow/stations/feature-ui": [
-        "./libs/stations/feature-ui/src/index.ts"
-      ],
-      "@eow/planning/feature-ui": [
-        "./libs/planning/feature-ui/src/index.ts"
-      ],
-      "@eow/import/feature-ui": [
-        "./libs/import/feature-ui/src/index.ts"
-      ],
-      "@eow/documents/ui-sheets": [
-        "./libs/documents/ui-sheets/src/index.ts"
-      ],
-      "@eow/ui/kit": [
-        "./libs/ui/kit/src/index.ts"
-      ]
-    }
+      "@eow/shared/kernel": ["./libs/shared/kernel/src/index.ts"],
+      "@eow/passport/domain": ["./libs/passport/domain/src/index.ts"],
+      "@eow/passport/application": ["./libs/passport/application/src/index.ts"],
+      "@eow/stations/domain": ["./libs/stations/domain/src/index.ts"],
+      "@eow/stations/application": ["./libs/stations/application/src/index.ts"],
+      "@eow/planning/domain": ["./libs/planning/domain/src/index.ts"],
+      "@eow/planning/application": ["./libs/planning/application/src/index.ts"],
+      "@eow/passport/infrastructure": ["./libs/passport/infrastructure/src/index.ts"],
+      "@eow/planning/infrastructure": ["./libs/planning/infrastructure/src/index.ts"],
+      "@eow/documents/infrastructure": ["./libs/documents/infrastructure/src/index.ts"],
+      "@eow/import/infrastructure": ["./libs/import/infrastructure/src/index.ts"],
+      "@eow/documents/application": ["./libs/documents/application/src/index.ts"],
+      "@eow/import/application": ["./libs/import/application/src/index.ts"],
+      "@eow/ipc/contracts": ["./libs/ipc/contracts/src/index.ts"],
+      "@eow/passport/feature-ui": ["./libs/passport/feature-ui/src/index.ts"],
+      "@eow/stations/feature-ui": ["./libs/stations/feature-ui/src/index.ts"],
+      "@eow/planning/feature-ui": ["./libs/planning/feature-ui/src/index.ts"],
+      "@eow/import/feature-ui": ["./libs/import/feature-ui/src/index.ts"],
+      "@eow/documents/ui-sheets": ["./libs/documents/ui-sheets/src/index.ts"],
+      "@eow/ui/kit": ["./libs/ui/kit/src/index.ts"]
+    },
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "exclude": [
-    "node_modules",
-    "tmp"
-  ]
+  "exclude": ["node_modules", "tmp"]
 }

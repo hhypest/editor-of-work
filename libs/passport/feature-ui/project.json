@@ -4,18 +4,12 @@
   "sourceRoot": "libs/passport/feature-ui/src",
   "prefix": "eow",
   "projectType": "library",
-  "tags": [
-    "type:feature-ui",
-    "scope:passport"
-  ],
+  "tags": ["type:feature-ui", "scope:passport"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/passport/feature-ui/tsconfig.lib.json --noEmit"
       }

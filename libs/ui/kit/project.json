@@ -4,18 +4,12 @@
   "sourceRoot": "libs/ui/kit/src",
   "prefix": "eow",
   "projectType": "library",
-  "tags": [
-    "type:ui-kit",
-    "scope:shared"
-  ],
+  "tags": ["type:ui-kit", "scope:shared"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/ui/kit/tsconfig.lib.json --noEmit"
       }

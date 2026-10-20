@@ -4,16 +4,11 @@
   "projectType": "application",
   "prefix": "eow",
   "sourceRoot": "apps/ui/src",
-  "tags": [
-    "type:app",
-    "scope:ui"
-  ],
+  "tags": ["type:app", "scope:ui"],
   "targets": {
     "build": {
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/apps/ui",
@@ -25,9 +20,7 @@
             "input": "apps/ui/public"
           }
         ],
-        "styles": [
-          "apps/ui/src/styles.css"
-        ]
+        "styles": ["apps/ui/src/styles.css"]
       },
       "configurations": {
         "production": {
@@ -83,10 +76,7 @@
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p apps/ui/tsconfig.app.json --noEmit"
       }

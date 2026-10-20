@@ -3,18 +3,12 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/ipc/contracts/src",
   "projectType": "library",
-  "tags": [
-    "type:contracts",
-    "scope:shared"
-  ],
+  "tags": ["type:contracts", "scope:shared"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/ipc/contracts/tsconfig.lib.json --noEmit"
       }

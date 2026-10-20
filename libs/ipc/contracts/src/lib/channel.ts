@@ -1,4 +1,4 @@
-import type { z } from 'zod';
+import type { z } from 'zod'
 
 /**
  * Канал IPC «запрос — ответ» (ipcRenderer.invoke / ipcMain.handle).
@@ -6,9 +6,9 @@ import type { z } from 'zod';
  * и в main (проверка), и в preload (проброс), и в renderer (типы).
  */
 export interface Channel<Name extends string, Req extends z.ZodType, Res extends z.ZodType> {
-  readonly name: Name;
-  readonly request: Req;
-  readonly response: Res;
+  readonly name: Name
+  readonly request: Req
+  readonly response: Res
 }
 
 export function defineChannel<Name extends string, Req extends z.ZodType, Res extends z.ZodType>(
@@ -16,11 +16,11 @@ export function defineChannel<Name extends string, Req extends z.ZodType, Res ex
   request: Req,
   response: Res,
 ): Channel<Name, Req, Res> {
-  return { name, request, response };
+  return { name, request, response }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- обобщённый канал для отображений типов
-export type AnyChannel = Channel<string, any, any>;
+export type AnyChannel = Channel<string, any, any>
 
-export type RequestOf<C extends AnyChannel> = z.input<C['request']>;
-export type ResponseOf<C extends AnyChannel> = z.output<C['response']>;
+export type RequestOf<C extends AnyChannel> = z.input<C['request']>
+export type ResponseOf<C extends AnyChannel> = z.output<C['response']>

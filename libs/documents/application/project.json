@@ -3,18 +3,12 @@
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libs/documents/application/src",
   "projectType": "library",
-  "tags": [
-    "type:application",
-    "scope:documents"
-  ],
+  "tags": ["type:application", "scope:documents"],
   "targets": {
     "typecheck": {
       "executor": "nx:run-commands",
       "cache": true,
-      "inputs": [
-        "default",
-        "^default"
-      ],
+      "inputs": ["default", "^default"],
       "options": {
         "command": "tsc -p libs/documents/application/tsconfig.lib.json --noEmit"
       }

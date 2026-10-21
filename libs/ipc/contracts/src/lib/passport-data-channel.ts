@@ -240,10 +240,7 @@ const station = z.discriminatedUnion('form', [
           direction: text,
           stationColumn: text,
           titleStation: text,
-          place: z
-            .object({ km: z.number(), pk: z.number(), siding: text })
-            .strict()
-            .nullable(),
+          place: z.object({ km: z.number(), pk: z.number(), siding: text }).strict().nullable(),
           category: text,
           type: text,
           region: text,

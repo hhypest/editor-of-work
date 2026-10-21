@@ -4,6 +4,8 @@ import { pathToFileURL } from 'node:url'
 import { registerIpcHandlers } from './ipc/handlers'
 import { registerPlanFileHandlers } from './ipc/plan-files'
 import { registerPassportHandlers } from './ipc/passport'
+import { registerRepairHandlers } from './ipc/repairs'
+import { repairReports } from '@eow/passport/application'
 import { openPortablePassport } from '@eow/passport/infrastructure'
 import {
   APP_ORIGIN,
@@ -102,6 +104,7 @@ if (!app.requestSingleInstanceLock()) {
       registerAppProtocol()
       registerIpcHandlers(ipcMain, app)
       registerPassportHandlers(ipcMain, passport)
+      registerRepairHandlers(ipcMain, repairReports(passport))
       const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
       const stopPlanFiles = registerPlanFileHandlers(
         ipcMain,

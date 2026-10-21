@@ -11,6 +11,8 @@ import type {
   PassportEdition,
   PassportError,
   PassportStore,
+  RepairReportSource,
+  RepairSnapshot,
 } from '@eow/passport/application'
 import {
   SEGMENT_FORMS,
@@ -51,6 +53,7 @@ import {
 } from './station-import-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
+import { readRepairSnapshot } from './repair-snapshot'
 import type {
   ManualBasis,
   ManualImport,
@@ -77,6 +80,7 @@ const absent = (): PassportError => ({
 export interface PassportDatabase
   extends
     PassportStore,
+    RepairReportSource,
     PassportOrgImport,
     PassportSegmentImport,
     PassportStationImport,
@@ -195,6 +199,15 @@ class SqlitePassportStore implements PassportDatabase {
       this.queries.transaction().execute(async (transaction) => {
         const basis = await readSegmentBasis(transaction, id)
         return basis ? ok(basis) : err(absent())
+      }),
+    )
+  }
+
+  repairSnapshot(id: number): Promise<Result<RepairSnapshot, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const snapshot = await readRepairSnapshot(db, id)
+        return snapshot ? ok(snapshot) : err(absent())
       }),
     )
   }

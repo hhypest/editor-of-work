@@ -1,0 +1,103 @@
+<section aria-labelledby="repair-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="repair-title">{{ text.title }}</h2>
+  <p>
+    Расчёт на дату редакции по нормам из шаблона ручных данных. Год последнего ремонта главного пути
+    — год укладки рельсов при любом признаке укладки.
+  </p>
+  <div class="controls">
+    <label for="repair-edition">{{ text.edition }}</label>
+    <select id="repair-edition" [value]="facade.selected() ?? ''" (change)="select($event)">
+      @for (edition of facade.editions(); track edition.id) {
+        <option [value]="edition.id">
+          № {{ edition.number }} · {{ edition.date }} · {{ edition.label }}
+        </option>
+      }
+    </select>
+    <button type="button" [disabled]="facade.busy()" (click)="refresh()">{{ text.refresh }}</button>
+  </div>
+  @if (facade.busy()) {
+    <p role="status">{{ text.loading }}</p>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert">{{ error }}</p>
+  }
+  @if (!facade.busy() && !facade.error() && !facade.editions().length) {
+    <p>{{ text.emptyEditions }}</p>
+  }
+  @if (facade.report(); as report) {
+    <p>
+      Дата расчёта: {{ report.date }}. «Не позднее» — верхняя граница срока; точный год достижения
+      тоннажа без его истории неизвестен. «—» означает отсутствие данных или неприменимый порог.
+    </p>
+    @if (!report.rows.length) {
+      <p>{{ text.emptyRows }}</p>
+    } @else {
+      <div
+        class="table-scroll"
+        tabindex="0"
+        role="region"
+        aria-label="Таблица потребности в ремонте"
+      >
+        <table>
+          <caption>
+            Потребность, вычисленная по выбранной редакции
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Место</th>
+              <th scope="col">Последний ремонт, год</th>
+              <th scope="col">После укладки, млн т</th>
+              <th scope="col">Вид ремонта</th>
+              <th scope="col">Срок, год</th>
+              <th scope="col">Сверх нормы, лет</th>
+              <th scope="col">Сверх нормы, млн т</th>
+              <th scope="col">Результат</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of facade.rows(); track $index) {
+              <tr [class.due]="row.assessment.status === 'due'">
+                <th scope="row">{{ row.place }}</th>
+                <td>{{ row.lastRepairYear ?? '—' }}</td>
+                <td>
+                  {{ row.tonnageAfter === null ? '—' : (row.tonnageAfter | number: '1.0-3') }}
+                </td>
+                <td>{{ row.assessment.workName ?? '—' }}</td>
+                <td>
+                  @if (row.assessment.dueYear !== null) {
+                    @if (row.assessment.yearIsUpperBound) {
+                      Не позднее
+                    }
+                    {{ row.assessment.dueYear }}
+                  } @else {
+                    —
+                  }
+                </td>
+                <td>
+                  {{
+                    row.assessment.overdueYears === null
+                      ? '—'
+                      : (row.assessment.overdueYears | number: '1.0-3')
+                  }}
+                </td>
+                <td>
+                  {{
+                    row.assessment.overdueMillionTons === null
+                      ? '—'
+                      : (row.assessment.overdueMillionTons | number: '1.0-3')
+                  }}
+                </td>
+                <td>
+                  <strong>{{ row.status }}</strong>
+                  @if (row.assessment.reason) {
+                    <p>{{ row.assessment.reason }}</p>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+</section>

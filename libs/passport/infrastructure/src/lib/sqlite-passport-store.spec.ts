@@ -63,7 +63,7 @@ describe('SQLite паспорта', () => {
     const database = inspect()
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({ journal_mode: 'wal' })
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 4,
+      n: 5,
     })
     for (const table of editionTables)
       expect(database.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toMatchObject({ n: 0 })
@@ -399,6 +399,43 @@ describe('SQLite паспорта', () => {
     })
     for (const table of tables)
       expect(saved.prepare(`SELECT * FROM ${table}`).get()).toEqual(original.get(table))
+  })
+
+  it('миграция 005 сохраняет действующие станции, переезды и их ссылки, создаёт backup и восстанавливает защиту', async () => {
+    const initial = new DatabaseSync(path)
+    initial.exec('PRAGMA foreign_keys=ON')
+    const chain = await loadPassportMigrations(migrations)
+    await migratePassport(initial, chain.slice(0, 4), async () => undefined)
+    initial.exec(
+      "INSERT INTO edition(id,number,date,label,status) VALUES (1,1,'2027-01-01','Учебная','draft')",
+    )
+    seedPassport(initial, 1)
+    initial.exec("UPDATE edition SET status='active' WHERE id=1")
+    const tables = ['station_axis', 'station_track', 'station_switch', 'crossing', 'territory']
+    const before = new Map(tables.map((t) => [t, initial.prepare(`SELECT * FROM ${t}`).get()]))
+    initial.close()
+    await open()
+    const current = inspect()
+    for (const table of tables) {
+      expect(current.prepare(`SELECT * FROM ${table}`).get()).toEqual({
+        ...before.get(table),
+        details: null,
+      })
+      expect(() => current.prepare(`UPDATE ${table} SET details='{}'`).run()).toThrow('immutable')
+    }
+    expect(current.prepare('SELECT crossing_id,line_id FROM crossing_line').all()).toEqual([
+      { crossing_id: 'row', line_id: 'row' },
+    ])
+    expect(() => current.prepare("UPDATE crossing_line SET line_id='changed'").run()).toThrow(
+      'immutable',
+    )
+    expect(current.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    const saved = inspect((await backups())[0])
+    expect(saved.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
+      n: 4,
+    })
+    for (const table of tables)
+      expect(saved.prepare(`SELECT * FROM ${table}`).get()).toEqual(before.get(table))
   })
 
   it('отказывает новой программе при изменённой истории и старой — при новой схеме', async () => {

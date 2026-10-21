@@ -62,6 +62,7 @@ export function seedPassport(database: DatabaseSync, edition: number): void {
       km: 700,
       m: 1200,
     },
+    crossing_line: { crossing_id: 'row', line_id: 'row' },
     work_kind: {
       code: 'fixture',
       name: 'Учебная работа',
@@ -81,6 +82,14 @@ export function seedPassport(database: DatabaseSync, edition: number): void {
   database.exec('PRAGMA foreign_keys = ON; BEGIN')
   try {
     for (const table of editionTables) {
+      // Фикстура также используется для обновления схем до миграции 005.
+      if (
+        table === 'crossing_line' &&
+        !database
+          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='crossing_line'")
+          .get()
+      )
+        continue
       const characteristic = table.startsWith('seg_')
         ? { start_km: 700, start_m: 0, end_km: 701, end_m: 0 }
         : {}

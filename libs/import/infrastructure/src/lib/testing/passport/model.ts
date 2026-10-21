@@ -120,6 +120,7 @@ function unit(
 /**
  * После реорганизации 01.04.2026 появились ПД-1…ПД-4, а прежние ПД-11…ПД-14 так и
  * остались открытыми: действующие подразделения выбирает пользователь при импорте.
+ * У ПД-11 и ПД-12 границы тоже открыты и пересекаются с новыми, у ПД-13 и ПД-14 закрыты.
  * ПД-15 закрыт честно — его период действия кончился.
  */
 export const SUBDIVISIONS: readonly Subdivision[] = [
@@ -146,6 +147,8 @@ export interface Boundary {
   readonly from: Point
   readonly to: Point
   readonly start: string
+  /** Конец действия; по умолчанию открытый период. */
+  readonly end?: string
 }
 
 const p = (km: number, m = 0): Point => ({ km, m })
@@ -158,8 +161,23 @@ export const BOUNDARIES: readonly Boundary[] = [
   { code: 'ПД-4', line: L2, from: p(100, 200), to: p(131, 700), start: '01.04.2026' },
   { code: 'ПД-11', line: L1, from: p(10), to: p(25), start: '01.08.2017' },
   { code: 'ПД-12', line: L1, from: p(30), to: p(60, 500), start: '01.08.2017' },
-  { code: 'ПД-13', line: L2, from: p(100, 200), to: p(115), start: '01.08.2017' },
-  { code: 'ПД-14', line: L2, from: p(115), to: p(131, 700), start: '01.08.2017' },
+  // У ПД-13 и ПД-14 границы закрыты при реорганизации, а сами подразделения — нет.
+  {
+    code: 'ПД-13',
+    line: L2,
+    from: p(100, 200),
+    to: p(115),
+    start: '01.08.2017',
+    end: '31.03.2026',
+  },
+  {
+    code: 'ПД-14',
+    line: L2,
+    from: p(115),
+    to: p(131, 700),
+    start: '01.08.2017',
+    end: '31.03.2026',
+  },
   { code: 'ЗП-1', line: L1, from: p(10), to: p(60, 500), start: '26.10.2017' },
 ]
 

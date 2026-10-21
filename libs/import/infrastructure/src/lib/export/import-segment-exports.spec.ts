@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import ExcelJS from 'exceljs'
 import {
   SEGMENT_FORMS,
   type PassportSegmentImport,
@@ -75,6 +76,61 @@ describe('Выгрузки характеристик → сценарий Па�
     expect(remarks[0]?.text).toContain('разница 7 м')
     expect(remarks[0]?.at).toMatchObject({ file: input[0]!.name, row: expect.any(Number) })
   })
+
+  it.each([false, true])(
+    'замечания одной XLSX привязаны к своей форме; совместный кандидат: %s',
+    async (candidate) => {
+      const wb = new ExcelJS.Workbook()
+      const line = basis.lines[0]!.name
+      wb.addWorksheet('Класс').addRows([
+        [
+          'Главный путь',
+          'Км нач',
+          'М нач',
+          'Км кон',
+          'М кон',
+          'Длина',
+          'Класс',
+          'Группа',
+          'Категория',
+        ],
+        [line, 10, 0, 11, 0, candidate ? 964 : 1007, '3', 'Г', '2'],
+      ])
+      wb.addWorksheet('Рельсы').addRows([
+        [
+          'Главный путь',
+          'КМ н.',
+          'М н.',
+          'КМ к.',
+          'М к.',
+          'Длина, м',
+          'Признак укладки',
+          'Дата укладки',
+          'Закалка',
+          'Тип',
+          'Длина',
+        ],
+        [line, 10, 0, 11, 0, candidate ? 964 : 1000, 'о', '01.02.2006', 'Т1', 'Р65', 'б.п.'],
+      ])
+      const { store, command } = setup()
+      const result = await importSegmentExports(store, {
+        editionId: 1,
+        importedAt,
+        files: [{ name: 'общая.xlsx', bytes: new Uint8Array(await wb.xlsx.writeBuffer()) }],
+      })
+      expect(result.ok).toBe(true)
+      const data = command()
+      expect(data.files).toHaveLength(2)
+      const classFile = data.files.find((f) => f.form === 'class')!
+      const railsFile = data.files.find((f) => f.form === 'rails')!
+      expect(classFile.warnings).toHaveLength(candidate ? 2 : 1)
+      expect(railsFile.warnings).toHaveLength(candidate ? 2 : 0)
+      expect(classFile.warnings.every((r) => r.at?.sheet === 'Класс')).toBe(true)
+      expect(railsFile.warnings.every((r) => r.at?.sheet === 'Рельсы')).toBe(true)
+      if (!result.ok) throw new Error(JSON.stringify(result.error))
+      expect(result.value.remarks).toHaveLength(candidate ? 4 : 1)
+    },
+  )
 
   it('без ручной таблицы показывает кандидатов, но не добавляет длины километров', async () => {
     const current = { ...basis, lines: basis.lines.map((l) => ({ ...l, kmLengths: [] })) }

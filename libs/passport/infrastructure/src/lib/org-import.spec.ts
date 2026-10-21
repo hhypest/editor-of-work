@@ -133,6 +133,19 @@ describe('Запись оргструктуры в черновик паспор
       ].map((t) => [t, rows(t)]),
     )
 
+  it('при записи границы нормализует -1 как отсутствие исходной длины', async () => {
+    const data = fixture()
+    value(
+      await store.applyOrgImport(id, {
+        ...data,
+        boundaries: data.boundaries.map((b) => ({ ...b, statedLength: -1 })),
+      }),
+    )
+    expect(db.prepare('SELECT stated_length_m FROM subdivision_segment').get()).toMatchObject({
+      stated_length_m: null,
+    })
+  })
+
   it('сохраняет ПЧУ → ПД, прежний ПД, цех, нестандартные метры и оба вида привязки пути', async () => {
     value(await store.applyOrgImport(id, fixture()))
     expect(rows('subdivision')).toMatchObject([

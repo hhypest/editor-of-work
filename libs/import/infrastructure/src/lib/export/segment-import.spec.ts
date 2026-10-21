@@ -10,6 +10,12 @@ import { generatePassportFixtures } from '../testing/passport/generate'
 import { EDITORS } from '../testing/passport/model'
 import { PassportExportSource } from './passport-export-source'
 
+function checked(...args: Parameters<typeof checkKmLengths>) {
+  const result = checkKmLengths(...args)
+  if (!result.ok) throw new Error(JSON.stringify(result.error))
+  return result.value
+}
+
 const boundaries: ImportedBoundary[] = []
 
 async function segments(): Promise<ParsedSegment[]> {
@@ -64,7 +70,7 @@ describe('Характеристики по отрезкам из вымышле
   })
 
   it('сверка длин по всем формам находит нестандартные км и одну ошибку строки', () => {
-    const r = checkKmLengths(all)
+    const r = checked(all)
     expect(r.candidates.map((c) => `${c.km}:${c.length}`).toSorted()).toEqual([
       '115:990',
       '20:964',
@@ -76,7 +82,7 @@ describe('Характеристики по отрезкам из вымышле
 
   it('границы подразделений с «Длиной участка» участвуют в той же сверке', () => {
     expect(boundaries.length).toBeGreaterThan(0)
-    const r = checkKmLengths([...all, ...boundaries])
+    const r = checked([...all, ...boundaries])
     expect(r.candidates.map((c) => `${c.km}:${c.length}`).toSorted()).toEqual([
       '115:990',
       '20:964',

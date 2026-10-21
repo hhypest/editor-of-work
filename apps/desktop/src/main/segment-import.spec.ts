@@ -92,6 +92,13 @@ describe('Выгрузки характеристик → SQLite', () => {
     db.prepare("INSERT INTO line(edition_id,id,name,code) VALUES (?, 'line','УЧЕБНЫЙ I','L1')").run(
       edition.id,
     )
+    db.prepare(
+      "INSERT INTO subdivision(edition_id,id,name,code,type,active) VALUES (?, 'pd','ПД-1','ПД-1','ПД',1)",
+    ).run(edition.id)
+    db.prepare(
+      "INSERT INTO subdivision_segment(edition_id,id,line_id,start_km,start_m,end_km,end_m,subdivision_id,stated_length_m) VALUES (?, 'old-boundary','line',10,0,11,0,'pd',-1)",
+    ).run(edition.id)
+    expect(value(await store.segmentBasis(edition.id)).boundaries[0]?.statedLength).toBeNull()
     const request = { editionId: edition.id, files: files(), importedAt: '2026-10-21T06:00:00Z' }
     const first = value(await importSegmentExports(store, request))
     expect(first.remarks).toHaveLength(4)

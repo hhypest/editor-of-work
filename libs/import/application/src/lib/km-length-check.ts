@@ -1,7 +1,9 @@
-import { chainage, distance, KmLengths } from '@eow/shared/kernel'
+import { chainage, distance, KmLengths, err, ok, type Result } from '@eow/shared/kernel'
 import type { ExportLocation } from './export-source'
 import type { ExportPoint } from './row-reader'
 import type { SegmentBase } from './segment-forms'
+import type { OrgImportError } from '@eow/passport/import-api'
+import { lengthCheckProblem } from './length-check-limits'
 
 /** Длины километров, уже известные по направлению (введены вручную или шаблоном). */
 export type KnownKmLengths = ReadonlyMap<string, KmLengths>
@@ -127,10 +129,21 @@ function solve(
 export function checkKmLengths(
   segments: readonly SegmentBase[],
   known: KnownKmLengths = new Map(),
-): LengthCheck {
+): Result<LengthCheck, OrgImportError> {
+  // Весь пакет проверяется до distance и выделения массивов километров.
+  for (const row of segments) {
+    const problem = lengthCheckProblem(row)
+    if (problem) {
+      const source = row.at
+        ? `Файл «${row.at.file}», лист «${row.at.sheet}», строка ${row.at.row}`
+        : `Направление «${row.line}»`
+      return err({ kind: 'invalid-import', message: `${source}: ${problem}` })
+    }
+  }
   const byLine = new Map<string, SegmentBase[]>()
   for (const s of segments)
-    if (s.statedLength !== null) byLine.set(s.line, [...(byLine.get(s.line) ?? []), s])
+    if (s.statedLength !== null && s.statedLength !== -1)
+      byLine.set(s.line, [...(byLine.get(s.line) ?? []), s])
   const candidates: KmLengthCandidate[] = []
   const mismatches: LengthMismatch[] = []
   for (const [line, list] of byLine) {
@@ -171,5 +184,5 @@ export function checkKmLengths(
   }
   const order = (a: KmLengthCandidate, b: KmLengthCandidate): number =>
     a.line < b.line ? -1 : a.line > b.line ? 1 : a.km - b.km
-  return { candidates: candidates.toSorted(order), mismatches }
+  return ok({ candidates: candidates.toSorted(order), mismatches })
 }

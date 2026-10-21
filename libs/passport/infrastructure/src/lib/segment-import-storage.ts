@@ -63,7 +63,7 @@ export async function readSegmentBasis(
       subdivisionCode: b.code,
       from: { km: b.start_km, m: b.start_m },
       to: { km: b.end_km, m: b.end_m },
-      statedLength: b.stated_length_m,
+      statedLength: b.stated_length_m === -1 ? null : b.stated_length_m,
     })),
     lines: lines.map((l) => ({
       ...l,

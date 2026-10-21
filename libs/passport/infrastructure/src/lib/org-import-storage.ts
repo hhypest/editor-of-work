@@ -257,7 +257,7 @@ export async function writeOrgImport(
       .insertInto('subdivision_segment')
       .values({
         ...provenance(b),
-        stated_length_m: b.statedLength,
+        stated_length_m: b.statedLength === -1 ? null : b.statedLength,
         line_id: await lineId(db, editionId, b.line),
         subdivision_id: b.subdivisionId,
         start_km: b.from.km,

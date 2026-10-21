@@ -3,6 +3,7 @@ import { KmLengths, type Result } from '@eow/shared/kernel'
 import type { SegmentBasis } from '@eow/passport/import-api'
 import type { ExportTable, PassportForm } from './export-source'
 import { parseSegments, type ParsedSegment } from './segment-forms'
+import { parseBoundaries } from './org-forms'
 import { prepareSegmentImport, segmentLengthRemarks } from './prepare-segment-import'
 
 function value<T>(result: Result<T, unknown>): T {
@@ -188,6 +189,73 @@ describe('Сверка длин', () => {
     ])
     expect(overlapping.command.rows).toHaveLength(2)
     expect(value(prepareSegmentImport([first, adjacent], files, basis)).remarks).toEqual([])
+  })
+  it('длина границы -1 означает отсутствие и не блокирует кандидата из характеристики', () => {
+    const boundary = value(
+      parseBoundaries(
+        table('boundaries', {
+          Подразделение: 'ПД-1',
+          'Длина участка, м': -1,
+        }),
+      ),
+    )[0]!
+    expect(boundary.statedLength).toBeNull()
+    const current = {
+      ...basis,
+      boundaries: [
+        {
+          lineId: 'line',
+          subdivisionCode: 'ПД-1',
+          from: boundary.from,
+          to: boundary.to,
+          // Совместимость с основой, полученной из ранее сохранённых границ.
+          statedLength: -1,
+        },
+      ],
+    }
+    const result = value(prepareSegmentImport([{ ...row(), statedLength: 964 }], [file], current))
+    expect(result.remarks).toHaveLength(2)
+    expect(
+      result.remarks.some((r) => r.text.includes('кандидат') && r.text.includes('964 м')),
+    ).toBe(true)
+    expect(result.remarks.some((r) => r.text.includes('Граница'))).toBe(false)
+    expect(current.boundaries[0]?.statedLength).toBe(-1)
+  })
+  it.each([null, 1000])(
+    'огромный диапазон характеристики с длиной %s отклоняется до расчёта',
+    (statedLength) => {
+      const data = { ...row(), to: { km: Number.MAX_SAFE_INTEGER, m: 0 }, statedLength }
+      const result = prepareSegmentImport([data], [file], basis)
+      expect(result).toMatchObject({
+        ok: false,
+        error: { kind: 'invalid-import', message: expect.stringContaining('технический предел') },
+      })
+      if (result.ok) throw new Error('Ожидался отказ импорта')
+      expect(result.error.message).toContain('учебная.xls')
+      expect(result.error.message).toContain('Характеристики')
+      expect(result.error.message).toContain('строка 7')
+      expect(segmentLengthRemarks(data, KmLengths.standard())).toMatchObject([
+        { text: expect.stringContaining('технический предел') },
+      ])
+    },
+  )
+  it('огромный диапазон сохранённой границы тоже отклоняется до расчёта', () => {
+    const result = prepareSegmentImport([row()], [file], {
+      ...basis,
+      boundaries: [
+        {
+          lineId: 'line',
+          subdivisionCode: 'ПД-1',
+          from: { km: 10, m: 0 },
+          to: { km: Number.MAX_SAFE_INTEGER, m: 0 },
+          statedLength: null,
+        },
+      ],
+    })
+    expect(result).toMatchObject({
+      ok: false,
+      error: { kind: 'invalid-import', message: expect.stringContaining('Граница ПД-1') },
+    })
   })
   it('сверяет также исходные длины границ подразделений и помещает их в отчёт', () => {
     const current = {

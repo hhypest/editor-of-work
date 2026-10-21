@@ -89,7 +89,7 @@ export function parseBoundaries(
     line: r.required('Главный путь'),
     from: r.point('КМ н.', 'М н.'),
     to: r.point('КМ к.', 'М к.'),
-    statedLength: r.number('Длина участка, м'),
+    statedLength: r.measurement('Длина участка, м'),
     validity: r.validity('Дата начала действия', 'Дата конца действия'),
     at: r.location(),
   }))

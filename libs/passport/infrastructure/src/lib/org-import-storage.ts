@@ -1,6 +1,7 @@
 import type { Generated, Kysely } from 'kysely'
 import type { PassportEdition } from '@eow/passport/application'
-import type { OrgImport, OrgImportRow } from '@eow/passport/import-api'
+import type { OrgImport, OrgImportError, OrgImportRow } from '@eow/passport/import-api'
+import { err, ok, type Result } from '@eow/shared/kernel'
 
 interface Provenance {
   edition_id: number
@@ -63,19 +64,47 @@ function referenceId(kind: string, ...parts: string[]): string {
   return JSON.stringify([kind, ...parts])
 }
 
+/** Проверяем весь пакет до удаления строк и создания справочников в той же транзакции. */
+async function validateReferences(
+  db: Kysely<PassportSchema>,
+  editionId: number,
+  input: OrgImport,
+): Promise<Result<void, OrgImportError>> {
+  const groups = [
+    ['line', input.boundaries.map((b) => b.line)],
+    ['station', [...input.stations, ...input.tracks].map((s) => s.station)],
+  ] as const
+  for (const [table, names] of groups) {
+    for (const name of new Set(names)) {
+      const rows = await db
+        .selectFrom(table)
+        .select('id')
+        .where('edition_id', '=', editionId)
+        .where('name', '=', name)
+        .limit(2)
+        .execute()
+      if (rows.length > 1)
+        return err({
+          kind: 'invalid-import',
+          message: `${table === 'line' ? 'Направление' : 'Станция'} «${name}»: найдено несколько записей в черновике паспорта. Уточните названия и повторите импорт.`,
+        })
+    }
+  }
+  return ok(undefined)
+}
+
 async function lineId(
   db: Kysely<PassportSchema>,
   editionId: number,
   name: string,
 ): Promise<string> {
-  const rows = await db
+  const existing = await db
     .selectFrom('line')
     .select('id')
     .where('edition_id', '=', editionId)
     .where('name', '=', name)
-    .execute()
-  if (rows.length > 1) throw new Error('Неоднозначное направление в паспорте.')
-  if (rows[0]) return rows[0].id
+    .executeTakeFirst()
+  if (existing) return existing.id
   const id = referenceId('line', name)
   await db
     .insertInto('line')
@@ -97,14 +126,13 @@ async function stationId(
   editionId: number,
   name: string,
 ): Promise<string> {
-  const rows = await db
+  const existing = await db
     .selectFrom('station')
     .select('id')
     .where('edition_id', '=', editionId)
     .where('name', '=', name)
-    .execute()
-  if (rows.length > 1) throw new Error('Неоднозначная станция в паспорте.')
-  if (rows[0]) return rows[0].id
+    .executeTakeFirst()
+  if (existing) return existing.id
   const id = referenceId('station', name)
   // Имя известно, код и тип ещё придут из осей/экспликации (#18); не придумываем их.
   await db
@@ -158,7 +186,9 @@ export async function writeOrgImport(
   db: Kysely<PassportSchema>,
   editionId: number,
   input: OrgImport,
-): Promise<void> {
+): Promise<Result<void, OrgImportError>> {
+  const references = await validateReferences(db, editionId, input)
+  if (!references.ok) return references
   const old = await db
     .selectFrom('import_file')
     .select('id')
@@ -260,4 +290,5 @@ export async function writeOrgImport(
       })
       .execute()
   }
+  return ok(undefined)
 }

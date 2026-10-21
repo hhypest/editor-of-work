@@ -110,8 +110,7 @@ class SqlitePassportStore implements PassportDatabase {
             kind: 'invalid-import',
             message: 'Дата импорта не совпадает с датой редакции. Повторите отбор строк.',
           })
-        await writeOrgImport(transaction, id, data)
-        return ok(undefined)
+        return writeOrgImport(transaction, id, data)
       }),
     )
   }

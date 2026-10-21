@@ -246,6 +246,53 @@ describe('Запись оргструктуры в черновик паспор
     expect(snapshot()).toEqual(before)
   })
 
+  it.each(['line', 'station', 'track-station'] as const)(
+    'неоднозначное имя %s возвращает ошибку импорта до любой записи',
+    async (kind) => {
+      const input = fixture()
+      value(await store.applyOrgImport(id, input))
+      if (kind === 'line')
+        db.prepare(
+          "INSERT INTO line(edition_id,id,name,code) VALUES (?, 'duplicate', 'УЧЕБНЫЙ I', 'DUP')",
+        ).run(id)
+      else
+        db.prepare(
+          "INSERT INTO station(edition_id,id,name,code,type) VALUES (?, 'duplicate', 'УЧЕБНАЯ', 'DUP', '')",
+        ).run(id)
+      const before = snapshot()
+      const result = await store.applyOrgImport(id, {
+        ...input,
+        // Новые справочники идут перед неоднозначной ссылкой: и они не должны появиться.
+        boundaries: [
+          { ...input.boundaries[0]!, id: 'new-boundary', line: 'НОВЫЙ УЧЕБНЫЙ' },
+          ...input.boundaries,
+        ],
+        stations:
+          kind === 'track-station'
+            ? []
+            : [
+                { ...input.stations[0]!, id: 'new-station', station: 'НОВАЯ УЧЕБНАЯ' },
+                ...input.stations,
+              ],
+        files: input.files.map((f) => ({ ...f, sha256: 'd'.repeat(64) })),
+      })
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          kind: 'invalid-import',
+          message: expect.stringContaining(
+            kind === 'line' ? 'Направление «УЧЕБНЫЙ I»' : 'Станция «УЧЕБНАЯ»',
+          ),
+        },
+      })
+      expect(snapshot()).toEqual(before)
+      if (kind === 'line') db.prepare("DELETE FROM line WHERE id = 'duplicate'").run()
+      else db.prepare("DELETE FROM station WHERE id = 'duplicate'").run()
+      // Отказ не ломает очередь; после исправления справочника тот же импорт успешен.
+      value(await store.applyOrgImport(id, input))
+    },
+  )
+
   it('ссылка из другого раздела на удаляемый ПД приводит к полному откату на COMMIT', async () => {
     value(await store.applyOrgImport(id, fixture()))
     const station = rows('station')[0]!['id']

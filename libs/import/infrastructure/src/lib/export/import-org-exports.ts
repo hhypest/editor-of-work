@@ -37,8 +37,31 @@ export async function importOrgExports(
   if (new Set(files.map((f) => f.name)).size !== files.length)
     return invalid('Имена выбранных файлов повторяются. Выберите однозначный набор выгрузок.')
   for (const file of files) {
-    const read = await source.read(file)
+    const mainSha256 = createHash('sha256').update(file.bytes).digest('hex')
+    const parts: [string, string][] = []
+    const sibling = file.sibling
+    const read = await source.read({
+      ...file,
+      ...(sibling
+        ? {
+            sibling: async (relativePath: string) => {
+              const bytes = await sibling(relativePath)
+              if (bytes)
+                parts.push([relativePath, createHash('sha256').update(bytes).digest('hex')])
+              return bytes
+            },
+          }
+        : {}),
+    })
     if (!read.ok) return invalid(describeExportError(read.error))
+    // Для frameset журнал идентифицирует и оболочку, и реально прочитанные части.
+    // Хеши частей с путями в JSON исключают неоднозначность склейки байтов.
+    const sha256 =
+      parts.length === 0
+        ? mainSha256
+        : createHash('sha256')
+            .update(JSON.stringify(['frameset-v1', mainSha256, parts]))
+            .digest('hex')
     const counts = new Map<OrgSourceFile['form'], number>()
     for (const table of read.value) {
       switch (table.form) {
@@ -79,7 +102,7 @@ export async function importOrgExports(
         form,
         rowCount,
         importedAt,
-        sha256: createHash('sha256').update(file.bytes).digest('hex'),
+        sha256,
       })
   }
   const prepared = prepareOrgImport(sources, metadata, date, selected)

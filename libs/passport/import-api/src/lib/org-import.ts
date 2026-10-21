@@ -26,6 +26,7 @@ export interface OrgImportFile {
   readonly id: string
   readonly name: string
   readonly form: OrgForm
+  /** SHA-256 файла; для frameset — пакета оболочки и потреблённых частей. */
   readonly sha256: string
   readonly importedAt: string
   /** Все прочитанные строки, включая отсеянные по периоду. */

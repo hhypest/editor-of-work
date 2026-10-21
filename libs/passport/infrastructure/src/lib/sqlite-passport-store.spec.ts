@@ -63,7 +63,7 @@ describe('SQLite паспорта', () => {
     const database = inspect()
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({ journal_mode: 'wal' })
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 2,
+      n: 3,
     })
     for (const table of editionTables)
       expect(database.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toMatchObject({ n: 0 })
@@ -340,6 +340,36 @@ describe('SQLite паспорта', () => {
     expect(await backups()).toHaveLength(1)
   })
 
+  it('миграция 003 сохраняет строки действующей редакции и создаёт копию схемы 002', async () => {
+    const initial = new DatabaseSync(path)
+    initial.exec('PRAGMA foreign_keys = ON')
+    const chain = await loadPassportMigrations(migrations)
+    await migratePassport(initial, chain.slice(0, 2), async () => undefined)
+    initial.exec(
+      "INSERT INTO edition(id,number,date,label,status) VALUES (1,1,'2027-01-01','Учебная','draft')",
+    )
+    seedPassport(initial, 1)
+    initial.exec("UPDATE edition SET status = 'active' WHERE id = 1")
+    const before = initial.prepare('SELECT * FROM subdivision_segment').get()
+    initial.close()
+    const store = await open()
+    expect(value(await store.list())[0]?.status).toBe('active')
+    expect(inspect().prepare('SELECT * FROM subdivision_segment').get()).toEqual({
+      ...before,
+      stated_length_m: null,
+    })
+    const files = await backups()
+    expect(files).toHaveLength(1)
+    const saved = inspect(files[0])
+    expect(saved.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
+      n: 2,
+    })
+    expect(saved.prepare('SELECT * FROM subdivision_segment').get()).toEqual(before)
+    expect(() =>
+      inspect().prepare('UPDATE subdivision_segment SET stated_length_m = 1').run(),
+    ).toThrow('immutable')
+  })
+
   it('отказывает новой программе при изменённой истории и старой — при новой схеме', async () => {
     const chain = await loadPassportMigrations(migrations)
     const database = inspect()
@@ -359,12 +389,19 @@ describe('SQLite паспорта', () => {
     expect(database.prepare('SELECT * FROM schema_migrations').all()).toEqual(before)
     await migratePassport(
       database,
-      [...chain, { version: 3, name: '003_future.sql', sql: 'CREATE TABLE future (id INTEGER);' }],
+      [
+        ...chain,
+        {
+          version: chain.length + 1,
+          name: '004_future.sql',
+          sql: 'CREATE TABLE future (id INTEGER);',
+        },
+      ],
       async () => undefined,
     )
     await expect(open()).rejects.toThrow('более новой')
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 3,
+      n: chain.length + 1,
     })
   })
 
@@ -377,8 +414,8 @@ describe('SQLite паспорта', () => {
         [
           ...chain,
           {
-            version: 3,
-            name: '003_broken.sql',
+            version: chain.length + 1,
+            name: '004_broken.sql',
             sql: 'CREATE TABLE broken (id INTEGER); INSERT INTO absent VALUES (1);',
           },
         ],
@@ -403,8 +440,8 @@ describe('SQLite паспорта', () => {
     const next = [
       ...chain,
       {
-        version: 3,
-        name: '003_broken.sql',
+        version: chain.length + 1,
+        name: '004_broken.sql',
         sql: 'ALTER TABLE edition ADD COLUMN example TEXT; SELECT * FROM absent;',
       },
     ]
@@ -469,7 +506,11 @@ describe('SQLite паспорта', () => {
             database,
             [
               ...chain,
-              { version: 3, name: '003_future.sql', sql: 'CREATE TABLE future (id INTEGER)' },
+              {
+                version: chain.length + 1,
+                name: '004_future.sql',
+                sql: 'CREATE TABLE future (id INTEGER)',
+              },
             ],
             async () => undefined,
           )

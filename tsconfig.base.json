@@ -15,6 +15,7 @@
       "@eow/shared/kernel": ["./libs/shared/kernel/src/index.ts"],
       "@eow/passport/domain": ["./libs/passport/domain/src/index.ts"],
       "@eow/passport/application": ["./libs/passport/application/src/index.ts"],
+      "@eow/passport/import-api": ["./libs/passport/import-api/src/index.ts"],
       "@eow/stations/domain": ["./libs/stations/domain/src/index.ts"],
       "@eow/stations/application": ["./libs/stations/application/src/index.ts"],
       "@eow/planning/domain": ["./libs/planning/domain/src/index.ts"],

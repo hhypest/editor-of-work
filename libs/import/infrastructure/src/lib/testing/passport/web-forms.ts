@@ -61,12 +61,40 @@ function allSegments(cuts: Readonly<Record<string, readonly Point[]>>): Segment[
   }))
 }
 
-const DEFAULT_CUTS: Record<string, readonly Point[]> = {
-  [LINES[0].name]: [cut(12, 350), cut(20, 500), cut(36, 80), cut(41, 1020), cut(50)],
-  [LINES[1].name]: [cut(108, 640), cut(115, 300)],
+const [N, E] = LINES
+
+/**
+ * Нарезка отрезков у каждой формы своя, как в настоящих выгрузках: по пересечению
+ * форм сверка длин находит нестандартные километры (20, 41 и 115 км).
+ */
+const CUTS: Readonly<Record<string, Record<string, readonly Point[]>>> = {
+  class: {
+    [N.name]: [cut(12, 350), cut(20, 500), cut(36, 80), cut(41, 1020), cut(50)],
+    [E.name]: [cut(108, 640), cut(115, 300)],
+  },
+  load: {
+    [N.name]: [cut(15), cut(19, 500), cut(20, 500), cut(21), cut(40), cut(42), cut(55)],
+    [E.name]: [cut(110), cut(115, 300), cut(116)],
+  },
+  speeds: {
+    [N.name]: [cut(11), cut(18), cut(20, 200), cut(21, 300), cut(30, 600), cut(41, 500), cut(48)],
+    [E.name]: [cut(105), cut(115, 500), cut(125)],
+  },
+  rails: {
+    [N.name]: [cut(12, 350), cut(16), cut(21), cut(36, 80), cut(41, 500), cut(42, 100), cut(50)],
+    [E.name]: [cut(108, 640), cut(116)],
+  },
+  sleepers: {
+    [N.name]: [cut(13), cut(18), cut(19, 500), cut(20, 500), cut(33), cut(44)],
+    [E.name]: [cut(102), cut(118)],
+  },
+  ballast: {
+    [N.name]: [cut(14), cut(22), cut(35), cut(41, 1020), cut(52)],
+    [E.name]: [cut(112), cut(120)],
+  },
 }
 
-const segments = allSegments(DEFAULT_CUTS)
+const segmentsFor = (form: string): Segment[] => allSegments(CUTS[form] ?? {})
 
 function length(s: Segment): string {
   return String(distance(s.line, s.from, s.to))
@@ -90,7 +118,7 @@ function classForm(): WebTable {
       ['Предприятие', 'str'],
       ['Cкорректировал', 'str'],
     ]),
-    rows: segments.map((s) => {
+    rows: segmentsFor('class').map((s) => {
       // Второй отрезок записан с длиной, которая не сходится с координатами: замечание сверки.
       const len = s.index === 1 ? String(Number(length(s)) + 7) : length(s)
       return [
@@ -124,7 +152,7 @@ function loadForm(): WebTable {
       ['Осевая|нагрузка', 'num'],
       ['Предприятие', 'str'],
     ]),
-    rows: segments.map((s) => [
+    rows: segmentsFor('load').map((s) => [
       s.line.name,
       f1(s.from.km),
       f1(s.from.m),
@@ -158,7 +186,7 @@ function speedForm(): WebTable {
       ['Предприятие', 'str'],
       ['Cкорректировал', 'str'],
     ]),
-    rows: segments.map((s) => {
+    rows: segmentsFor('speeds').map((s) => {
       const v = s.index % 4 === 2 ? 60 : 80
       return [
         s.line.name,
@@ -212,7 +240,7 @@ function railForm(): WebTable {
       ['Предприятие', 'str'],
       ['Cкорректировал', 'str'],
     ]),
-    rows: segments.map((s) => [
+    rows: segmentsFor('rails').map((s) => [
       s.line.name,
       legacyPd(s.line, s.from),
       String(s.from.km),
@@ -222,7 +250,7 @@ function railForm(): WebTable {
       length(s),
       s.index % 5 === 4 ? 'Р50' : 'Р65',
       LAYING[s.index % LAYING.length] ?? 'Н',
-      s.index % 2 === 0 ? 'б/с' : '25.0',
+      s.index % 2 === 0 ? 'б.п.' : '25.0',
       'Т1',
       '',
       s.index % 2 === 0 ? 'ЗСМК' : 'ЕВРАЗ',
@@ -277,7 +305,7 @@ function sleeperForm(): WebTable {
       ['Предприятие', 'str'],
       ['Предприятие', 'str'],
     ]),
-    rows: segments.map((s) => {
+    rows: segmentsFor('sleepers').map((s) => {
       const tonnage = (20.5 + s.index * 17.3).toFixed(1)
       return [
         s.line.name,
@@ -345,7 +373,7 @@ function ballastForm(): WebTable {
       ['Тип омоноличивания', 'str'],
     ]),
     // «Нет данных» и «-1» — так выгрузка записывает пустые значения.
-    rows: segments.map((s) => [
+    rows: segmentsFor('ballast').map((s) => [
       s.line.name,
       legacyPd(s.line, s.from),
       f1(s.from.km),

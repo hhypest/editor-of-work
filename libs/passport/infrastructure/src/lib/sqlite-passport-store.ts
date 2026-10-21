@@ -12,13 +12,25 @@ import type {
   PassportError,
   PassportStore,
 } from '@eow/passport/application'
-import type { PassportOrgImport, OrgImport, OrgImportFile } from '@eow/passport/import-api'
+import {
+  SEGMENT_FORMS,
+  type PassportOrgImport,
+  type OrgImport,
+  type OrgImportFile,
+  type PassportSegmentImport,
+  type SegmentBasis,
+  type SegmentImport,
+  type SegmentImportFile,
+  type SegmentRow,
+} from '@eow/passport/import-api'
 import { sqliteQueries } from './sqlite-dialect'
 import { editionTables } from './edition-tables'
 import { loadPassportMigrations, migratePassport } from './migrations'
 import { passportLocation } from './passport-location'
 import { orgFileSchema, orgImportSchema } from './org-import-schema'
 import { writeOrgImport, type PassportSchema as Schema } from './org-import-storage'
+import { segmentFileSchema, segmentImportSchema } from './segment-import-schema'
+import { readSegmentBasis, readSegmentData, writeSegmentImport } from './segment-import-storage'
 const editionSchema = z.object({
   id: z.number().int().positive(),
   number: z.number().int().positive(),
@@ -36,7 +48,7 @@ const absent = (): PassportError => ({
   message: 'Редакция паспорта не найдена.',
 })
 
-export interface PassportDatabase extends PassportStore, PassportOrgImport {
+export interface PassportDatabase extends PassportStore, PassportOrgImport, PassportSegmentImport {
   readonly path: string
   close(): Promise<void>
 }
@@ -143,6 +155,88 @@ class SqlitePassportStore implements PassportDatabase {
           }),
         ),
       )
+    })
+  }
+
+  segmentBasis(id: number): Promise<Result<SegmentBasis, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (transaction) => {
+        const basis = await readSegmentBasis(transaction, id)
+        return basis ? ok(basis) : err(absent())
+      }),
+    )
+  }
+
+  applySegmentImport(id: number, input: SegmentImport): Promise<Result<void, PassportError>> {
+    const parsed = segmentImportSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message:
+            parsed.error.issues.find((i) => i.code === 'custom')?.message ??
+            'Неверные данные характеристик. Проверьте поля, даты и контрольные суммы.',
+        }),
+      )
+    return this.operation(() =>
+      this.queries.transaction().execute(async (transaction) => {
+        const edition = await transaction
+          .selectFrom('edition')
+          .select('status')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        if (!edition) return err(absent())
+        if (edition.status !== 'draft')
+          return err({ kind: 'immutable', message: 'Импорт разрешён только в черновик редакции.' })
+        return writeSegmentImport(transaction, id, parsed.data)
+      }),
+    )
+  }
+
+  segmentImportReport(id: number): Promise<Result<readonly SegmentImportFile[], PassportError>> {
+    return this.operation(async () => {
+      if (
+        !(await this.queries
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst())
+      )
+        return err(absent())
+      const files = await this.queries
+        .selectFrom('import_file')
+        .selectAll()
+        .where('edition_id', '=', id)
+        .where('form', 'in', SEGMENT_FORMS)
+        .orderBy('id')
+        .execute()
+      return ok(
+        files.map((f) =>
+          segmentFileSchema.parse({
+            id: f.id,
+            name: f.name,
+            form: f.form,
+            sha256: f.sha256,
+            importedAt: f.imported_at,
+            rowCount: f.row_count,
+            warnings: JSON.parse(f.warnings),
+          }),
+        ),
+      )
+    })
+  }
+
+  segmentData(id: number): Promise<Result<readonly SegmentRow[], PassportError>> {
+    return this.operation(async () => {
+      if (
+        !(await this.queries
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst())
+      )
+        return err(absent())
+      return ok(await readSegmentData(this.queries, id))
     })
   }
 

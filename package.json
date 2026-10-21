@@ -21,7 +21,8 @@
     "check": "npm run check:public && npm run check:licenses && npm run test:scripts && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "check:public": "node scripts/check-public-files.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
-    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\""
+    "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\"",
+    "fixtures": "node scripts/fixtures.mjs"
   },
   "engines": {
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
@@ -57,6 +58,7 @@
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-oxlint": "1.89.0",
+    "exceljs": "4.4.0",
     "fast-check": "4.10.2",
     "jsdom": "^27.1.0",
     "nx": "23.3.0",

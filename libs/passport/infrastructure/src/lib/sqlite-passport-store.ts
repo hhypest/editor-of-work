@@ -49,6 +49,14 @@ import {
   writeStationImport,
   writeStationExclusions,
 } from './station-import-storage'
+import { manualFileSchema, manualImportSchema } from './manual-data-schema'
+import { readManualBasis, writeManualData } from './manual-data-storage'
+import type {
+  ManualBasis,
+  ManualImport,
+  ManualImportFile,
+  PassportManualData,
+} from '@eow/passport/import-api'
 const editionSchema = z.object({
   id: z.number().int().positive(),
   number: z.number().int().positive(),
@@ -67,7 +75,12 @@ const absent = (): PassportError => ({
 })
 
 export interface PassportDatabase
-  extends PassportStore, PassportOrgImport, PassportSegmentImport, PassportStationImport {
+  extends
+    PassportStore,
+    PassportOrgImport,
+    PassportSegmentImport,
+    PassportStationImport,
+    PassportManualData {
   readonly path: string
   close(): Promise<void>
 }
@@ -259,6 +272,72 @@ class SqlitePassportStore implements PassportDatabase {
     })
   }
 
+  manualImportReport(id: number): Promise<Result<readonly ManualImportFile[], PassportError>> {
+    return this.operation(async () => {
+      if (
+        !(await this.queries
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst())
+      )
+        return err(absent())
+      const files = await this.queries
+        .selectFrom('import_file')
+        .selectAll()
+        .where('edition_id', '=', id)
+        .where('form', '=', 'manual-data')
+        .orderBy('id')
+        .execute()
+      return ok(
+        files.map((f) =>
+          manualFileSchema.parse({
+            id: f.id,
+            form: f.form,
+            name: f.name,
+            importedAt: f.imported_at,
+            sha256: f.sha256,
+            rowCount: f.row_count,
+            warnings: JSON.parse(f.warnings),
+          }),
+        ),
+      )
+    })
+  }
+  manualBasis(id: number): Promise<Result<ManualBasis, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const basis = await readManualBasis(db, id)
+        return basis ? ok(basis) : err(absent())
+      }),
+    )
+  }
+  applyManualData(id: number, input: ManualImport): Promise<Result<void, PassportError>> {
+    const parsed = manualImportSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message: 'Неверные ручные данные, даты или описание файла.',
+        }),
+      )
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const edition = await db
+          .selectFrom('edition')
+          .select('status')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        if (!edition) return err(absent())
+        if (edition.status !== 'draft')
+          return err({
+            kind: 'immutable',
+            message: 'Ручные данные меняются только в черновике редакции.',
+          })
+        return writeManualData(db, id, parsed.data)
+      }),
+    )
+  }
   stationBasis(id: number): Promise<Result<StationBasis, PassportError>> {
     return this.operation(() =>
       this.queries.transaction().execute(async (db) => {

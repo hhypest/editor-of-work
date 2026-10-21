@@ -147,6 +147,7 @@ function parseSheet(entry: SheetEntry, xml: string, ctx: Context): Sheet {
       const ref = a.get('r')
       const col = (ref ? parseAddress(ref)?.col : undefined) ?? lastCol + 1
       lastCol = col
+      if (/<f\b/u.test(cm[2] ?? '')) b.formulas.push({ row, col })
       b.set(row, col, cellValue(a, cm[2] ?? '', ctx))
     }
   }

@@ -13,6 +13,7 @@ export interface Sheet {
   readonly name: string
   readonly visible: boolean
   readonly cells: ReadonlyMap<number, ReadonlyMap<number, CellValue>>
+  readonly formulas?: readonly { readonly row: number; readonly col: number }[]
   readonly merges: readonly MergeRange[]
 }
 
@@ -57,6 +58,7 @@ export function parseRange(ref: string): MergeRange | undefined {
 export class SheetBuilder {
   private readonly rows = new Map<number, Map<number, CellValue>>()
   readonly merges: MergeRange[] = []
+  readonly formulas: { row: number; col: number }[] = []
 
   set(row: number, col: number, value: CellValue): void {
     if (value === null || value === '') return
@@ -69,6 +71,6 @@ export class SheetBuilder {
   }
 
   build(name: string, visible: boolean): Sheet {
-    return { name, visible, cells: this.rows, merges: this.merges }
+    return { name, visible, cells: this.rows, merges: this.merges, formulas: this.formulas }
   }
 }

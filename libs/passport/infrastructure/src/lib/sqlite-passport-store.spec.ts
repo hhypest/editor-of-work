@@ -63,7 +63,7 @@ describe('SQLite паспорта', () => {
     const database = inspect()
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({ journal_mode: 'wal' })
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 5,
+      n: 6,
     })
     for (const table of editionTables)
       expect(database.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toMatchObject({ n: 0 })
@@ -436,6 +436,28 @@ describe('SQLite паспорта', () => {
     })
     for (const table of tables)
       expect(saved.prepare(`SELECT * FROM ${table}`).get()).toEqual(before.get(table))
+  })
+
+  it('миграция 006 сохраняет действующий паспорт 005 и защищает новый символ вида работ', async () => {
+    const chain = await loadPassportMigrations(migrations)
+    const old = inspect()
+    await migratePassport(old, chain.slice(0, 5), async () => undefined)
+    old.exec(
+      "INSERT INTO edition(id,number,date,label,status) VALUES (1,1,'2027-01-01','Учебная','draft')",
+    )
+    seedPassport(old, 1)
+    old.exec("UPDATE edition SET status='active' WHERE id=1")
+    const before = old.prepare('SELECT * FROM work_kind').get()
+    await open()
+    const current = inspect()
+    expect(current.prepare('SELECT * FROM work_kind').get()).toEqual({ ...before, symbol: null })
+    expect(() => current.exec("UPDATE work_kind SET symbol='X' WHERE edition_id=1")).toThrow(
+      'immutable',
+    )
+    expect(current.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    const saved = inspect((await backups())[0])
+    expect(saved.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toEqual({ n: 5 })
+    expect(saved.prepare('SELECT * FROM work_kind').get()).toEqual(before)
   })
 
   it('отказывает новой программе при изменённой истории и старой — при новой схеме', async () => {

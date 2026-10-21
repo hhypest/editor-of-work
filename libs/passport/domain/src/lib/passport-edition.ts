@@ -14,7 +14,7 @@ export interface EditionInput {
 }
 
 export interface PassportError {
-  readonly kind: 'invalid-edition' | 'not-found' | 'immutable' | 'storage'
+  readonly kind: 'invalid-edition' | 'invalid-import' | 'not-found' | 'immutable' | 'storage'
   readonly message: string
 }
 

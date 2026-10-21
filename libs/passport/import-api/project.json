@@ -1,0 +1,17 @@
+{
+  "name": "passport-import-api",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/passport/import-api/src",
+  "projectType": "library",
+  "tags": ["type:application", "scope:passport"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^default"],
+      "options": {
+        "command": "tsc -p libs/passport/import-api/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

@@ -2,7 +2,7 @@ import { backup, DatabaseSync } from 'node:sqlite'
 import { mkdir, stat, rm } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { sql, type Generated, type Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
 import { z } from 'zod'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import { canActivate, validateEdition } from '@eow/passport/domain'
@@ -12,20 +12,13 @@ import type {
   PassportError,
   PassportStore,
 } from '@eow/passport/application'
+import type { PassportOrgImport, OrgImport, OrgImportFile } from '@eow/passport/import-api'
 import { sqliteQueries } from './sqlite-dialect'
 import { editionTables } from './edition-tables'
 import { loadPassportMigrations, migratePassport } from './migrations'
 import { passportLocation } from './passport-location'
-
-interface Schema {
-  edition: {
-    id: Generated<number>
-    number: number
-    date: string
-    label: string
-    status: PassportEdition['status']
-  }
-}
+import { orgFileSchema, orgImportSchema } from './org-import-schema'
+import { writeOrgImport, type PassportSchema as Schema } from './org-import-storage'
 const editionSchema = z.object({
   id: z.number().int().positive(),
   number: z.number().int().positive(),
@@ -43,7 +36,7 @@ const absent = (): PassportError => ({
   message: 'Редакция паспорта не найдена.',
 })
 
-export interface PassportDatabase extends PassportStore {
+export interface PassportDatabase extends PassportStore, PassportOrgImport {
   readonly path: string
   close(): Promise<void>
 }
@@ -86,6 +79,70 @@ class SqlitePassportStore implements PassportDatabase {
     return this.operation(async () => {
       const rows = await this.queries.selectFrom('edition').selectAll().orderBy('number').execute()
       return ok(Object.freeze(rows.map((row) => Object.freeze(editionSchema.parse(row)))))
+    })
+  }
+
+  applyOrgImport(id: number, input: OrgImport): Promise<Result<void, PassportError>> {
+    // Отделяем команду от изменяемого объекта вызывающего до ожидания очереди.
+    const parsed = orgImportSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message:
+            parsed.error.issues.find((issue) => issue.code === 'custom')?.message ??
+            'Неверные данные импорта. Проверьте даты, контрольные суммы и обязательные поля.',
+        }),
+      )
+    const data = parsed.data
+    return this.operation(() =>
+      this.queries.transaction().execute(async (transaction) => {
+        const edition = await transaction
+          .selectFrom('edition')
+          .selectAll()
+          .where('id', '=', id)
+          .executeTakeFirst()
+        if (!edition) return err(absent())
+        if (edition.status !== 'draft')
+          return err({ kind: 'immutable', message: 'Импорт разрешён только в черновик редакции.' })
+        if (edition.date !== data.date)
+          return err({
+            kind: 'invalid-import',
+            message: 'Дата импорта не совпадает с датой редакции. Повторите отбор строк.',
+          })
+        return writeOrgImport(transaction, id, data)
+      }),
+    )
+  }
+
+  orgImportReport(id: number): Promise<Result<readonly OrgImportFile[], PassportError>> {
+    return this.operation(async () => {
+      const edition = await this.queries
+        .selectFrom('edition')
+        .select('id')
+        .where('id', '=', id)
+        .executeTakeFirst()
+      if (!edition) return err(absent())
+      const files = await this.queries
+        .selectFrom('import_file')
+        .selectAll()
+        .where('edition_id', '=', id)
+        .where('form', 'in', ['subdivisions', 'boundaries', 'station-pd', 'track-pd'])
+        .orderBy('id')
+        .execute()
+      return ok(
+        files.map((f) =>
+          orgFileSchema.parse({
+            id: f.id,
+            name: f.name,
+            form: f.form,
+            sha256: f.sha256,
+            importedAt: f.imported_at,
+            rowCount: f.row_count,
+            warnings: JSON.parse(f.warnings),
+          }),
+        ),
+      )
     })
   }
 

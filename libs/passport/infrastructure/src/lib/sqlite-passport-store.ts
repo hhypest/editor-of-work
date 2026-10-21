@@ -14,6 +14,13 @@ import type {
 } from '@eow/passport/application'
 import {
   SEGMENT_FORMS,
+  STATION_FORMS,
+  type PassportStationImport,
+  type StationBasis,
+  type StationImport,
+  type StationImportFile,
+  type StationRow,
+  type StationExclusion,
   type PassportOrgImport,
   type OrgImport,
   type OrgImportFile,
@@ -31,6 +38,17 @@ import { orgFileSchema, orgImportSchema } from './org-import-schema'
 import { writeOrgImport, type PassportSchema as Schema } from './org-import-storage'
 import { segmentFileSchema, segmentImportSchema } from './segment-import-schema'
 import { readSegmentBasis, readSegmentData, writeSegmentImport } from './segment-import-storage'
+import {
+  stationExclusionsSchema,
+  stationFileSchema,
+  stationImportSchema,
+} from './station-import-schema'
+import {
+  readStationBasis,
+  readStationData,
+  writeStationImport,
+  writeStationExclusions,
+} from './station-import-storage'
 const editionSchema = z.object({
   id: z.number().int().positive(),
   number: z.number().int().positive(),
@@ -48,7 +66,8 @@ const absent = (): PassportError => ({
   message: 'Редакция паспорта не найдена.',
 })
 
-export interface PassportDatabase extends PassportStore, PassportOrgImport, PassportSegmentImport {
+export interface PassportDatabase
+  extends PassportStore, PassportOrgImport, PassportSegmentImport, PassportStationImport {
   readonly path: string
   close(): Promise<void>
 }
@@ -237,6 +256,108 @@ class SqlitePassportStore implements PassportDatabase {
       )
         return err(absent())
       return ok(await readSegmentData(this.queries, id))
+    })
+  }
+
+  stationBasis(id: number): Promise<Result<StationBasis, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const basis = await readStationBasis(db, id)
+        return basis ? ok(basis) : err(absent())
+      }),
+    )
+  }
+  applyStationImport(id: number, input: StationImport): Promise<Result<void, PassportError>> {
+    const parsed = stationImportSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message:
+            parsed.error.issues.find((i) => i.code === 'custom')?.message ??
+            'Неверные станционные данные. Проверьте координаты, даты и поля.',
+        }),
+      )
+    return this.stationDraft(id, (db) => writeStationImport(db, id, parsed.data))
+  }
+  setStationExclusions(
+    id: number,
+    input: readonly StationExclusion[],
+  ): Promise<Result<void, PassportError>> {
+    const parsed = stationExclusionsSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message: 'Укажите уникальные названия исключённых станций и причины.',
+        }),
+      )
+    return this.stationDraft(id, (db) => writeStationExclusions(db, id, parsed.data))
+  }
+  private stationDraft(
+    id: number,
+    write: (db: Kysely<Schema>) => Promise<Result<void, PassportError>>,
+  ): Promise<Result<void, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const edition = await db
+          .selectFrom('edition')
+          .select('status')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        if (!edition) return err(absent())
+        if (edition.status !== 'draft')
+          return err({
+            kind: 'immutable',
+            message: 'Станционный импорт и исключения разрешены только в черновике редакции.',
+          })
+        return write(db)
+      }),
+    )
+  }
+  stationImportReport(id: number): Promise<Result<readonly StationImportFile[], PassportError>> {
+    return this.operation(async () => {
+      if (
+        !(await this.queries
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst())
+      )
+        return err(absent())
+      const files = await this.queries
+        .selectFrom('import_file')
+        .selectAll()
+        .where('edition_id', '=', id)
+        .where('form', 'in', STATION_FORMS)
+        .orderBy('id')
+        .execute()
+      return ok(
+        files.map((f) =>
+          stationFileSchema.parse({
+            id: f.id,
+            name: f.name,
+            form: f.form,
+            sha256: f.sha256,
+            importedAt: f.imported_at,
+            rowCount: f.row_count,
+            warnings: JSON.parse(f.warnings),
+          }),
+        ),
+      )
+    })
+  }
+  stationData(id: number): Promise<Result<readonly StationRow[], PassportError>> {
+    return this.operation(async () => {
+      if (
+        !(await this.queries
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst())
+      )
+        return err(absent())
+      return ok(await readStationData(this.queries, id))
     })
   }
 

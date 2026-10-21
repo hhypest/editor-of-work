@@ -3,6 +3,7 @@ import type { PassportEdition } from '@eow/passport/application'
 import type { OrgImport, OrgImportError, OrgImportRow } from '@eow/passport/import-api'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import type { SegmentTables } from './segment-tables'
+import type { StationTables } from './station-tables'
 
 interface Provenance {
   edition_id: number
@@ -11,7 +12,7 @@ interface Provenance {
   valid_from: string | null
   valid_to: string | null
 }
-export interface PassportSchema extends SegmentTables {
+export interface PassportSchema extends SegmentTables, StationTables {
   line_km: Provenance & { line_id: string; km: number; length_m: number }
   edition: {
     id: Generated<number>
@@ -50,7 +51,6 @@ export interface PassportSchema extends SegmentTables {
   line: Provenance & { name: string; code: string }
   station: Provenance & { name: string; code: string; type: string }
   station_pd: Provenance & { station_id: string; subdivision_id: string }
-  station_track: Provenance & { station_id: string; number: string }
   station_track_pd: Provenance & {
     station_id: string
     track_id: string
@@ -62,7 +62,7 @@ export interface PassportSchema extends SegmentTables {
 }
 
 /** Устойчивые ключи справочников; номер строки выгрузки не меняет идентичность станции. */
-function referenceId(kind: string, ...parts: string[]): string {
+export function referenceId(kind: string, ...parts: string[]): string {
   return JSON.stringify([kind, ...parts])
 }
 
@@ -123,7 +123,7 @@ async function lineId(
   return id
 }
 
-async function stationId(
+export async function stationId(
   db: Kysely<PassportSchema>,
   editionId: number,
   name: string,
@@ -153,7 +153,7 @@ async function stationId(
   return id
 }
 
-async function trackId(
+export async function trackId(
   db: Kysely<PassportSchema>,
   editionId: number,
   station: string,

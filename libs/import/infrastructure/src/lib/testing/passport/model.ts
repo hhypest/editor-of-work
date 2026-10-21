@@ -232,11 +232,20 @@ function axis(line: FixtureLine, km: number, m: number, half = 650): StationAxis
   return { line, axis: p(km, m), from, to }
 }
 
-function tracks(main: string): FixtureTrack[] {
+/** Пути станции; границы ссылаются на её стрелки. brokenEnd — граница на несуществующую стрелку. */
+function tracks(main: string, brokenEnd?: string): FixtureTrack[] {
   return [
     { purpose: 'главный', number: main, from: '1', via: '3, 5', to: '2', full: 1210, useful: 0 },
-    { purpose: 'приемо-отпр.', number: '3', from: '3', via: '7', to: '4', full: 905, useful: 850 },
-    { purpose: 'приемо-отпр.', number: '4', from: '5', via: '', to: '6', full: 842, useful: 790 },
+    { purpose: 'приемо-отпр.', number: '3', from: '3', via: '', to: '7СО', full: 905, useful: 850 },
+    {
+      purpose: 'приемо-отпр.',
+      number: '4',
+      from: '5',
+      via: '',
+      to: brokenEnd ?? '9',
+      full: 842,
+      useful: 790,
+    },
     { purpose: 'погр.-выгр.', number: '7', from: '9', via: '', to: 'упор', full: 310, useful: 260 },
   ]
 }
@@ -283,7 +292,8 @@ export const STATIONS: readonly FixtureStation[] = [
     pd: 'ПД-3',
     legacyPd: 'ПД-12',
     axes: [axis(L1, 52, 700)],
-    tracks: tracks('I'),
+    // Путь № 4 упирается в стрелку № 11, которой нет в экспликации стрелок: замечание.
+    tracks: tracks('I', '11'),
     switches: switches('I'),
   },
   {

@@ -17,6 +17,7 @@ export const editionTables = [
   'station_layout',
   'station_object',
   'crossing',
+  'crossing_line',
   'work_kind',
   'repair_norm',
   'tolerance',

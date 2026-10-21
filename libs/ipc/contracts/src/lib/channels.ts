@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { defineChannel } from './channel'
 import { planFile } from './plan-file-channel'
 import { passport } from './passport-channel'
+import { passportData } from './passport-data-channel'
 import { repairs } from './repair-report-channel'
 
 /** Сведения о программе: имя и версия. Первый канал, на котором проверяется контракт. */
@@ -21,6 +22,7 @@ export const channels = {
   appInfo,
   planFile,
   passport,
+  passportData,
   repairs,
 } as const
 

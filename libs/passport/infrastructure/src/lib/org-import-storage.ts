@@ -13,6 +13,13 @@ interface Provenance {
   valid_to: string | null
 }
 export interface PassportSchema extends SegmentTables, StationTables {
+  line_extent: Provenance & {
+    line_id: string
+    start_km: number
+    start_m: number
+    end_km: number
+    end_m: number
+  }
   line_km: Provenance & { line_id: string; km: number; length_m: number }
   edition: {
     id: Generated<number>

@@ -127,6 +127,7 @@ export interface StationBasis {
   readonly lines: readonly {
     readonly id: string
     readonly name: string
+    readonly extents: readonly { readonly from: Chainage; readonly to: Chainage }[]
     readonly kmLengths: readonly (readonly [number, number])[]
   }[]
   readonly stations: readonly { readonly id: string; readonly name: string }[]
@@ -160,4 +161,39 @@ export interface PassportStationImport {
     editionId: number,
     exclusions: readonly StationExclusion[],
   ): Promise<Result<void, OrgImportError>>
+}
+
+/** Самое конкретное указанное место; предки должны согласоваться с деревом пакета ОКАТО. */
+export function crossingTerritory(
+  crossing: Pick<CrossingValues, 'region' | 'district' | 'city'>,
+  territories: readonly TerritoryValues[],
+): TerritoryValues | null {
+  const locations = [
+    ['город', crossing.city],
+    ['район', crossing.district],
+    ['область', crossing.region],
+  ] as const
+  const supplied = locations.filter(
+    (entry): entry is readonly [(typeof entry)[0], string] => entry[1] !== null,
+  )
+  const specific = supplied[0]
+  if (!specific) return null
+  const matches = territories.filter(
+    (t) => t.type.toLowerCase() === specific[0] && t.name === specific[1],
+  )
+  if (matches.length !== 1) return null
+  const found = matches[0]
+  if (!found) return null
+  const ancestors = new Set<string>()
+  const visited = new Set<TerritoryValues>()
+  let current: TerritoryValues | undefined = found
+  while (current && !visited.has(current)) {
+    visited.add(current)
+    ancestors.add(JSON.stringify([current.type.toLowerCase(), current.name]))
+    const child: TerritoryValues = current
+    current = territories.find((t) => t.type === child.parentType && t.name === child.parent)
+  }
+  return supplied.every(([type, name]) => ancestors.has(JSON.stringify([type, name])))
+    ? found
+    : null
 }

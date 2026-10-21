@@ -126,6 +126,174 @@ describe('Станционные данные в SQLite', () => {
     expect(db.prepare('SELECT count(*) AS n FROM crossing_line').get()).toMatchObject({ n: 0 })
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   })
+  it('переимпорт и переименование переезда сохраняют его ID и ручные поля, включая после пустого пакета', async () => {
+    value(await store.applyStationImport(id, await input()))
+    const original = db.prepare('SELECT id FROM crossing').get()!
+    db.prepare(
+      "INSERT INTO territory(edition_id,id,name,okato,type) VALUES (?,'manual-territory','РУЧНАЯ','','область')",
+    ).run(id)
+    db.exec(
+      "UPDATE crossing SET territory_id='manual-territory',signs='Учебные знаки',road_speed=40,visibility_m=600",
+    )
+    const next = await input()
+    value(
+      await store.applyStationImport(id, {
+        ...next,
+        rows: next.rows.map((r) =>
+          r.form === 'crossings-general'
+            ? {
+                ...r,
+                values: {
+                  ...r.values,
+                  title: 'Новое название № 1 10км9пк',
+                  trainSpeed: 70,
+                  region: 'УЧЕБНАЯ ОБЛАСТЬ',
+                },
+              }
+            : r,
+        ),
+      }),
+    )
+    expect(
+      db
+        .prepare(
+          'SELECT id,territory_id,signs,road_speed,visibility_m,train_speed,name FROM crossing',
+        )
+        .get(),
+    ).toEqual({
+      ...original,
+      territory_id: 'manual-territory',
+      signs: 'Учебные знаки',
+      road_speed: 40,
+      visibility_m: 600,
+      train_speed: 70,
+      name: 'Новое название № 1 10км9пк',
+    })
+    value(await store.applyStationImport(id, { ...(await input()), rows: [] }))
+    expect(value(await store.stationData(id))).toEqual([])
+    expect(
+      db
+        .prepare(
+          'SELECT id,territory_id,signs,road_speed,visibility_m,details,import_file_id FROM crossing',
+        )
+        .get(),
+    ).toEqual({
+      ...original,
+      territory_id: 'manual-territory',
+      signs: 'Учебные знаки',
+      road_speed: 40,
+      visibility_m: 600,
+      details: null,
+      import_file_id: null,
+    })
+    value(await store.applyStationImport(id, await input()))
+    expect(db.prepare('SELECT id,signs FROM crossing').get()).toEqual({
+      ...original,
+      signs: 'Учебные знаки',
+    })
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+  })
+  it('новый переезд получает наиболее конкретную территорию ОКАТО', async () => {
+    const data = await input()
+    const territory = data.rows.find((r) => r.form === 'okato')!
+    value(
+      await store.applyStationImport(id, {
+        ...data,
+        rows: [
+          ...data.rows.map((r) =>
+            r.form === 'crossings-general'
+              ? {
+                  ...r,
+                  values: {
+                    ...r.values,
+                    region: 'УЧЕБНАЯ ОБЛАСТЬ',
+                    district: 'УЧЕБНЫЙ РАЙОН',
+                    city: 'УЧЕБНЫЙ ГОРОД',
+                  },
+                }
+              : r,
+          ),
+          {
+            ...territory,
+            id: 'district',
+            values: {
+              name: 'УЧЕБНЫЙ РАЙОН',
+              type: 'Район',
+              parent: 'УЧЕБНАЯ ОБЛАСТЬ',
+              parentType: 'область',
+            },
+          },
+          {
+            ...territory,
+            id: 'city',
+            values: {
+              name: 'УЧЕБНЫЙ ГОРОД',
+              type: 'Город',
+              parent: 'УЧЕБНЫЙ РАЙОН',
+              parentType: 'Район',
+            },
+          },
+        ],
+      }),
+    )
+    expect(
+      db
+        .prepare(
+          'SELECT territory.name FROM crossing JOIN territory ON territory.id=crossing.territory_id AND territory.edition_id=crossing.edition_id',
+        )
+        .get(),
+    ).toEqual({ name: 'УЧЕБНЫЙ ГОРОД' })
+  })
+  it('одинаковые номера с разными названиями и неоднозначный номер паспорта отклоняют пакет без изменений', async () => {
+    const data = await input(),
+      crossing = data.rows.find((r) => r.form === 'crossings-general')!
+    const before = snapshot()
+    expect(
+      await store.applyStationImport(id, {
+        ...data,
+        rows: [
+          ...data.rows,
+          {
+            ...crossing,
+            id: 'duplicate',
+            values: { ...crossing.values, title: 'Другое название' },
+          },
+        ],
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'invalid-import' } })
+    expect(snapshot()).toEqual(before)
+    for (const key of ['first', 'second'])
+      db.prepare('INSERT INTO crossing(edition_id,id,number,name) VALUES (?,?,?,?)').run(
+        id,
+        key,
+        '1',
+        key,
+      )
+    const duplicates = snapshot()
+    expect(await store.applyStationImport(id, await input())).toMatchObject({
+      ok: false,
+      error: { kind: 'invalid-import' },
+    })
+    expect(snapshot()).toEqual(duplicates)
+  })
+  it('основа включает разрывы направления и меняет токен при изменении протяжения', async () => {
+    const data = await input()
+    for (const [key, start, end] of [
+      ['one', 10, 20],
+      ['two', 30, 40],
+    ] as const)
+      db.prepare(
+        'INSERT INTO line_extent(edition_id,id,line_id,start_km,start_m,end_km,end_m) VALUES (?,?,?, ?,0,?,0)',
+      ).run(id, key, 'line1', start, end)
+    expect(value(await store.stationBasis(id)).lines[0]?.extents).toEqual([
+      { from: { km: 10, m: 0 }, to: { km: 20, m: 0 } },
+      { from: { km: 30, m: 0 }, to: { km: 40, m: 0 } },
+    ])
+    expect(await store.applyStationImport(id, data)).toMatchObject({
+      ok: false,
+      error: { kind: 'invalid-import' },
+    })
+  })
   it('сбой последней записи откатывает данные, справочники и отчёт целиком', async () => {
     value(await store.applyStationImport(id, await input()))
     const before = snapshot()

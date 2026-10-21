@@ -3,6 +3,7 @@ import type { Kysely } from 'kysely'
 import { err, ok, picketBounds, type Result } from '@eow/shared/kernel'
 import {
   STATION_FORMS,
+  crossingTerritory,
   type StationBasis,
   type StationImport,
   type StationRow,
@@ -58,7 +59,22 @@ export async function readStationBasis(
     )
     .orderBy('station.id')
     .execute()
-  const content = { date: geometry.date, lines: geometry.lines, stations, tracks, excludedStations }
+  const extents = await db
+    .selectFrom('line_extent')
+    .select(['id', 'line_id', 'start_km', 'start_m', 'end_km', 'end_m'])
+    .where('edition_id', '=', editionId)
+    .orderBy('id')
+    .execute()
+  const lines = geometry.lines.map((l) => ({
+    ...l,
+    extents: extents
+      .filter((e) => e.line_id === l.id)
+      .map((e) => ({
+        from: { km: e.start_km, m: e.start_m },
+        to: { km: e.end_km, m: e.end_m },
+      })),
+  }))
+  const content = { date: geometry.date, lines, stations, tracks, excludedStations }
   return { ...content, token: createHash('sha256').update(JSON.stringify(content)).digest('hex') }
 }
 
@@ -114,8 +130,22 @@ async function validate(
     )
   const excluded = new Set(basis.excludedStations.map((e) => e.name))
   const seen = new Set<string>()
+  const numbers = new Set<string>()
   for (const row of input.rows) {
     const v = row.values
+    if (row.form === 'crossings-general') {
+      if (numbers.has(row.values.number)) return invalid('Повторяются номера переездов в пакете.')
+      numbers.add(row.values.number)
+      const existing = await db
+        .selectFrom('crossing')
+        .select('id')
+        .where('edition_id', '=', editionId)
+        .where('number', '=', row.values.number)
+        .limit(2)
+        .execute()
+      if (existing.length > 1)
+        return invalid(`Номер переезда «${row.values.number}» неоднозначен в паспорте.`)
+    }
     const identity =
       row.form === 'station-axes'
         ? key(row.form, row.values.station, row.values.line)
@@ -189,12 +219,39 @@ export async function writeStationImport(
     .execute()
   const ids = old.map((f) => f.id)
   if (ids.length) {
-    for (const table of ['crossing_line', 'crossing', 'station_axis'] as const)
+    for (const table of ['crossing_line', 'station_axis'] as const)
       await db
         .deleteFrom(table)
         .where('edition_id', '=', editionId)
         .where('import_file_id', 'in', ids)
         .execute()
+    // Переезды остаются устойчивыми ссылками для ручных полей, даже если их нет в новом пакете.
+    await db
+      .updateTable('crossing')
+      .set({
+        line_id: null,
+        station_id: null,
+        km: null,
+        m: null,
+        category: null,
+        type: null,
+        road: null,
+        regulated: null,
+        signalling: null,
+        surface: null,
+        barriers: null,
+        trains_per_day: null,
+        vehicles_per_day: null,
+        train_speed: null,
+        last_overhaul_date: null,
+        details: null,
+        import_file_id: null,
+        valid_from: null,
+        valid_to: null,
+      })
+      .where('edition_id', '=', editionId)
+      .where('import_file_id', 'in', ids)
+      .execute()
     // Пути и территории служат ссылками для ручных данных и оргструктуры. Их ключи сохраняются.
     await db
       .updateTable('station_track')
@@ -390,8 +447,34 @@ export async function writeStationImport(
         break
       }
       case 'crossings-general': {
-        const v = row.values,
-          id = referenceId('crossing', v.title)
+        const v = row.values
+        const existing = await db
+          .selectFrom('crossing')
+          .select(['id', 'territory_id'])
+          .where('edition_id', '=', editionId)
+          .where('number', '=', v.number)
+          .executeTakeFirst()
+        const id = existing?.id ?? referenceId('crossing', v.number)
+        if (!existing)
+          await db
+            .insertInto('crossing')
+            .values({
+              edition_id: editionId,
+              id,
+              number: v.number,
+              name: v.title,
+              import_file_id: null,
+              valid_from: null,
+              valid_to: null,
+            })
+            .execute()
+        const territory = crossingTerritory(
+          v,
+          input.rows.filter((r) => r.form === 'okato').map((r) => r.values),
+        )
+        const territoryId = territory
+          ? (territoryIds.get(key(territory.type, territory.name)) ?? null)
+          : null
         const place = v.place === null ? undefined : picketBounds(v.place.km, v.place.pk)
         if (place && !place.ok) throw new Error('validated crossing picket missing')
         const station =
@@ -399,10 +482,10 @@ export async function writeStationImport(
             ? null
             : await stationId(db, editionId, v.stationColumn)
         await db
-          .insertInto('crossing')
-          .values({
+          .updateTable('crossing')
+          .set({
             ...provenance(row),
-            id,
+            territory_id: existing?.territory_id ?? territoryId,
             line_id: v.lines.length === 1 ? lineId(v.lines[0] ?? '') : null,
             station_id: station,
             number: v.number,
@@ -421,6 +504,8 @@ export async function writeStationImport(
             train_speed: v.trainSpeed,
             last_overhaul_date: v.lastOverhaul,
           })
+          .where('edition_id', '=', editionId)
+          .where('id', '=', id)
           .execute()
         for (const line of v.lines)
           await db

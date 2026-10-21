@@ -5,10 +5,12 @@ import {
   err,
   KmLengths,
   ok,
+  picketBounds,
   type Result,
 } from '@eow/shared/kernel'
 import {
   STATION_FORMS,
+  crossingTerritory,
   type StationBasis,
   type StationImportFile,
   type StationPreview,
@@ -126,6 +128,15 @@ export function prepareStationImport(
             text: `Станция «${axis.station}»: ${describeChainageError(point.error)}`,
             at: axis.at,
           })
+        if (
+          !line.extents.some(
+            (e) => compareChainage(e.from, p) <= 0 && compareChainage(p, e.to) <= 0,
+          )
+        )
+          add({
+            text: `Станция «${axis.station}»: координата ${p.km} км ${p.m} м вне протяжения направления «${line.name}»`,
+            at: axis.at,
+          })
       }
     if (
       (axis.from && compareChainage(axis.axis, axis.from) < 0) ||
@@ -148,9 +159,36 @@ export function prepareStationImport(
     rows.push({ ...provenance('switches', at), form: 'switches', values })
   }
   for (const crossing of checked.crossings) {
-    const { at, ...values } = crossing
+    const { at, validity, ...values } = crossing
+    if (
+      [crossing.city, crossing.district, crossing.region].some((v) => v !== null) &&
+      !crossingTerritory(crossing, territories.territories)
+    )
+      add({
+        text: `Переезд № ${crossing.number}: место не сопоставлено однозначно с деревом ОКАТО`,
+        at,
+      })
+    if (crossing.place && !crossing.place.siding && crossing.stationColumn === null) {
+      const bounds = picketBounds(crossing.place.km, crossing.place.pk)
+      if (bounds.ok)
+        for (const name of checked.crossingLines.get(crossing.title) ?? []) {
+          const line = basis.lines.find((l) => l.name === name)
+          if (
+            line &&
+            !line.extents.some(
+              (e) =>
+                compareChainage(e.from, bounds.value.end) < 0 &&
+                compareChainage(bounds.value.start, e.to) < 0,
+            )
+          )
+            add({
+              text: `Переезд № ${crossing.number}: пикет вне протяжения направления «${name}»`,
+              at,
+            })
+        }
+    }
     rows.push({
-      ...provenance('crossings-general', at),
+      ...provenance('crossings-general', at, validity.from, validity.to),
       form: 'crossings-general',
       values: { ...values, lines: checked.crossingLines.get(crossing.title) ?? [] },
     })
@@ -172,6 +210,9 @@ export function prepareStationImport(
           ? key(r.form, r.values.type, r.values.name)
           : key(r.form, r.values.station, r.values.number),
   )
+  const crossingNumbers = checked.crossings.map((c) => c.number)
+  if (new Set(crossingNumbers).size !== crossingNumbers.length)
+    return invalid('Повторяются номера переездов в действующих строках. Уточните исходные данные.')
   if (new Set(identities).size !== identities.length)
     return invalid(
       'В действующих строках повторяются станции на направлении, номера путей/стрелок или территории. Уточните исходные данные.',

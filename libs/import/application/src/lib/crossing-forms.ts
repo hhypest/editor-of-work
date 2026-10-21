@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '@eow/shared/kernel'
 import type { ExportError, ExportLocation, ExportTable } from './export-source'
-import { parseRows, type RowReader } from './row-reader'
+import { parseRows, type RowReader, type Validity } from './row-reader'
 
 /** Привязка переезда из названия: «38км2пк», «411 км2пк», «257км 10пк», «ш.Горняк 1км10пк». */
 export interface CrossingPlace {
@@ -41,6 +41,7 @@ export function parseCrossingTitle(title: string): CrossingTitle {
 
 /** Переезд по трём книгам «Переезды …», сведённым по полному названию. */
 export interface ImportedCrossing {
+  readonly validity: Validity
   readonly title: string
   readonly number: string
   readonly name: string | null
@@ -69,6 +70,7 @@ export interface ImportedCrossing {
 }
 
 interface General {
+  readonly validity: Validity
   readonly title: string
   readonly number: string
   readonly name: string | null
@@ -87,6 +89,7 @@ const noDash = (v: string | null): string | null => (v === '-' ? null : v)
 
 function general(r: RowReader): General {
   return {
+    validity: r.validity('Дата создания', 'Дата закрытия'),
     title: r.required('Переезд'),
     number: r.required('Номер'),
     name: r.text('Название'),
@@ -229,6 +232,11 @@ export function parseCrossings(
       if (!present)
         remarks.push({ text: `«${x.title}»: нет записи в ${book} книге переездов`, at: x.at })
     const parsed = parseCrossingTitle(x.title)
+    if (parsed.number !== null && parsed.number !== x.number)
+      remarks.push({
+        text: `«${x.title}»: номер ${parsed.number} в названии не совпадает с номером ${x.number} в столбце «Номер»`,
+        at: x.at,
+      })
     return {
       ...x,
       titleStation: parsed.station,

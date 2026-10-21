@@ -14,7 +14,12 @@ import { importStationExports } from './import-station-exports'
 const basis: StationBasis = {
   date: '2026-10-21',
   token: 'a'.repeat(64),
-  lines: LINES.map((l, i) => ({ id: String(i), name: l.name, kmLengths: l.kmLengths })),
+  lines: LINES.map((l, i) => ({
+    id: String(i),
+    name: l.name,
+    kmLengths: l.kmLengths,
+    extents: l.extent.map(([from, to]) => ({ from, to })),
+  })),
   stations: [],
   tracks: [],
   excludedStations: [],

@@ -22,6 +22,7 @@ function table(
   }
 }
 const crossing: ImportedCrossing = {
+  validity: { from: null, to: '9999-12-31' },
   title: 'Переезд на станции УЧЕБНАЯ № 1 10км1пк',
   number: '1',
   name: null,
@@ -177,6 +178,88 @@ describe('Станционные формы и сверки', () => {
         .map((r) => r.at?.file)
         .toSorted(),
     ).toEqual(['технические.xlsx', 'эксплуатационные.xlsx'])
+  })
+  it('переезды отбираются по датам, включая день создания и последний день действия', () => {
+    const general = table('crossings-general', {
+      Переезд: crossing.title,
+      Номер: '1',
+      'Дата создания': '2026-10-20',
+      'Дата закрытия': '2026-10-21',
+    })
+    const parsed = value(parseCrossings(general, undefined, undefined)).crossings
+    expect(parsed[0]?.validity).toEqual({ from: '2026-10-20', to: '2026-10-21' })
+    for (const [date, count] of [
+      ['2026-10-19', 0],
+      ['2026-10-20', 1],
+      ['2026-10-21', 1],
+      ['2026-10-22', 0],
+    ] as const)
+      expect(
+        checkStations(
+          { axes: [], tracks: [], switches: [], crossings: parsed, lines: [] },
+          date,
+          new Set(),
+        ).crossings,
+      ).toHaveLength(count)
+    expect(
+      parseCrossings(
+        table('crossings-general', {
+          Переезд: crossing.title,
+          Номер: '1',
+          'Дата создания': '2026-10-22',
+          'Дата закрытия': '2026-10-21',
+        }),
+        undefined,
+        undefined,
+      ),
+    ).toMatchObject({ ok: false })
+  })
+  it('конфликт номера в названии и столбце сохраняется как замечание с местом', () => {
+    const result = value(
+      parseCrossings(
+        table('crossings-general', { Переезд: crossing.title, Номер: '2' }),
+        undefined,
+        undefined,
+      ),
+    )
+    expect(result.crossings[0]?.number).toBe('2')
+    expect(result.remarks).toContainEqual({
+      text: expect.stringContaining('номер 1 в названии не совпадает с номером 2'),
+      at: { file: 'учебная.xls', sheet: 'Лист1', row: 7 },
+    })
+  })
+  it.each([
+    [1, 50, 150, false],
+    [1, 100, 150, true],
+    [2, 0, 100, false],
+    [10, 950, 1040, false],
+  ])('сравнивает весь пк %s с границами %s–%s', (pk, start, end, outside) => {
+    const axis = value(
+      parseStationAxes(
+        table('station-axes', {
+          Станция: 'УЧЕБНАЯ',
+          Путь: 'УЧЕБНЫЙ',
+          'Ось, км': 10,
+          'Ось, м': start,
+          'Граница начала, км': 10,
+          'Граница начала, м': start,
+          'Граница конца, км': 10,
+          'Граница конца, м': end,
+        }),
+      ),
+    )
+    const result = checkStations(
+      {
+        axes: axis,
+        tracks: [],
+        switches: [],
+        crossings: [{ ...crossing, place: { km: 10, pk, siding: null } }],
+        lines: ['УЧЕБНЫЙ'],
+      },
+      '2026-10-21',
+      new Set(),
+    )
+    expect(result.remarks.some((r) => r.text.includes('вне её границ'))).toBe(outside)
   })
   it('цикл территорий и отсутствующий родитель становятся замечаниями', () => {
     const base: ImportedTerritory = {

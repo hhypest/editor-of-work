@@ -170,7 +170,6 @@ function crossingRemarks(
     if (!c.place || c.place.siding || c.stationColumn !== null) continue
     const picket = picketBounds(c.place.km, c.place.pk)
     if (!picket.ok) continue
-    const point = picket.value.start
     const relevant = own.filter(
       (a) => c.direction !== null && directionKey(a.line) === directionKey(c.direction),
     )
@@ -187,7 +186,11 @@ function crossingRemarks(
     // Без границ станции (остановочный пункт) проверить километр не по чему.
     if (bounded.length === 0) continue
     const inside = bounded.some(
-      (a) => a.from !== null && a.to !== null && cmp(a.from, point) <= 0 && cmp(point, a.to) <= 0,
+      (a) =>
+        a.from !== null &&
+        a.to !== null &&
+        cmp(a.from, picket.value.end) < 0 &&
+        cmp(picket.value.start, a.to) <= 0,
     )
     if (!inside) {
       out.push(
@@ -234,7 +237,8 @@ export function checkStations(
   const tracks = keep(sources.tracks, 'путей')
   const switches = keep(sources.switches, 'стрелочных переводов')
   remarks.push(...switchRemarks(tracks, switches))
-  remarks.push(...crossingRemarks(sources.crossings, axes, excluded))
+  const crossings = sources.crossings.filter((c) => validOn(c.validity, date))
+  remarks.push(...crossingRemarks(crossings, axes, excluded))
 
   const lineByKey = new Map<string, string[]>()
   for (const line of sources.lines) {
@@ -242,7 +246,7 @@ export function checkStations(
     lineByKey.set(key, [...(lineByKey.get(key) ?? []), line])
   }
   const crossingLines = new Map<string, readonly string[]>()
-  for (const c of sources.crossings) {
+  for (const c of crossings) {
     const line = c.direction ? lineByKey.get(directionKey(c.direction)) : undefined
     if (!c.place)
       remarks.push(remark(`Переезд № ${c.number}: не удалось разобрать привязку км и пк`, c.at))
@@ -270,7 +274,7 @@ export function checkStations(
     axes,
     tracks,
     switches,
-    crossings: sources.crossings,
+    crossings,
     crossingLines,
     exclusionCandidates,
     remarks: [

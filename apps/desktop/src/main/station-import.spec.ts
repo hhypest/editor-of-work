@@ -102,6 +102,12 @@ describe('Станционные выгрузки → SQLite', () => {
       database
         .prepare('INSERT INTO line(edition_id,id,name,code) VALUES (?,?,?,?)')
         .run(id, 'line' + n, 'Главный путь УЧЕБНЫЙ, ' + n, 'L' + n)
+    for (const n of [1, 2])
+      database
+        .prepare(
+          'INSERT INTO line_extent(edition_id,id,line_id,start_km,start_m,end_km,end_m) VALUES (?,?,?,10,0,11,0)',
+        )
+        .run(id, 'extent' + n, 'line' + n)
     const request = { editionId: id, files: files(), importedAt: '2026-10-21T06:00:00Z' }
     const first = value(await importStationExports(passport, request))
     expect(first.command.rows).toHaveLength(5)

@@ -22,14 +22,25 @@ export function assessRepairs(
   tonnageAfter: number | null,
   year: number,
   norms: readonly RepairNorm[],
+  date: string,
   sourceProblem: string | null = null,
 ): readonly RepairAssessment[] {
   const codes = [...new Set(norms.map((n) => n.workCode))]
   if (!codes.length)
     return [emptyAssessment(null, null, 'no-norm', 'В редакции нет действующих норм ремонта.')]
   return codes.map((code) => {
-    const group = norms.filter((n) => n.workCode === code)
-    const name = group[0]?.workName ?? code
+    const known = norms.filter((n) => n.workCode === code)
+    const name = known[0]?.workName ?? code
+    // Вид ремонта не исчезает, когда все его нормы не действуют на дату редакции:
+    // пороги отбираются только из действующих норм, а вид получает статус no-norm.
+    const group = known.filter((n) => repairPeriodContains(n, date))
+    if (!group.length)
+      return emptyAssessment(
+        code,
+        name,
+        'no-norm',
+        'Нет действующей нормы на дату редакции. Проверьте период действия норм в шаблоне.',
+      )
     const matches = group.filter((n) =>
       selectors.every((k) => n[k] === null || n[k] === conditions[k]),
     )

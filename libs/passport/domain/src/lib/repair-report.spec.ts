@@ -318,7 +318,43 @@ describe('Потребность в ремонте по данным редак�
     expect(input).toEqual(copy)
   })
   it('не объявляет потребность по тоннажу при будущей дате укладки', () => {
-    expect(assessment(fixture({ segments: rail(2030, 200) })).status).toBe('incomplete')
+    const result = report(fixture({ segments: rail(2030, 200) }))
+    expect(result.rows[0]!.tonnageAfter).toBe(null)
+    expect(result.rows[0]!.assessments[0]).toMatchObject({
+      status: 'incomplete',
+      dueYear: null,
+      overdueMillionTons: null,
+      yearIsUpperBound: false,
+    })
+  })
+  it('сохраняет вид ремонта, чьи нормы не действуют на дату редакции', () => {
+    const result = report(
+      fixture({
+        norms: [
+          norm(),
+          norm({
+            id: 'expired',
+            workCode: 'old',
+            workName: 'Устаревший ремонт',
+            validTo: '2026-12-31',
+          }),
+          norm({
+            id: 'future',
+            workCode: 'new',
+            workName: 'Будущий ремонт',
+            validFrom: '2027-01-02',
+          }),
+        ],
+      }),
+    )
+    const assessments = result.rows[0]!.assessments
+    expect(assessments.map((a) => [a.workCode, a.status])).toEqual([
+      ['repair', 'due'],
+      ['old', 'no-norm'],
+      ['new', 'no-norm'],
+    ])
+    expect(assessments[1]).toMatchObject({ workName: 'Устаревший ремонт', normId: null })
+    expect(assessments[1]!.reason).toContain('дату редакции')
   })
   it('отличает неизвестную характеристику от отсутствия подходящей нормы', () => {
     expect(

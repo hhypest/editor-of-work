@@ -59,7 +59,7 @@ export function calculateRepairReport(
             distance(from, to, lengths.value),
             snapshot.date,
             year,
-            norms,
+            snapshot.norms,
           ),
         )
       }
@@ -82,7 +82,8 @@ export function calculateRepairReport(
         lastRepairYear,
         null,
         year,
-        norms,
+        snapshot.norms,
+        snapshot.date,
       ),
     })
   }
@@ -110,11 +111,15 @@ function lineRow(
   const c = classes.length === 1 ? classes[0]?.values : undefined
   const r = rails.length === 1 ? rails[0]?.values : undefined
   const s = sleepers.length === 1 ? sleepers[0]?.values : undefined
-  const lastRepairYear = r?.laidDate && r.laidDate <= date ? Number(r.laidDate.slice(0, 4)) : null
-  const tonnageAfter = r?.tonnageAfter ?? null
+  const laidDate = r?.laidDate ?? null
+  const futureLaying = laidDate !== null && laidDate > date
+  const lastRepairYear = laidDate !== null && !futureLaying ? Number(laidDate.slice(0, 4)) : null
+  // Тоннаж накоплен после укладки: при будущей дате укладки он недостоверен
+  // и очищается вместе с годом, чтобы не выводить противоречивую просрочку.
+  const tonnageAfter = futureLaying ? null : (r?.tonnageAfter ?? null)
   const problem = [classes, rails, sleepers].some((values) => values.length > 1)
     ? 'Перекрываются характеристики одного вида. Уточните исходные данные.'
-    : r?.laidDate && r.laidDate > date
+    : futureLaying
       ? 'Дата укладки рельсов позже даты редакции. Уточните исходные данные.'
       : null
   return {
@@ -133,6 +138,7 @@ function lineRow(
       tonnageAfter,
       year,
       norms,
+      date,
       problem,
     ),
   }

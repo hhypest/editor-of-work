@@ -3,6 +3,7 @@ import type { PassportEdition } from '@eow/passport/application'
 import type { OrgImport, OrgImportError, OrgImportRow } from '@eow/passport/import-api'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import type { SegmentTables } from './segment-tables'
+import type { ManualTables } from './manual-tables'
 import type { StationTables } from './station-tables'
 
 interface Provenance {
@@ -12,7 +13,7 @@ interface Provenance {
   valid_from: string | null
   valid_to: string | null
 }
-export interface PassportSchema extends SegmentTables, StationTables {
+export interface PassportSchema extends SegmentTables, StationTables, ManualTables {
   line_extent: Provenance & {
     line_id: string
     start_km: number

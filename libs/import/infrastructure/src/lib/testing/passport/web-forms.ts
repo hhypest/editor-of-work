@@ -397,14 +397,18 @@ function subdivisionForm(): WebTable {
     rows: SUBDIVISIONS.map((u) => [
       ROAD,
       ENTERPRISE,
-      u.code,
+      // У ПЧДЕФ столбец «Подразделение» в выгрузке пуст.
+      u.type === 'ПЧДЕФ' ? '' : u.code,
       u.id,
       u.type,
       u.activity,
       f1(u.number),
       u.code,
       u.code,
-      u.parent,
+      // Вышестоящий ПЧУ записан как «предприятие, ПЧУ-01»: номер с ведущим нулём.
+      u.parent === ENTERPRISE
+        ? ENTERPRISE
+        : `${ENTERPRISE}, ${u.parent.replace(/-(\d)$/u, '-0$1')}`,
       u.parentType,
       u.start,
       u.end,
@@ -443,7 +447,7 @@ function boundaryForm(): WebTable {
       b.code.startsWith('ЗП') ? 'Цех по содержанию земляного полотна' : 'Линейный участок',
       ENTERPRISE,
       b.start,
-      OPEN_END,
+      b.end ?? OPEN_END,
       editor(i),
     ]),
   }

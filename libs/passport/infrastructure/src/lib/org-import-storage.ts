@@ -2,6 +2,7 @@ import type { Generated, Kysely } from 'kysely'
 import type { PassportEdition } from '@eow/passport/application'
 import type { OrgImport, OrgImportError, OrgImportRow } from '@eow/passport/import-api'
 import { err, ok, type Result } from '@eow/shared/kernel'
+import type { SegmentTables } from './segment-tables'
 
 interface Provenance {
   edition_id: number
@@ -10,7 +11,8 @@ interface Provenance {
   valid_from: string | null
   valid_to: string | null
 }
-export interface PassportSchema {
+export interface PassportSchema extends SegmentTables {
+  line_km: Provenance & { line_id: string; km: number; length_m: number }
   edition: {
     id: Generated<number>
     number: number

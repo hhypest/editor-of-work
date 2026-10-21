@@ -54,7 +54,7 @@ function column(f: FixtureFile, header: string): string[] {
 
 async function sheetRows(f: FixtureFile, sheet?: string): Promise<unknown[][]> {
   const wb = new ExcelJS.Workbook()
-  await wb.xlsx.load(Buffer.from(f.bytes))
+  await wb.xlsx.load(Uint8Array.from(f.bytes).buffer)
   const ws = sheet ? wb.getWorksheet(sheet) : wb.worksheets[0]
   if (!ws) throw new Error(`нет листа ${sheet ?? '1'}`)
   const rows: unknown[][] = []
@@ -171,7 +171,7 @@ describe('Фикстуры выгрузок паспорта', () => {
     expect(switches[5]?.slice(1, 4)).toEqual(['1', '2', '3'])
     const wb = new ExcelJS.Workbook()
     const bytes = file('switches').bytes
-    await wb.xlsx.load(Buffer.from(bytes))
+    await wb.xlsx.load(Uint8Array.from(bytes).buffer)
     expect(wb.getWorksheet('BExRepositorySheet')?.state).toBe('veryHidden')
     expect(wb.getWorksheet('VARS')?.state).toBe('hidden')
   })

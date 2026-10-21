@@ -81,6 +81,15 @@ export class RowReader {
     return found ?? allowed[0]
   }
 
+  /** Точка или null, если километр не заполнен (метр без километра тоже не точка). */
+  optionalPoint(kmHeader: string, mHeader: string): ExportPoint | null {
+    if (this.text(kmHeader) === null) return null
+    return {
+      km: this.integer(kmHeader),
+      m: this.text(mHeader) === null ? 0 : this.integer(mHeader),
+    }
+  }
+
   point(kmHeader: string, mHeader: string): ExportPoint {
     return { km: this.integer(kmHeader), m: this.integer(mHeader) }
   }

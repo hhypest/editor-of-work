@@ -171,7 +171,7 @@ export function crossingsGeneral(): Promise<Uint8Array> {
       c.place,
       c.number,
       c.number === 2 ? `Переезд ${c.place}` : '',
-      c.line.direction,
+      c.siding ? '-' : c.line.direction,
       c.siding ? c.station : '-',
       'Общ',
       String(1 + (c.number % 4)),

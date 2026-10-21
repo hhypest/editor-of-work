@@ -258,9 +258,10 @@ export function buildOrgStructure(
   const otherUnits = open
     .filter((s) => !HIERARCHY_TYPES.has(s.type))
     .map((s) => ({ code: s.code, externalId: s.externalId, type: s.type, activity: s.activity }))
-  const others = new Set(otherUnits.map((u) => u.code))
+  // Границы всех подразделений оргструктуры: ПЧУ и ПД иерархии и прочих (цеха, бригады).
+  const kept = new Set([...units.map((u) => u.code), ...otherUnits.map((u) => u.code)])
   const boundaries = sources.boundaries.filter(
-    (b) => validOn(b.validity, date) && (pds.has(b.subdivision) || others.has(b.subdivision)),
+    (b) => validOn(b.validity, date) && kept.has(b.subdivision),
   )
   for (const b of boundaries) {
     if (cmp(b.from, b.to) >= 0)

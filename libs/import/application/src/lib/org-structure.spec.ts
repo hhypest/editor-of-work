@@ -42,6 +42,7 @@ function border(
     line,
     from: { km: fromKm, m: 0 },
     to: { km: toKm, m: 0 },
+    statedLength: null,
     validity: { from, to: open },
     at,
   }
@@ -116,6 +117,12 @@ describe('Оргструктура по отмеченным', () => {
     expect(org.otherUnits.map((u) => u.code)).toEqual(['ЗП-1', 'ПДБ-1'])
     expect(org.boundaries.map((b) => b.subdivision)).toEqual(['ПД-1', 'ПД-2', 'ЗП-1'])
     expect(org.remarks).toEqual([])
+  })
+
+  it('границы ПЧУ сохраняются вместе с границами ПД', () => {
+    const withPchu = { ...sources, boundaries: [...boundaries, border('ПЧУ-1', 10, 25)] }
+    const org = buildOrgStructure(withPchu, date, new Set(['ПД-1', 'ПД-2']))
+    expect(org.boundaries.map((b) => b.subdivision)).toContain('ПЧУ-1')
   })
 
   it('отрезки разных отмеченных ПД перекрываются — замечание', () => {
@@ -204,6 +211,69 @@ describe('Разбор форм', () => {
     expect(r.ok ? [] : r.error).toMatchObject([
       { kind: 'bad-value', value: '0.5', at: { row: 3, column: 'D', header: 'М н.' } },
     ])
+  })
+
+  it('признак «весь путь» — только «Д» или «Н»; пусто — ошибка, а не весь путь', () => {
+    const t = table(
+      'track-pd',
+      [
+        'Подразделение',
+        'Станция',
+        'Путь',
+        'Признак - весь путь',
+        'Метр начала',
+        'Метр конца',
+        'Начало действия',
+        'Конец действия',
+      ],
+      [['ПД-1', 'А', 'Путь 3', '', '0', '0', '01.04.2026', '31.12.9999']],
+    )
+    const r = parseTrackPd(t)
+    expect(r.ok ? [] : r.error).toMatchObject([
+      { kind: 'bad-value', expected: '«Д» или «Н»', at: { column: 'D' } },
+    ])
+  })
+
+  it('конец периода раньше начала — ошибка в столбце конца', () => {
+    const t = table(
+      'boundaries',
+      [
+        'Подразделение',
+        'Главный путь',
+        'КМ н.',
+        'М н.',
+        'КМ к.',
+        'М к.',
+        'Длина участка, м',
+        'Дата начала действия',
+        'Дата конца действия',
+      ],
+      [['ПД-1', 'L1', '10.0', '0.0', '18.0', '0.0', '8000', '01.04.2026', '31.03.2026']],
+    )
+    const r = parseBoundaries(t)
+    expect(r.ok ? [] : r.error).toMatchObject([
+      { kind: 'bad-value', value: '31.03.2026', at: { column: 'I' } },
+    ])
+  })
+
+  it('заявленная длина границы сохраняется для сверки с длинами км', () => {
+    const t = table(
+      'boundaries',
+      [
+        'Подразделение',
+        'Главный путь',
+        'КМ н.',
+        'М н.',
+        'КМ к.',
+        'М к.',
+        'Длина участка, м',
+        'Дата начала действия',
+        'Дата конца действия',
+      ],
+      [['ПД-1', 'L1', '10.0', '0.0', '18.0', '0.0', '7964', '01.04.2026', '31.12.9999']],
+    )
+    const r = parseBoundaries(t)
+    expect(r.ok ? r.value[0]?.statedLength : null).toBe(7964)
   })
 
   it('пути: «Н» — метры, «Д» — весь путь', () => {

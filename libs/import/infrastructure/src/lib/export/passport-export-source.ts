@@ -39,7 +39,18 @@ async function sheetsOf(file: ExportFile): Promise<Result<Sheet[], ExportError>>
       const html = decode(file.bytes)
       const part = framesetSheetPath(html)
       if (!part) return err({ kind: 'no-table', file: file.name })
-      const bytes = await file.sibling?.(decodeURIComponent(part))
+      let bytes: Uint8Array | undefined
+      try {
+        bytes = await file.sibling?.(decodeURIComponent(part))
+      } catch (e) {
+        // Испорченная ссылка (%ZZ) или сбой чтения папки — ошибка файла, а не исключение.
+        const detail = e instanceof Error ? e.message : String(e)
+        return err({
+          kind: 'broken-file',
+          file: file.name,
+          detail: `не читается «${part}»: ${detail}`,
+        })
+      }
       if (!bytes) return err({ kind: 'missing-part', file: file.name, part })
       // Имя листа — из главного файла: в самом листе frameset его может не быть.
       return htmlSheet(file.name, decode(bytes), htmlSheetName(html))

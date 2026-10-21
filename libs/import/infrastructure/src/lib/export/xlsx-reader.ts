@@ -90,15 +90,19 @@ function dateStyles(xml: string | undefined): ReadonlySet<number> {
   return out
 }
 
-/** Серийный номер даты Excel (система 1900) → ГГГГ-ММ-ДД. */
-export function excelDate(serial: number): string {
-  const ms = Math.round((serial - 25569) * 86_400_000)
+/**
+ * Серийный номер даты Excel → ГГГГ-ММ-ДД. В системе 1900 ноль — 30.12.1899,
+ * в системе 1904 (флаг date1904 книги) — 01.01.1904, на 1462 дня позже.
+ */
+export function excelDate(serial: number, date1904 = false): string {
+  const ms = Math.round((serial + (date1904 ? 1462 : 0) - 25569) * 86_400_000)
   return new Date(ms).toISOString().slice(0, 10)
 }
 
 interface Context {
   readonly strings: readonly string[]
   readonly dates: ReadonlySet<number>
+  readonly date1904: boolean
 }
 
 function cellValue(
@@ -125,7 +129,7 @@ function cellValue(
       if (raw === undefined || raw === '') return null
       const n = Number(raw)
       if (!Number.isFinite(n)) return null
-      return ctx.dates.has(Number(attrs.get('s') ?? -1)) ? excelDate(n) : n
+      return ctx.dates.has(Number(attrs.get('s') ?? -1)) ? excelDate(n, ctx.date1904) : n
     }
   }
 }
@@ -182,6 +186,7 @@ export function readXlsx(
     const ctx: Context = {
       strings: sharedStrings(text(meta, 'xl/sharedStrings.xml')),
       dates: dateStyles(text(meta, 'xl/styles.xml')),
+      date1904: /<workbookPr\b[^>]*\bdate1904\s*=\s*["'](?:1|true)["']/u.test(workbook),
     }
     const sheets: Sheet[] = []
     for (const e of entries) {

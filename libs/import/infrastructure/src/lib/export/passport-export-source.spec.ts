@@ -186,6 +186,29 @@ describe('ExportSource: ошибки', () => {
     expect(describeExportError(e)).toContain('Выгрузите форму частями')
   })
 
+  it('испорченная ссылка frameset и сбой чтения папки — ошибка, а не исключение', async () => {
+    const main =
+      '<html><head><x:WorksheetSource HRef="a.files/%ZZ.htm"/></head><frameset></frameset></html>'
+    const bad = failure(
+      await source.read({
+        name: 'a.xls',
+        bytes: strToU8(main),
+        sibling: () => Promise.resolve(undefined),
+      }),
+    )
+    expect(bad.kind).toBe('broken-file')
+    const ok =
+      '<html><head><x:WorksheetSource HRef="a.files/sheet001.htm"/></head><frameset></frameset></html>'
+    const failing = failure(
+      await source.read({
+        name: 'a.xls',
+        bytes: strToU8(ok),
+        sibling: () => Promise.reject(new Error('нет доступа')),
+      }),
+    )
+    expect(describeExportError(failing)).toContain('нет доступа')
+  })
+
   it('не выгрузка и повреждённая книга', async () => {
     expect(failure(await source.read({ name: 'a.txt', bytes: strToU8('привет') })).kind).toBe(
       'unknown-file',

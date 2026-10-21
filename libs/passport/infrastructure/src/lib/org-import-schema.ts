@@ -31,38 +31,45 @@ const row = z.object({
 })
 const station = row.extend({ station: z.string().min(1), subdivisionId: z.string().min(1) })
 
+export const orgSubdivisionSchema = row.extend({
+  code: z.string().min(1),
+  type: z.string().min(1),
+  parentId: z.string().nullable(),
+  activity: z.string().nullable(),
+  active: z.boolean(),
+})
+export const orgBoundarySchema = row.extend({
+  line: z.string().min(1),
+  statedLength: z.number().finite().nullable(),
+  subdivisionId: z.string().min(1),
+  from: point,
+  to: point,
+})
+export const orgStationSchema = station
+export const orgTrackSchema = station.extend({
+  track: z.string().min(1),
+  meters: z
+    .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
+    .nullable(),
+})
+
+/** Данные оргструктуры редакции для просмотра и сравнения. */
+export const orgDataSchema = z.object({
+  subdivisions: z.array(orgSubdivisionSchema),
+  boundaries: z.array(orgBoundarySchema),
+  stations: z.array(orgStationSchema),
+  tracks: z.array(orgTrackSchema),
+})
+
 /** Схема выбирает только разрешённые поля перед любой сериализацией в SQLite. */
 export const orgImportSchema = z
   .object({
     date: z.iso.date(),
     files: z.array(orgFileSchema),
-    subdivisions: z.array(
-      row.extend({
-        code: z.string().min(1),
-        type: z.string().min(1),
-        parentId: z.string().nullable(),
-        activity: z.string().nullable(),
-        active: z.boolean(),
-      }),
-    ),
-    boundaries: z.array(
-      row.extend({
-        line: z.string().min(1),
-        statedLength: z.number().finite().nullable(),
-        subdivisionId: z.string().min(1),
-        from: point,
-        to: point,
-      }),
-    ),
-    stations: z.array(station),
-    tracks: z.array(
-      station.extend({
-        track: z.string().min(1),
-        meters: z
-          .object({ start: z.number().int().nonnegative(), end: z.number().int().nonnegative() })
-          .nullable(),
-      }),
-    ),
+    subdivisions: z.array(orgSubdivisionSchema),
+    boundaries: z.array(orgBoundarySchema),
+    stations: z.array(orgStationSchema),
+    tracks: z.array(orgTrackSchema),
   })
   .superRefine((input, ctx) => {
     const fail = (message: string): void => ctx.addIssue({ code: 'custom', message })

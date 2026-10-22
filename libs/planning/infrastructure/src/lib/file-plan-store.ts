@@ -1,9 +1,10 @@
-import { open, readFile, rename, rm, stat } from 'node:fs/promises'
+import { open, rename, rm, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import type { AnnualPlan } from '@eow/planning/domain'
 import type { PlanStore, PlanStoreError } from '@eow/planning/application'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import { decodePlan, encodePlan } from './plan-file'
+import { readPlanText, PlanTextReadError } from './read-plan-text'
 
 export interface PlanFileIO {
   read(path: string): Promise<string | undefined>
@@ -18,14 +19,7 @@ function missing(error: unknown): boolean {
 }
 
 export const nodePlanFileIO: PlanFileIO = {
-  async read(path) {
-    try {
-      return await readFile(path, 'utf8')
-    } catch (e) {
-      if (missing(e)) return undefined
-      throw e
-    }
-  },
+  read: readPlanText,
   async write(path, text) {
     const file = await open(path, 'wx')
     try {
@@ -65,11 +59,13 @@ export class FilePlanStore implements PlanStore {
   private run<T>(
     action: () => Promise<Result<T, PlanStoreError>>,
   ): Promise<Result<T, PlanStoreError>> {
-    const next = this.pending.then(action).catch((): Result<T, PlanStoreError> =>
+    const next = this.pending.then(action).catch((error: unknown): Result<T, PlanStoreError> =>
       err({
         kind: 'io',
         message:
-          'Не удалось прочитать или записать файл плана. Проверьте доступ к папке и свободное место.',
+          error instanceof PlanTextReadError
+            ? error.message
+            : 'Не удалось прочитать или записать файл плана. Проверьте доступ к папке и свободное место.',
       }),
     )
     this.pending = next

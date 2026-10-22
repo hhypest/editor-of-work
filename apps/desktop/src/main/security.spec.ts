@@ -81,6 +81,13 @@ describe('файлы интерфейса по app://', () => {
     expect(resolveAppFile('app://ui/a/..%5C..%5Csecret.txt', root, join, sep)).toBeNull()
   })
 
+  it.each(['%', '%E0%A4%A', '%ZZ'])(
+    'отклоняет неверное URI-кодирование %s без исключения',
+    (path) => {
+      expect(resolveAppFile(`app://ui/${path}`, root, join, sep)).toBeNull()
+    },
+  )
+
   it('отклоняет чужой хост и схему', () => {
     expect(resolveAppFile('app://other/index.html', root, join, sep)).toBeNull()
     expect(resolveAppFile('file:///etc/passwd', root, join, sep)).toBeNull()

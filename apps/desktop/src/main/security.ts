@@ -87,13 +87,14 @@ export function resolveAppFile(
   sep: string,
 ): string | null {
   let parsed: URL
+  let decoded: string
   try {
     parsed = new URL(url)
+    decoded = decodeURIComponent(parsed.pathname)
   } catch {
     return null
   }
   if (parsed.protocol !== `${APP_SCHEME}:` || parsed.host !== APP_HOST) return null
-  const decoded = decodeURIComponent(parsed.pathname)
   if (decoded.includes('\0')) return null
   const relative = decoded.replace(/^\/+/, '') || 'index.html'
   const parts = relative.split(/[\\/]+/)

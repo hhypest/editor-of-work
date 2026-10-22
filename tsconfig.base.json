@@ -12,6 +12,7 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "paths": {
+      "@eow/planning/sheet-api": ["./libs/planning/sheet-api/src/index.ts"],
       "@eow/shared/kernel": ["./libs/shared/kernel/src/index.ts"],
       "@eow/passport/domain": ["./libs/passport/domain/src/index.ts"],
       "@eow/passport/application": ["./libs/passport/application/src/index.ts"],

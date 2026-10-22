@@ -7,7 +7,7 @@ import {
 } from '@eow/planning/infrastructure'
 import type { AnnualPlan } from '@eow/planning/domain'
 import { importPrototype } from '@eow/import/infrastructure'
-import { buildImportedPlan } from '@eow/planning/application'
+import { planSheetData, buildImportedPlan } from '@eow/planning/application'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { registerHandler, type IpcMainLike } from './register'
@@ -22,6 +22,17 @@ export interface PlanFileDialogs {
 type Request = RequestOf<typeof channels.planFile>
 type Response = ResponseOf<typeof channels.planFile>
 const failure = (message: string): Response => ({ status: 'error', message })
+
+function sheetResponse(plan: AnnualPlan | undefined): Response {
+  if (!plan) return { status: 'sheets', source: null }
+  const source = planSheetData(plan)
+  if (!source.ok) return failure(source.error.message)
+  if (JSON.stringify(source.value).length > 20 * 1024 * 1024)
+    return failure(
+      'Срез листов ПД превышает 20 МиБ. Уменьшите число объектов или длину примечаний.',
+    )
+  return channels.planFile.response.parse({ status: 'sheets', source: source.value })
+}
 
 export function registerPlanFileHandlers(
   ipc: IpcMainLike,
@@ -103,6 +114,15 @@ export function registerPlanFileHandlers(
 
   async function handle(request: Request): Promise<Response> {
     switch (request.action) {
+      case 'previewSheets': {
+        if (request.open) {
+          const path = await dialogs.open()
+          if (!path) return { status: 'cancelled' }
+          const loaded = await new FilePlanStore(path, appVersion).load()
+          return loaded.ok ? sheetResponse(loaded.value) : failure(loaded.error.message)
+        }
+        return sheetResponse(current)
+      }
       case 'importPrototype': {
         const path = await dialogs.openPrototype()
         if (!path) return { status: 'cancelled' }

@@ -1,0 +1,17 @@
+{
+  "name": "planning-sheet-api",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/planning/sheet-api/src",
+  "projectType": "library",
+  "tags": ["type:application", "scope:planning"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^default"],
+      "options": {
+        "command": "tsc -p libs/planning/sheet-api/tsconfig.lib.json --noEmit"
+      }
+    }
+  }
+}

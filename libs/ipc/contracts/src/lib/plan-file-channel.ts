@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { planSheetDataSchema } from './plan-sheet-schema'
 import { defineChannel } from './channel'
 
 export const planDocumentSchema = z
@@ -16,6 +17,7 @@ export const planFile = defineChannel(
       })
       .strict(),
     z.object({ action: z.literal('open') }).strict(),
+    z.object({ action: z.literal('previewSheets'), open: z.boolean() }).strict(),
     z
       .object({ action: z.literal('save'), document: planDocumentSchema, saveAs: z.boolean() })
       .strict(),
@@ -32,6 +34,7 @@ export const planFile = defineChannel(
         autosaveError: z.string().nullable(),
       })
       .strict(),
+    z.object({ status: z.literal('sheets'), source: planSheetDataSchema.nullable() }).strict(),
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
   ]),

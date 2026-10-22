@@ -1,7 +1,8 @@
-import { strFromU8, unzipSync } from 'fflate'
+import { strFromU8 } from 'fflate'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import { attributes, decodeEntities, decodeOoxmlEscapes } from './xml'
 import { parseAddress, parseRange, SheetBuilder, type Sheet } from './sheet'
+import { XlsxArchive } from './xlsx-archive'
 
 /**
  * Минимальный читатель xlsx для выгрузок ЕК АСУИ: распаковка fflate и разбор XML листов.
@@ -15,12 +16,8 @@ interface SheetEntry {
   readonly path: string
 }
 
-function unzip(bytes: Uint8Array, wanted: (path: string) => boolean): Record<string, Uint8Array> {
-  return unzipSync(bytes, { filter: (f) => wanted(f.name) })
-}
-
-function text(files: Record<string, Uint8Array>, path: string): string | undefined {
-  const data = files[path]
+function text(files: ReadonlyMap<string, Uint8Array>, path: string): string | undefined {
+  const data = files.get(path)
   return data ? strFromU8(data) : undefined
 }
 
@@ -169,7 +166,8 @@ export function readXlsx(
   options: { readonly includeHidden?: boolean } = {},
 ): Result<Sheet[], XlsxError> {
   try {
-    const meta = unzip(bytes, (p) =>
+    const archive = new XlsxArchive(bytes)
+    const meta = archive.read((p) =>
       [
         'xl/workbook.xml',
         'xl/_rels/workbook.xml.rels',
@@ -183,7 +181,7 @@ export function readXlsx(
       return err({ kind: 'broken', detail: 'нет описания книги (xl/workbook.xml)' })
     const entries = sheetEntries(workbook, rels).filter((e) => options.includeHidden || e.visible)
     const wanted = new Set(entries.map((e) => e.path))
-    const parts = unzip(bytes, (p) => wanted.has(p))
+    const parts = archive.read((p) => wanted.has(p))
     const ctx: Context = {
       strings: sharedStrings(text(meta, 'xl/sharedStrings.xml')),
       dates: dateStyles(text(meta, 'xl/styles.xml')),

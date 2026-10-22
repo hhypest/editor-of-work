@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import ExcelJS from 'exceljs'
+import { strToU8, zipSync } from 'fflate'
 import {
   XlsxManualDataTemplate,
   exportManualTemplate,
@@ -129,6 +130,29 @@ describe('Ручные данные: SQLite → xlsx → SQLite', () => {
     change(wb)
     return new Uint8Array(await wb.xlsx.writeBuffer())
   }
+  it('огромный заявленный XML отклоняется до записи ручных данных и журнала', async () => {
+    value(await store.applyManualData(id, await input()))
+    const before = snapshot()
+    const bytes = zipSync({ 'xl/workbook.xml': strToU8('<workbook/>') })
+    const view = new DataView(bytes.buffer)
+    for (let i = 0; i + 46 <= bytes.length; i++) {
+      if (view.getUint32(i, true) === 0x02014b50) {
+        view.setUint32(i + 24, 33 * 1024 * 1024, true)
+        break
+      }
+    }
+    expect(
+      await importManualTemplate(store, adapter, {
+        editionId: id,
+        file: { name: 'учебный-лимит.xlsx', bytes },
+        importedAt,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { kind: 'invalid-import', message: expect.stringContaining('лимит 32 МиБ') },
+    })
+    expect(snapshot()).toEqual(before)
+  })
   it('выдача и немедленная загрузка пустого или заполненного шаблона не меняют данные и журнал', async () => {
     for (const populated of [false, true]) {
       if (populated) value(await store.applyManualData(id, await input()))

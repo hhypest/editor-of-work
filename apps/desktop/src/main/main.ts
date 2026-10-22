@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc/handlers'
 import { registerPlanFileHandlers } from './ipc/plan-files'
 import { registerPassportHandlers } from './ipc/passport'
 import { registerPassportDataHandlers } from './ipc/passport-data'
+import { registerExportWizardHandlers } from './ipc/export-wizard'
 import { registerManualTemplateHandlers } from './ipc/manual-template'
 import { XlsxManualDataTemplate } from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
@@ -108,6 +109,16 @@ if (!app.requestSingleInstanceLock()) {
       registerIpcHandlers(ipcMain, app)
       registerPassportHandlers(ipcMain, passport)
       registerPassportDataHandlers(ipcMain, passport)
+      registerExportWizardHandlers(ipcMain, passport, {
+        async open() {
+          const chosen = await dialog.showOpenDialog({
+            title: 'Выберите все формы и части текущего шага импорта',
+            filters: [{ name: 'Выгрузки ЕК АСУИ', extensions: ['xls', 'xlsx'] }],
+            properties: ['openFile', 'multiSelections'],
+          })
+          return chosen.canceled ? undefined : chosen.filePaths
+        },
+      })
       registerManualTemplateHandlers(ipcMain, passport, new XlsxManualDataTemplate(), {
         async open() {
           const chosen = await dialog.showOpenDialog({

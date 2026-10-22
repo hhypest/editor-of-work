@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Kysely } from 'kysely'
 import type { EditionData } from '@eow/passport/application'
 import { readManualBasis } from './manual-data-storage'
@@ -70,4 +71,19 @@ export async function readEditionData(
     manual: manual.data,
     org,
   }
+}
+
+/** Вычисляемый токен предпросмотра, не сохраняется в базе. */
+export function editionDataToken(data: EditionData): string {
+  return createHash('sha256').update(JSON.stringify(data)).digest('hex')
+}
+
+export async function editionTokenMatches(
+  db: Kysely<PassportSchema>,
+  id: number,
+  expected: string | undefined,
+): Promise<boolean> {
+  if (expected === undefined) return true
+  const data = await readEditionData(db, id)
+  return data !== undefined && editionDataToken(data) === expected
 }

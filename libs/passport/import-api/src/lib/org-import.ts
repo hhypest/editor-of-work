@@ -70,6 +70,8 @@ export interface OrgImportTrack extends OrgImportStation {
 
 /** Полная замена четырёх форм оргструктуры; части выгрузок передаются вместе. */
 export interface OrgImport {
+  /** Срез, который видел пользователь перед подтверждением; проверяется внутри записи. */
+  readonly expectedEditionToken?: string | undefined
   readonly date: string
   readonly files: readonly OrgImportFile[]
   readonly subdivisions: readonly OrgImportSubdivision[]

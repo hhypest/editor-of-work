@@ -3,6 +3,7 @@ import { defineChannel } from './channel'
 import { planFile } from './plan-file-channel'
 import { passport } from './passport-channel'
 import { passportData } from './passport-data-channel'
+import { exportWizard } from './export-wizard-channel'
 import { manualTemplate } from './manual-template-channel'
 import { repairs } from './repair-report-channel'
 
@@ -26,6 +27,7 @@ export const channels = {
   passportData,
   repairs,
   manualTemplate,
+  exportWizard,
 } as const
 
 export type Channels = typeof channels

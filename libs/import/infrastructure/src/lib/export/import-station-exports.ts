@@ -23,7 +23,7 @@ import { err, type Result } from '@eow/shared/kernel'
 import { PassportExportSource } from './passport-export-source'
 import { readExportFile } from './read-export-file'
 
-export async function importStationExports(
+export async function prepareStationExports(
   store: PassportStationImport,
   request: {
     readonly editionId: number
@@ -112,6 +112,19 @@ export async function importStationExports(
     remarks: crossings.value.remarks,
   }
   const preview = prepareStationImport(sources, files, basis.value)
+  if (!preview.ok) return preview
+  return preview
+}
+
+export async function importStationExports(
+  store: PassportStationImport,
+  request: {
+    readonly editionId: number
+    readonly files: readonly ExportFile[]
+    readonly importedAt: string
+  },
+): Promise<Result<StationPreview, OrgImportError>> {
+  const preview = await prepareStationExports(store, request)
   if (!preview.ok) return preview
   const saved = await store.applyStationImport(request.editionId, preview.value.command)
   return saved.ok ? preview : saved

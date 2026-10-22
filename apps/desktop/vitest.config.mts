@@ -11,6 +11,9 @@ export default defineConfig(() => ({
     passWithNoTests: true,
     globals: true,
     environment: 'node',
+    // SQLite backups and xlsx round trips share the CI runner with other Nx projects.
+    // Keep desktop integration files sequential to avoid competing for disk and CPU.
+    fileParallelism: false,
     include: ['src/**/*.{test,spec}.ts'],
     reporters: ['default'],
     coverage: {

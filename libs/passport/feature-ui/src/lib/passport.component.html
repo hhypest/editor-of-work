@@ -24,7 +24,13 @@
               <td>{{ edition.label }}</td>
               <td>{{ text.statusText[edition.status] }}</td>
               <td class="actions">
-                <button type="button" (click)="facade.select(edition.id)">{{ text.open }}</button>
+                <button
+                  type="button"
+                  [disabled]="facade.busy()"
+                  (click)="facade.select(edition.id)"
+                >
+                  {{ text.open }}
+                </button>
                 @if (edition.status === 'draft') {
                   @if (facade.confirming() === edition.id) {
                     <p role="alertdialog" class="confirm">
@@ -95,6 +101,7 @@
       <button
         type="button"
         role="tab"
+        [disabled]="facade.busy()"
         [attr.aria-selected]="facade.mode() === 'data'"
         (click)="setMode('data')"
       >
@@ -103,6 +110,7 @@
       <button
         type="button"
         role="tab"
+        [disabled]="facade.busy()"
         [attr.aria-selected]="facade.mode() === 'compare'"
         (click)="setMode('compare')"
       >
@@ -148,6 +156,7 @@
           <label for="compare-edition">{{ text.compareWith }}</label>
           <select
             id="compare-edition"
+            [disabled]="facade.busy()"
             [value]="facade.compareWith() ?? ''"
             (change)="selectCompare($event)"
           >

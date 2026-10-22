@@ -3,7 +3,12 @@ import type { EditionData, PassportEdition } from '@eow/passport/application'
 import type { SegmentRow } from '@eow/passport/import-api'
 import { err, ok } from '@eow/shared/kernel'
 import { PassportComponent } from './passport.component'
-import { PASSPORT_CLIENT, PASSPORT_TEXT, type PassportClient } from './passport.facade'
+import {
+  PASSPORT_CLIENT,
+  PASSPORT_TEXT,
+  PassportFacade,
+  type PassportClient,
+} from './passport.facade'
 
 const editions: readonly PassportEdition[] = [
   { id: 1, number: 1, date: '2027-01-01', label: 'Учебная', status: 'active' },
@@ -135,4 +140,61 @@ describe('Интерфейс паспорта', () => {
     expect(element.querySelector('[role="alert"]')?.textContent).toContain('Учебная ошибка доступа')
     expect(element.textContent).not.toContain(PASSPORT_TEXT.emptyEditions)
   })
+})
+
+describe('выбор редакций при сравнении и записи', () => {
+  it('после открытия второй редакции выбирает другую для сравнения', async () => {
+    const port = client()
+    const fixture = await setup(port)
+    const facade = fixture.debugElement.injector.get(PassportFacade)
+    await facade.setMode('compare')
+    expect(facade.compareWith()).toBe(1)
+    await facade.select(1)
+    expect(facade.compareWith()).toBe(2)
+    expect(port.editionData).toHaveBeenLastCalledWith(2)
+    expect(facade.diff()?.sections.some((s) => s.changed.length)).toBe(true)
+    expect(facade.busy()).toBe(false)
+  })
+
+  it.each(['create', 'activate'] as const)(
+    'ожидающая запись %s блокирует переключение и обновляет список после успеха',
+    async (operation) => {
+      const port = client()
+      let finish!: (value: Awaited<ReturnType<PassportClient['activate']>>) => void
+      const pending = new Promise<Awaited<ReturnType<PassportClient['activate']>>>((resolve) => {
+        finish = resolve
+      })
+      if (operation === 'create') vi.mocked(port.createDraft).mockReturnValue(pending)
+      else vi.mocked(port.activate).mockReturnValue(pending)
+      const fixture = await setup(port)
+      const facade = fixture.debugElement.injector.get(PassportFacade)
+      await facade.setMode('compare')
+      facade.requestActivate(2)
+      const saving =
+        operation === 'create'
+          ? facade.createDraft('2029-01-01', 'Учебный черновик')
+          : facade.confirmActivate()
+      fixture.detectChanges()
+      const element = fixture.nativeElement as HTMLElement
+      const open = [...element.querySelectorAll('button')].filter(
+        (b) => b.textContent?.trim() === PASSPORT_TEXT.open,
+      )
+      expect(open.every((b) => b.disabled)).toBe(true)
+      expect(element.querySelector<HTMLSelectElement>('#compare-edition')?.disabled).toBe(true)
+      expect(
+        [...element.querySelectorAll<HTMLButtonElement>('[role="tab"]')].every((b) => b.disabled),
+      ).toBe(true)
+      await facade.select(1)
+      await facade.selectCompare(2)
+      await facade.setMode('data')
+      await facade.load()
+      expect(facade.selected()).toBe(2)
+      expect(facade.mode()).toBe('compare')
+      expect(port.list).toHaveBeenCalledTimes(1)
+      finish(ok(null))
+      await saving
+      expect(port.list).toHaveBeenCalledTimes(2)
+      expect(facade.busy()).toBe(false)
+    },
+  )
 })

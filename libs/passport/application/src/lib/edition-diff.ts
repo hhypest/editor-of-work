@@ -91,40 +91,79 @@ interface RowDiff {
   readonly changed: EditionDiffRow[]
 }
 
+interface ComparableRow<T> {
+  readonly row: T
+  readonly values: ReadonlyMap<string, string>
+  readonly signature: string
+}
+
+function groupRows<T>(
+  rows: readonly T[],
+  key: (row: T) => string,
+): Map<string, ComparableRow<T>[]> {
+  const groups = new Map<string, ComparableRow<T>[]>()
+  for (const row of rows) {
+    const values = new Map<string, string>()
+    fields(row, '', values)
+    const signature = JSON.stringify([...values].sort(([a], [b]) => a.localeCompare(b)))
+    const group = groups.get(key(row)) ?? []
+    group.push({ row, values, signature })
+    groups.set(key(row), group)
+  }
+  for (const group of groups.values()) group.sort((a, b) => a.signature.localeCompare(b.signature))
+  return groups
+}
+
+function fieldChanges(
+  before: ReadonlyMap<string, string>,
+  after: ReadonlyMap<string, string>,
+): EditionFieldChange[] {
+  const changes: EditionFieldChange[] = []
+  for (const field of new Set([...before.keys(), ...after.keys()])) {
+    const previous = before.get(field)
+    const value = after.get(field)
+    if (previous !== value) changes.push({ field, before: previous ?? '—', after: value ?? '—' })
+  }
+  return changes
+}
+
 function diffRows<T>(
   before: readonly T[],
   after: readonly T[],
   key: (row: T) => string,
   label: (row: T) => string,
 ): RowDiff {
-  const earlier = new Map(before.map((row) => [key(row), row]))
-  const later = new Map(after.map((row) => [key(row), row]))
-  const added: EditionDiffRow[] = []
-  const removed: EditionDiffRow[] = []
-  const changed: EditionDiffRow[] = []
-  for (const [k, row] of later) {
-    const old = earlier.get(k)
-    if (!old) {
-      added.push({ key: k, label: label(row), changes: [] })
-      continue
+  const earlier = groupRows(before, key)
+  const later = groupRows(after, key)
+  const result: RowDiff = { added: [], removed: [], changed: [] }
+  for (const k of new Set([...earlier.keys(), ...later.keys()])) {
+    const oldRows = [...(earlier.get(k) ?? [])]
+    const newRows: ComparableRow<T>[] = []
+    // Сначала сопоставляем неизменившиеся вхождения: перестановка и удаление
+    // одного дубликата не должны превращать остальные в изменённые строки.
+    for (const row of later.get(k) ?? []) {
+      const equal = oldRows.findIndex((old) => old.signature === row.signature)
+      if (equal >= 0) oldRows.splice(equal, 1)
+      else newRows.push(row)
     }
-    const beforeFields = new Map<string, string>()
-    const afterFields = new Map<string, string>()
-    fields(old, '', beforeFields)
-    fields(row, '', afterFields)
-    const changes: EditionFieldChange[] = []
-    for (const [field, value] of afterFields) {
-      const previous = beforeFields.get(field)
-      if (previous === undefined) changes.push({ field, before: '—', after: value })
-      else if (previous !== value) changes.push({ field, before: previous, after: value })
+    for (let i = 0; i < Math.max(oldRows.length, newRows.length); i++) {
+      const old = oldRows[i]
+      const row = newRows[i]
+      const occurrenceKey = JSON.stringify([k, i])
+      if (old && row) {
+        result.changed.push({
+          key: occurrenceKey,
+          label: label(row.row),
+          changes: fieldChanges(old.values, row.values),
+        })
+      } else if (row) {
+        result.added.push({ key: occurrenceKey, label: label(row.row), changes: [] })
+      } else if (old) {
+        result.removed.push({ key: occurrenceKey, label: label(old.row), changes: [] })
+      }
     }
-    for (const [field, value] of beforeFields)
-      if (!afterFields.has(field)) changes.push({ field, before: value, after: '—' })
-    if (changes.length) changed.push({ key: k, label: label(row), changes })
   }
-  for (const [k, row] of earlier)
-    if (!later.has(k)) removed.push({ key: k, label: label(row), changes: [] })
-  return { added, removed, changed }
+  return result
 }
 
 const point = (c: Chainage): readonly unknown[] => [c.km, c.m]

@@ -66,6 +66,7 @@ export type PassportMode = 'data' | 'compare'
 export class PassportFacade {
   private readonly client = inject(PASSPORT_CLIENT)
   private revision = 0
+  private mutating = false
   readonly editions = signal<readonly PassportEdition[]>([])
   readonly selected = signal<number | null>(null)
   readonly data = signal<EditionData | null>(null)
@@ -87,6 +88,7 @@ export class PassportFacade {
   )
 
   async load(): Promise<void> {
+    if (this.mutating) return
     const revision = ++this.revision
     this.busy.set(true)
     this.error.set(null)
@@ -120,7 +122,7 @@ export class PassportFacade {
   }
 
   async select(id: number): Promise<void> {
-    if (!this.editions().some((e) => e.id === id)) return
+    if (this.mutating || !this.editions().some((e) => e.id === id)) return
     const revision = ++this.revision
     this.selected.set(id)
     this.busy.set(true)
@@ -132,7 +134,8 @@ export class PassportFacade {
       if (revision !== this.revision) return
       if (result.ok) {
         this.data.set(result.value)
-        if (this.mode() === 'compare' && this.compareWith() !== null) await this.compare()
+        this.ensureComparator()
+        if (this.mode() === 'compare') await this.compare()
       } else {
         this.error.set(result.error.message)
       }
@@ -145,6 +148,8 @@ export class PassportFacade {
   }
 
   async createDraft(date: string, label: string): Promise<void> {
+    if (this.busy()) return
+    this.mutating = true
     const revision = ++this.revision
     this.busy.set(true)
     this.error.set(null)
@@ -156,25 +161,31 @@ export class PassportFacade {
         this.busy.set(false)
         return
       }
+      this.mutating = false
       await this.load()
     } catch {
       if (revision === this.revision) {
         this.error.set('Не удалось создать черновик. Повторите попытку.')
         this.busy.set(false)
       }
+    } finally {
+      this.mutating = false
     }
   }
 
   requestActivate(id: number): void {
+    if (this.busy()) return
     if (this.editions().find((e) => e.id === id)?.status === 'draft') this.confirming.set(id)
   }
   cancelActivate(): void {
     this.confirming.set(null)
   }
   async confirmActivate(): Promise<void> {
+    if (this.busy()) return
     const id = this.confirming()
     if (id === null) return
     this.confirming.set(null)
+    this.mutating = true
     const revision = ++this.revision
     this.busy.set(true)
     this.error.set(null)
@@ -186,29 +197,37 @@ export class PassportFacade {
         this.busy.set(false)
         return
       }
+      this.mutating = false
       await this.load()
     } catch {
       if (revision === this.revision) {
         this.error.set('Не удалось ввести редакцию в действие. Повторите попытку.')
         this.busy.set(false)
       }
+    } finally {
+      this.mutating = false
     }
   }
 
+  private ensureComparator(): void {
+    this.compareWith.set(
+      this.compareCandidates().find((e) => e.id === this.compareWith())?.id ??
+        this.compareCandidates().at(0)?.id ??
+        null,
+    )
+  }
+
   async setMode(mode: PassportMode): Promise<void> {
+    if (this.mutating) return
     this.mode.set(mode)
     if (mode === 'compare') {
-      const candidate =
-        this.compareCandidates().find((e) => e.id === this.compareWith())?.id ??
-        this.compareCandidates().at(0)?.id ??
-        null
-      this.compareWith.set(candidate)
-      if (candidate !== null) await this.compare()
+      this.ensureComparator()
+      await this.compare()
     }
   }
 
   async selectCompare(id: number): Promise<void> {
-    if (!this.compareCandidates().some((e) => e.id === id)) return
+    if (this.mutating || !this.compareCandidates().some((e) => e.id === id)) return
     this.compareWith.set(id)
     await this.compare()
   }
@@ -218,7 +237,7 @@ export class PassportFacade {
     const id = this.selected()
     const other = this.compareWith()
     const current = this.data()
-    if (id === null || other === null || current === null) return
+    if (id === null || other === null || other === id || current === null) return
     const revision = ++this.revision
     this.busy.set(true)
     this.error.set(null)

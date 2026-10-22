@@ -139,3 +139,43 @@ describe('сравнение редакций', () => {
     expect(org?.removed).toEqual([])
   })
 })
+
+describe('повторяющиеся ключи строк', () => {
+  const data = (...classes: string[]): EditionData => ({
+    ...base,
+    segments: classes.map((c, i) => classRow(String(i), c)),
+  })
+  const diff = (a: EditionData, b: EditionData) =>
+    compareEditionData(a, b).sections.find((s) => s.section === 'segments')!
+
+  it('перестановка и новые id дубликатов не меняют редакцию', () => {
+    expect(diff(data('3', '4', '3'), data('3', '3', '4'))).toMatchObject({
+      added: [],
+      removed: [],
+      changed: [],
+    })
+  })
+
+  it('видит удаление первого из разных дубликатов, сохраняя равное вхождение', () => {
+    const result = diff(data('3', '4'), data('4'))
+    expect(result.removed).toHaveLength(1)
+    expect(result.changed).toEqual([])
+  })
+
+  it('видит изменение первого дубликата, даже когда последний остался прежним', () => {
+    const result = diff(data('3', '4'), data('5', '4'))
+    expect(result.changed).toHaveLength(1)
+    expect(result.changed[0]?.changes).toEqual([
+      { field: 'values.trackClass', before: '3', after: '5' },
+    ])
+  })
+
+  it('сохраняет количество одинаковых вхождений и уникальные ключи представления', () => {
+    const removed = diff(data('3', '3', '3'), data('3')).removed
+    const added = diff(data('3'), data('3', '3', '3')).added
+    expect(removed).toHaveLength(2)
+    expect(added).toHaveLength(2)
+    expect(new Set(removed.map((r) => r.key)).size).toBe(2)
+    expect(new Set(added.map((r) => r.key)).size).toBe(2)
+  })
+})

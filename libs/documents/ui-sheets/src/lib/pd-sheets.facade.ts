@@ -33,15 +33,13 @@ export class PdSheetsFacade {
       const result = await this.client.load(open)
       if (revision !== this.revision) return
       if (!result.ok) {
-        this.document.set(null)
+        this.clearSource()
         this.error.set(result.error.message)
         return
       }
       if (result.value === 'cancelled') return
       if (!result.value) {
-        this.source.set(null)
-        this.document.set(null)
-        this.selected.set('')
+        this.clearSource()
         return
       }
       const measurer = this.measurer ?? (await this.prepare())
@@ -54,7 +52,7 @@ export class PdSheetsFacade {
       this.rebuild()
     } catch {
       if (revision === this.revision) {
-        this.document.set(null)
+        this.clearSource()
         this.error.set('Не удалось подготовить листы ПД или встроенные шрифты.')
       }
     } finally {
@@ -77,6 +75,12 @@ export class PdSheetsFacade {
   move(delta: number): void {
     const i = this.index() + delta
     if (i >= 0 && i < (this.document()?.pages.length ?? 0)) this.index.set(i)
+  }
+  private clearSource(): void {
+    this.source.set(null)
+    this.selected.set('')
+    this.document.set(null)
+    this.index.set(0)
   }
   private rebuild(): void {
     this.index.set(0)

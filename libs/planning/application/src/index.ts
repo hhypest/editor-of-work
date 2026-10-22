@@ -1,3 +1,5 @@
+export * from './lib/editor-model'
+export * from './lib/editor'
 export * from './lib/plan-session'
 export * from './lib/plan-store'
 export * from './lib/import-plan'

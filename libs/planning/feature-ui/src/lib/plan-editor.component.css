@@ -1,0 +1,99 @@
+:host {
+  display: block;
+  padding: 1rem;
+  max-width: 1600px;
+  margin: auto;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.3fr);
+  gap: 1.5rem;
+}
+fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid #bdc7d1;
+  border-radius: 0.3rem;
+}
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  box-sizing: border-box;
+  min-height: 2.25rem;
+  max-width: 100%;
+}
+button {
+  cursor: pointer;
+  padding: 0.4rem 0.8rem;
+}
+button:disabled {
+  cursor: default;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.error {
+  color: #9d1b1b;
+}
+[aria-invalid='true'] {
+  border: 2px solid #9d1b1b;
+}
+.hint {
+  color: #225b39;
+}
+.confirmation {
+  padding: 1rem;
+  background: #fff4d1;
+  border: 1px solid #9a761b;
+  margin: 1rem 0;
+}
+.table-scroll {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.7rem 0;
+}
+th,
+td {
+  border: 1px solid #bdc7d1;
+  padding: 0.5rem;
+  text-align: left;
+  vertical-align: top;
+}
+th {
+  background: #f1f4f7;
+}
+td input {
+  width: 8rem;
+}
+td p {
+  margin: 0.4rem 0;
+}
+details {
+  margin: 1rem 0;
+}
+details > label {
+  margin: 0.5rem;
+}
+:focus-visible {
+  outline: 3px solid #2774b6;
+  outline-offset: 2px;
+}
+@media (max-width: 1000px) {
+  .editor-grid {
+    grid-template-columns: 1fr;
+  }
+}

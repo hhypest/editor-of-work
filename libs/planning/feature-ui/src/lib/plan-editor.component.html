@@ -1,0 +1,442 @@
+<section aria-labelledby="plan-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="plan-title">Годовой план</h2>
+  <div class="toolbar">
+    <button type="button" [disabled]="facade.busy()" (click)="facade.requestOpen({ kind: 'open' })">
+      Открыть план
+    </button>
+    <button type="button" [disabled]="facade.busy()" (click)="facade.refresh()">
+      Обновить состояние
+    </button>
+    <button type="button" [disabled]="facade.busy() || !facade.view()" (click)="facade.save()">
+      Сохранить · Ctrl+S
+    </button>
+    <button type="button" [disabled]="facade.busy() || !facade.view()" (click)="facade.save(true)">
+      Сохранить как…
+    </button>
+    <button
+      type="button"
+      [disabled]="facade.busy() || !facade.view()?.canUndo || facade.pending()"
+      (click)="facade.history('undo')"
+    >
+      Отменить · Ctrl+Z
+    </button>
+    <button
+      type="button"
+      [disabled]="facade.busy() || !facade.view()?.canRedo || facade.pending()"
+      (click)="facade.history('redo')"
+    >
+      Повторить · Ctrl+Y
+    </button>
+  </div>
+  <details>
+    <summary>Импорт проекта HTML-прототипа</summary>
+    <p>
+      Укажите редакцию для переносимого проекта. Исходный файл сохраняется в плане вместе с отчётом
+      переноса.
+    </p>
+    <label for="import-edition">Номер редакции</label
+    ><input
+      id="import-edition"
+      [ngModel]="editionNumber()"
+      (ngModelChange)="editionNumber.set($event)"
+      [disabled]="facade.busy()"
+    />
+    <label for="import-date">Дата редакции</label
+    ><input
+      id="import-date"
+      type="date"
+      [ngModel]="editionDate()"
+      (ngModelChange)="editionDate.set($event)"
+      [disabled]="facade.busy()"
+    />
+    <button
+      type="button"
+      [disabled]="facade.busy() || !editionNumber() || !editionDate()"
+      (click)="import()"
+    >
+      Выбрать проект и импортировать
+    </button>
+  </details>
+  @if (facade.pendingOpen(); as action) {
+    <div class="confirmation" role="alert">
+      @if (action.kind === 'recover' && !action.accept) {
+        <p>Удалить автокопию? Основной файл плана останется прежним.</p>
+      } @else {
+        <p>
+          Есть несохранённые изменения или незавершённый ввод. Сохранить их перед заменой плана?
+        </p>
+      }
+      @if (!facade.state()?.hasRecovery) {
+        <button type="button" [disabled]="facade.busy()" (click)="facade.saveAndOpen()">
+          Сохранить и продолжить
+        </button>
+      }
+      <button type="button" [disabled]="facade.busy()" (click)="facade.discardAndOpen()">
+        {{
+          action.kind === 'recover' && !action.accept
+            ? 'Удалить автокопию'
+            : 'Продолжить без сохранения'
+        }}
+      </button>
+      <button type="button" [disabled]="facade.busy()" (click)="facade.pendingOpen.set(null)">
+        Остаться в плане
+      </button>
+    </div>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert" class="error">{{ error }}</p>
+  }
+  @for (issue of facade.issues(); track $index) {
+    @if (issue.field === 'form') {
+      <p role="alert" class="error">{{ issue.message }}</p>
+    }
+  }
+  @if (facade.notice(); as notice) {
+    <p role="status">{{ notice }}</p>
+  }
+  @if (facade.busy()) {
+    <p role="status">Выполняется действие…</p>
+  }
+  @if (facade.state()?.autosaveError; as error) {
+    <p role="alert" class="error">Автокопия не записана: {{ error }}</p>
+  }
+  @if (facade.view(); as view) {
+    <p>
+      План {{ view.year }} · редакция {{ view.edition.number }} от {{ view.edition.date }} ·
+      {{ facade.state()?.dirty ? 'Есть несохранённые изменения' : 'Изменения сохранены' }}
+    </p>
+    @if (!facade.state()?.hasFile) {
+      <p>У плана пока нет файла. Сохраните его, чтобы работала минутная автокопия.</p>
+    }
+    @if (facade.state()?.hasRecovery) {
+      <div class="confirmation">
+        <p>Доступна автокопия. Восстановление заменит текущую версию после подтверждения.</p>
+        <button
+          type="button"
+          [disabled]="facade.busy()"
+          (click)="facade.requestOpen({ kind: 'recover', accept: true })"
+        >
+          Восстановить автокопию
+        </button>
+        <button
+          type="button"
+          [disabled]="facade.busy()"
+          (click)="facade.requestOpen({ kind: 'recover', accept: false })"
+        >
+          Отказаться от автокопии…
+        </button>
+      </div>
+    }
+    <label for="plan-area">Область работ и таблиц</label>
+    <select
+      id="plan-area"
+      [ngModel]="facade.area()"
+      (ngModelChange)="facade.filter($event)"
+      [disabled]="facade.busy() || facade.pending()"
+    >
+      @for (area of view.areas; track area.key) {
+        <option [value]="area.key">{{ area.label }}</option>
+      }
+    </select>
+    <div class="editor-grid">
+      <section aria-labelledby="work-form-title">
+        <h3 id="work-form-title">{{ facade.selected() ? 'Изменение работы' : 'Новая работа' }}</h3>
+        @if (!view.kinds.length) {
+          <p>В срезе плана нет видов работ. Нормативы не подставляются автоматически.</p>
+        }
+        <form (ngSubmit)="facade.apply()">
+          <fieldset
+            [disabled]="facade.busy() || !!facade.state()?.hasRecovery || !view.kinds.length"
+          >
+            <legend>Работа</legend>
+            <label for="work-kind">Вид работ</label
+            ><select
+              id="work-kind"
+              [ngModel]="facade.form().kind"
+              name="kind"
+              (ngModelChange)="facade.patch({ kind: $event })"
+            >
+              @for (kind of view.kinds; track kind.code) {
+                <option [value]="kind.code">{{ kind.name }} ({{ kind.unit }})</option>
+              }
+            </select>
+            <label for="work-mode">Привязка</label
+            ><select
+              id="work-mode"
+              [ngModel]="facade.form().mode"
+              name="mode"
+              (ngModelChange)="facade.patch({ mode: $event })"
+            >
+              <option value="line">На направлении</option>
+              <option value="station">На станции</option>
+            </select>
+            @if (facade.form().mode === 'line') {
+              <label for="work-line">Направление</label
+              ><select
+                id="work-line"
+                [ngModel]="facade.form().line"
+                name="line"
+                (ngModelChange)="facade.patch({ line: $event })"
+              >
+                @for (line of view.lines; track line.id) {
+                  <option [value]="line.id">{{ line.name }}</option>
+                }
+              </select>
+              <label for="work-place">Место · км + пк</label
+              ><textarea
+                id="work-place"
+                rows="2"
+                [ngModel]="facade.form().text"
+                name="place"
+                (ngModelChange)="facade.patch({ text: $event })"
+                aria-describedby="place-help place-errors"
+                [attr.aria-invalid]="facade.placeIssues().length > 0"
+              ></textarea>
+              <p id="place-help">
+                Например: 227 км пк 4 – 228 км пк 10; 234+300. Координаты проверяются по срезу
+                плана.
+              </p>
+              <div id="place-errors" aria-live="polite">
+                @for (issue of facade.placeIssues(); track $index) {
+                  <p class="error">{{ issue.message }}</p>
+                }
+              </div>
+              @if (facade.hint()?.normalized; as text) {
+                <p class="hint">Разобрано: {{ text }} · {{ facade.hint()?.meters }} м</p>
+              }
+            }
+            <label for="work-station"
+              >Станция{{ facade.form().mode === 'line' ? ' (если работа станционная)' : '' }}</label
+            ><select
+              id="work-station"
+              [ngModel]="facade.form().station"
+              name="station"
+              (ngModelChange)="facade.patch({ station: $event, objectNumber: '' })"
+            >
+              <option value="">Не выбрана</option>
+              @for (station of view.stations; track station.id) {
+                <option [value]="station.id">{{ station.name }}</option>
+              }
+            </select>
+            <label for="work-object">Объект станции</label
+            ><select
+              id="work-object"
+              [ngModel]="facade.form().objectKind"
+              name="object"
+              (ngModelChange)="facade.patch({ objectKind: $event, objectNumber: '' })"
+            >
+              <option value="none">Станция целиком / без объекта</option>
+              <option value="track">Путь</option>
+              <option value="switch">Стрелочный перевод</option>
+            </select>
+            @if (facade.form().objectKind !== 'none') {
+              <label for="object-number">Номер объекта</label
+              ><select
+                id="object-number"
+                [ngModel]="facade.form().objectNumber"
+                name="number"
+                (ngModelChange)="facade.patch({ objectNumber: $event })"
+              >
+                <option value="">Выберите номер</option>
+                @for (number of facade.objects(); track number) {
+                  <option [value]="number">{{ number }}</option>
+                }
+              </select>
+            }
+            <label for="work-volume">Объём</label
+            ><input
+              id="work-volume"
+              inputmode="decimal"
+              [ngModel]="facade.form().volume"
+              name="volume"
+              (ngModelChange)="facade.patch({ volume: $event })"
+              [attr.aria-invalid]="facade.volumeIssues().length > 0"
+              aria-describedby="volume-help volume-errors"
+            />
+            <p id="volume-help">
+              Пусто — расчёт по длине участков для единицы «км». Для остальных единиц объём
+              обязателен.
+            </p>
+            <div id="volume-errors" aria-live="polite">
+              @for (issue of facade.volumeIssues(); track $index) {
+                <p class="error">{{ issue.message }}</p>
+              }
+            </div>
+            <label for="work-note">Примечание</label
+            ><textarea
+              id="work-note"
+              rows="2"
+              [ngModel]="facade.form().note"
+              name="note"
+              (ngModelChange)="facade.patch({ note: $event })"
+            ></textarea>
+            <label class="check"
+              ><input
+                type="checkbox"
+                [ngModel]="facade.form().callout"
+                name="callout"
+                (ngModelChange)="facade.patch({ callout: $event })"
+              />Показывать выноску</label
+            >
+            <button type="submit">Применить работу</button
+            ><button type="button" (click)="facade.resetForm()">
+              Отменить ввод / новая работа
+            </button>
+          </fieldset>
+        </form>
+      </section>
+      <section aria-labelledby="works-title">
+        <h3 id="works-title">Работы выбранной области</h3>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Вид и место</th>
+                <th scope="col">Полный объём работы</th>
+                <th scope="col">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (work of view.works; track work.id) {
+                <tr>
+                  <td>
+                    <strong>{{ work.name }}</strong>
+                    <p>{{ work.place }}</p>
+                    <p>{{ work.draft.note }}</p>
+                  </td>
+                  <td>{{ work.volume }} {{ work.unit }}</td>
+                  <td>
+                    <button
+                      type="button"
+                      [disabled]="facade.busy() || facade.formDirty()"
+                      (click)="facade.edit(work.id)"
+                    >
+                      Изменить</button
+                    ><button
+                      type="button"
+                      [disabled]="facade.busy() || facade.pending()"
+                      (click)="facade.remove(work.id)"
+                    >
+                      Удалить
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3">В выбранной области нет работ.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+    <section aria-labelledby="tables-title">
+      <h3 id="tables-title">План и потребность выбранной области</h3>
+      <p>
+        Пустой ручной план возвращает расчёт; пустая потребность удаляет ручное значение. Звёздочкой
+        отмечен ручной план.
+      </p>
+      @for (table of view.tables; track table.title) {
+        @if (table.rows.length) {
+          <h4>{{ table.title }}</h4>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Вид работ</th>
+                  <th scope="col">Единица</th>
+                  <th scope="col">Расчёт</th>
+                  <th scope="col">План</th>
+                  <th scope="col">Ручной план</th>
+                  <th scope="col">Потребность</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of table.rows; track row.code) {
+                  <tr>
+                    <th scope="row">{{ row.name }}</th>
+                    <td>{{ row.unit }}</td>
+                    <td>{{ row.computed }}</td>
+                    <td>{{ row.value }}{{ row.manual ? ' *' : '' }}</td>
+                    <td>
+                      <input
+                        [attr.aria-label]="row.name + ': ручной план'"
+                        inputmode="decimal"
+                        [ngModel]="facade.cell(row.code).plan"
+                        (ngModelChange)="facade.patchCell(row.code, 'plan', $event)"
+                        [disabled]="facade.busy() || !!facade.state()?.hasRecovery"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        [attr.aria-label]="row.name + ': потребность'"
+                        inputmode="decimal"
+                        [ngModel]="facade.cell(row.code).need"
+                        (ngModelChange)="facade.patchCell(row.code, 'need', $event)"
+                        [disabled]="facade.busy() || !!facade.state()?.hasRecovery"
+                      />
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      }
+      <button
+        type="button"
+        [disabled]="facade.busy() || !facade.hasCells()"
+        (click)="facade.applyCells()"
+      >
+        Применить значения таблиц</button
+      ><button
+        type="button"
+        [disabled]="facade.busy() || !facade.hasCells()"
+        (click)="facade.cancelTables()"
+      >
+        Отменить ввод в таблицах
+      </button>
+    </section>
+    <details>
+      <summary>Гриф утверждения</summary>
+      <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">
+        <legend>Гриф из плана</legend>
+        <label for="approval-title">Должность</label
+        ><input
+          id="approval-title"
+          [ngModel]="facade.approval().title"
+          (ngModelChange)="facade.patchApproval({ title: $event })"
+        />
+        <label for="approval-name">ФИО</label
+        ><input
+          id="approval-name"
+          [ngModel]="facade.approval().name"
+          (ngModelChange)="facade.patchApproval({ name: $event })"
+        />
+        <label for="approval-year">Год утверждения</label
+        ><input
+          id="approval-year"
+          type="number"
+          [ngModel]="facade.approval().year"
+          (ngModelChange)="facade.patchApproval({ year: $event })"
+        />
+        <button type="button" [disabled]="!facade.approvalDirty()" (click)="facade.applyApproval()">
+          Применить гриф</button
+        ><button type="button" (click)="facade.cancelApproval()">Отменить ввод грифа</button>
+      </fieldset>
+    </details>
+    @if (view.importReport.length) {
+      <details>
+        <summary>Отчёт переноса проекта</summary>
+        <ul>
+          @for (item of view.importReport; track $index) {
+            <li>{{ item.path }}: {{ item.message }}</li>
+          }
+        </ul>
+      </details>
+    }
+  } @else if (!facade.busy() && !facade.error()) {
+    <p>Откройте сохранённый план или импортируйте проект HTML-прототипа.</p>
+  }
+</section>

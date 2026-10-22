@@ -77,6 +77,18 @@ function createMainWindow(): BrowserWindow {
     title: 'editor-of-work',
     webPreferences: secureWebPreferences(join(__dirname, 'preload.js')),
   })
+  win.webContents.on('will-prevent-unload', (event) => {
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning',
+      title: 'Несохранённый план',
+      message: 'В плане есть несохранённые изменения или незавершённый ввод.',
+      detail: 'Сохраните план перед закрытием, чтобы не потерять изменения.',
+      buttons: ['Остаться в программе', 'Закрыть без сохранения'],
+      defaultId: 0,
+      cancelId: 0,
+    })
+    if (choice === 1) event.preventDefault()
+  })
   win.once('ready-to-show', () => win.show())
   void win.loadURL(startUrl)
   return win

@@ -17,6 +17,12 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement
     expect(compiled.querySelector('h1')?.textContent).toContain('editor-of-work')
     const links = [...compiled.querySelectorAll('nav a')].map((a) => a.textContent?.trim())
-    expect(links).toEqual(['Паспорт', 'Импорт выгрузок', 'Ручные данные', 'Потребность в ремонте'])
+    expect(links).toEqual([
+      'Паспорт',
+      'Импорт выгрузок',
+      'Ручные данные',
+      'Схема А3',
+      'Потребность в ремонте',
+    ])
   })
 })

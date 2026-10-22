@@ -1,0 +1,80 @@
+<section aria-labelledby="overview-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="overview-title">{{ text.title }}</h2>
+  <p>{{ text.scope }}</p>
+  <div class="controls">
+    <button type="button" [disabled]="facade.busy()" (click)="facade.load()">
+      {{ text.refresh }}
+    </button>
+    <label for="sheet-edition">{{ text.edition }}</label>
+    <select
+      id="sheet-edition"
+      [value]="facade.selected() ?? ''"
+      [disabled]="facade.busy()"
+      (change)="select($event)"
+    >
+      @for (edition of facade.editions(); track edition.id) {
+        <option [value]="edition.id">
+          № {{ edition.number }} · {{ edition.date }} · {{ edition.label }}
+        </option>
+      }
+    </select>
+    <label for="sheet-scale">{{ text.scale }}</label>
+    <select
+      id="sheet-scale"
+      [value]="facade.scale()"
+      [disabled]="facade.busy()"
+      (change)="scale($event)"
+    >
+      <option value="25000">1:25 000</option>
+      <option value="50000">1:50 000</option>
+      <option value="100000">1:100 000</option>
+    </select>
+    <label for="sheet-zoom">{{ text.zoom }}: {{ (facade.zoom() * 100).toFixed(0) }}%</label>
+    <input
+      id="sheet-zoom"
+      type="range"
+      min="0.3"
+      max="1.5"
+      step="0.1"
+      [value]="facade.zoom()"
+      (input)="zoom($event)"
+    />
+  </div>
+  @if (facade.busy()) {
+    <p role="status">{{ text.loading }}</p>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert">{{ error }}</p>
+  }
+  @if (!facade.busy() && !facade.error() && !facade.editions().length) {
+    <p>{{ text.empty }}</p>
+  }
+  @if (facade.document(); as document) {
+    <div class="controls">
+      <button type="button" [disabled]="facade.pageIndex() === 0" (click)="facade.move(-1)">
+        {{ text.previous }}
+      </button>
+      <span role="status">Лист {{ facade.pageIndex() + 1 }} из {{ document.pages.length }}</span>
+      <button
+        type="button"
+        [disabled]="facade.pageIndex() + 1 >= document.pages.length"
+        (click)="facade.move(1)"
+      >
+        {{ text.next }}
+      </button>
+    </div>
+    @if (document.warnings.length) {
+      <h3>{{ text.warnings }}</h3>
+      <ul>
+        @for (warning of document.warnings; track $index) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    }
+    @if (facade.page(); as page) {
+      <div class="sheet-scroll" role="region" tabindex="0" aria-label="Предпросмотр листа А3">
+        <eow-sheet-a3 [page]="page" [zoom]="facade.zoom()" />
+      </div>
+    }
+  }
+</section>

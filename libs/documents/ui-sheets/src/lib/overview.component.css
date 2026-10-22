@@ -1,0 +1,25 @@
+:host {
+  display: block;
+  padding: 16px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+button,
+select {
+  min-height: 2.5rem;
+  font: inherit;
+}
+.sheet-scroll {
+  overflow: auto;
+  max-height: 75vh;
+  background: #dce0e5;
+  padding: 16px;
+}
+[role='alert'] {
+  color: #a11b1b;
+}

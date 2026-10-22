@@ -1,0 +1,55 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  [attr.viewBox]="'0 0 ' + page().width.value + ' ' + page().height.value"
+  [attr.width]="page().width.value * zoom() + 'mm'"
+  [attr.height]="page().height.value * zoom() + 'mm'"
+  role="img"
+  [attr.aria-label]="'Общая схема дистанции, лист ' + page().number + ', А3 420 на 297 мм'"
+>
+  <g stroke="#111" stroke-width="0.25" fill="none">
+    @for (shape of page().primitives; track $index) {
+      @switch (shape.kind) {
+        @case ('line') {
+          <line
+            [attr.x1]="shape.x1.value"
+            [attr.y1]="shape.y1.value"
+            [attr.x2]="shape.x2.value"
+            [attr.y2]="shape.y2.value"
+            [attr.stroke-dasharray]="shape.dashed ? '2 1' : null"
+          />
+        }
+        @case ('rect') {
+          <rect
+            [attr.x]="shape.x.value"
+            [attr.y]="shape.y.value"
+            [attr.width]="shape.width.value"
+            [attr.height]="shape.height.value"
+            [attr.fill]="shape.shade ? '#eee' : 'white'"
+            [attr.stroke]="shape.border ? null : 'none'"
+          />
+        }
+        @case ('circle') {
+          <circle
+            [attr.cx]="shape.x.value"
+            [attr.cy]="shape.y.value"
+            [attr.r]="shape.radius.value"
+            fill="white"
+          />
+        }
+        @case ('text') {
+          <text
+            [attr.x]="shape.x.value"
+            [attr.y]="shape.y.value"
+            [attr.font-family]="shape.font.family"
+            [attr.font-size]="shape.font.size.value"
+            [attr.font-weight]="shape.font.weight"
+            fill="#111"
+            stroke="none"
+          >
+            {{ shape.text }}
+          </text>
+        }
+      }
+    }
+  </g>
+</svg>

@@ -11,6 +11,13 @@ import { buildImportedPlan } from '@eow/planning/application'
 import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { registerHandler, type IpcMainLike } from './register'
+import {
+  changeEditor,
+  editorView,
+  inspectEditorPlace,
+  openPlanSession,
+  type PlanSession,
+} from '@eow/planning/application'
 
 /** Диалоги main. Через IPC путь не принимается и не возвращается. */
 export interface PlanFileDialogs {
@@ -30,16 +37,23 @@ export function registerPlanFileHandlers(
 ): () => Promise<void> {
   let store: FilePlanStore | undefined
   let current: AnnualPlan | undefined
+  let history: PlanSession | undefined
+  let revision = 0
+  let savedPlan: AnnualPlan | undefined
+  let hasRecovery = false
   let dirty = false
   let autosaveError: string | null = null
   let pending: Promise<unknown> = Promise.resolve()
   const stop = startPlanAutosave(
     {
       autosave: async (plan) => {
+        if (hasRecovery) return { ok: true, value: undefined }
         const result = store
           ? await store.autosave(plan)
           : ({ ok: true, value: undefined } as const)
-        if (result.ok) autosaveError = null
+        if (result.ok) {
+          autosaveError = null
+        }
         return result
       },
     },
@@ -91,17 +105,118 @@ export function registerPlanFileHandlers(
     selected: FilePlanStore | undefined,
     changed: boolean,
     error = autosaveError,
+    editorArea?: string,
   ): Promise<Response> {
+    const candidate = openPlanSession(plan)
+    if (editorArea !== undefined) {
+      const prepared = editorResponse(candidate, editorArea, revision + 1, changed)
+      if (prepared.status !== 'editor') return prepared
+    }
     const response = await responseFor(plan, selected, error)
     if (response.status !== 'ok') return response
     current = plan
+    history = candidate
+    revision++
+    if (!changed) savedPlan = plan
+    else if (selected !== store) savedPlan = undefined
+    hasRecovery = response.recovery !== null
     store = selected
     dirty = changed
     autosaveError = error
     return response
   }
 
-  async function handle(request: Request): Promise<Response> {
+  function editorResponse(
+    session: PlanSession | undefined,
+    area: string,
+    version = revision,
+    changed = dirty,
+  ): Response {
+    const view = session ? editorView(session, area) : undefined
+    if (view && !view.ok) return { status: 'invalid', issues: [...view.error] }
+    const response = {
+      status: 'editor',
+      state: {
+        revision: version,
+        dirty: changed,
+        hasFile: store !== undefined,
+        hasRecovery,
+        autosaveError,
+        view: view?.ok ? view.value : null,
+      },
+    }
+    if (JSON.stringify(response).length > 20 * 1024 * 1024)
+      return failure('Представление редактора превышает 20 МиБ. Текущий план не изменён.')
+    return channels.planFile.response.parse(response)
+  }
+
+  async function handleEditor(request: Extract<Request, { action: 'editor' }>): Promise<Response> {
+    const command = request.command
+    if (command.kind === 'state') return editorResponse(history, request.area)
+    if (request.revision !== revision)
+      return failure(
+        'План изменился в другом действии. Обновите редактор; введённая форма сохранена на экране.',
+      )
+    if (command.kind === 'open' || command.kind === 'import' || command.kind === 'recover') {
+      const operation: Request =
+        command.kind === 'open'
+          ? { action: 'open' }
+          : command.kind === 'import'
+            ? { action: 'importPrototype', edition: command.edition }
+            : { action: 'recover', accept: command.accept }
+      const response = await handle(operation, 'district')
+      if (response.status !== 'ok') return response
+      hasRecovery = command.kind === 'recover' ? false : response.recovery !== null
+      return editorResponse(history, 'district')
+    }
+    if (!history || !current)
+      return failure('Сначала откройте план или импортируйте проект прототипа.')
+    if (command.kind === 'checkPlace')
+      return channels.planFile.response.parse({
+        status: 'place',
+        revision,
+        hint: inspectEditorPlace(history, command.line, command.text),
+      })
+    if (hasRecovery)
+      return failure(
+        'Сначала восстановите автокопию или явно откажитесь от неё. Основной план не изменён.',
+      )
+    if (command.kind === 'save') {
+      const prepared = editorResponse(history, request.area)
+      if (prepared.status !== 'editor') return prepared
+      const encoded = encodeDocument(current)
+      if (!encoded.ok) return failure(encoded.error.message)
+      let selected = store
+      if (!selected || command.saveAs) {
+        const path = await dialogs.save()
+        if (!path) return { status: 'cancelled' }
+        selected = new FilePlanStore(path, appVersion)
+      }
+      const saved = await selected.save(current)
+      if (!saved.ok) return failure(saved.error.message)
+      store = selected
+      savedPlan = current
+      dirty = false
+      autosaveError = null
+      hasRecovery = false
+      return editorResponse(history, request.area)
+    }
+    const changed = changeEditor(history, command, request.area, { next: randomUUID })
+    if (!changed.ok) return { status: 'invalid', issues: [...changed.error] }
+    const nextRevision = changed.value.present === current ? revision : revision + 1
+    const nextDirty = changed.value.present !== savedPlan
+    const prepared = editorResponse(changed.value, request.area, nextRevision, nextDirty)
+    if (prepared.status !== 'editor') return prepared
+    const encoded = encodeDocument(changed.value.present)
+    if (!encoded.ok) return failure(encoded.error.message)
+    history = changed.value
+    current = changed.value.present
+    revision = nextRevision
+    dirty = nextDirty
+    return prepared
+  }
+
+  async function handle(request: Request, editorArea?: string): Promise<Response> {
     switch (request.action) {
       case 'importPrototype': {
         const path = await dialogs.openPrototype()
@@ -116,7 +231,7 @@ export function registerPlanFileHandlers(
         const imported = buildImportedPlan(parsed.value)
         if (!imported.ok)
           return failure(imported.error.map((e) => `${e.path}: ${e.message}`).join('; '))
-        return replaceCurrent(imported.value, undefined, true, null)
+        return replaceCurrent(imported.value, undefined, true, null, editorArea)
       }
       case 'open': {
         const path = await dialogs.open()
@@ -124,7 +239,7 @@ export function registerPlanFileHandlers(
         const selected = new FilePlanStore(path, appVersion)
         const loaded = await selected.load()
         if (!loaded.ok) return failure(loaded.error.message)
-        return replaceCurrent(loaded.value, selected, false, null)
+        return replaceCurrent(loaded.value, selected, false, null, editorArea)
       }
       case 'save': {
         const plan = decodePlan(request.document)
@@ -154,7 +269,7 @@ export function registerPlanFileHandlers(
           const recovery = await store.recovery()
           if (!recovery.ok) return failure(recovery.error.message)
           if (recovery.value) {
-            return replaceCurrent(recovery.value, store, true)
+            return replaceCurrent(recovery.value, store, true, autosaveError, editorArea)
           }
           // Автокопия остаётся до явного сохранения восстановленного документа.
         } else {
@@ -163,6 +278,8 @@ export function registerPlanFileHandlers(
         }
         return state()
       }
+      case 'editor':
+        return handleEditor(request)
     }
   }
 

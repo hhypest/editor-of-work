@@ -10,6 +10,8 @@ import { exportWizardClient } from './export-wizard-client'
 import { EXPORT_WIZARD_CLIENT, MANUAL_TEMPLATE_CLIENT } from '@eow/import/feature-ui'
 import { manualTemplateClient } from './manual-template-client'
 import { passportClient } from './passport-client'
+import { PLAN_EDITOR_CLIENT } from '@eow/planning/feature-ui'
+import { planEditorClient } from './plan-editor-client'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -27,5 +29,6 @@ export const appConfig: ApplicationConfig = {
       provide: PASSPORT_CLIENT,
       useFactory: () => passportClient(window.eow),
     },
+    { provide: PLAN_EDITOR_CLIENT, useFactory: () => planEditorClient(window.eow) },
   ],
 }

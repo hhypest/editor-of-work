@@ -5,6 +5,7 @@ import { channels, type RequestOf } from '@eow/ipc/contracts'
 import { createAnnualPlan, samplePlanBasis } from '@eow/planning/domain'
 import { decodePlan, encodePlan, FilePlanStore } from '@eow/planning/infrastructure'
 import { registerPlanFileHandlers } from './plan-files'
+import type { EditorAction, EditorDraft } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
 
 function document(year: number): string {
@@ -334,5 +335,134 @@ describe('планы в main', () => {
       ok: true,
       value: { year: 2026 },
     })
+  })
+  const draft: EditorDraft = {
+    kind: 'ППР',
+    mode: 'line',
+    line: 'L1',
+    text: '20 км пк 10',
+    station: '',
+    objectKind: 'none',
+    objectNumber: '',
+    volume: '',
+    note: 'Учебная',
+    callout: true,
+  }
+  const editorState = async () => {
+    const response = await invoke({
+      action: 'editor',
+      command: { kind: 'state' },
+      revision: 0,
+      area: 'district',
+    })
+    if (response.status !== 'editor') throw new Error('Нет состояния редактора')
+    return response.state
+  }
+  const edit = async (command: EditorAction, area = 'district') =>
+    invoke({ action: 'editor', command, revision: (await editorState()).revision, area })
+  it('редактирует, сохраняет и отменяет; сохранение не сбрасывает историю', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    expect(await edit({ kind: 'add', draft })).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { works: [{ volume: 0.064 }] } },
+    })
+    expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({
+      status: 'editor',
+      state: { dirty: false, hasFile: true, view: { canUndo: true } },
+    })
+    const version = (await editorState()).revision
+    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { works: [{ note: 'Учебная' }] },
+    })
+    expect(await edit({ kind: 'undo' })).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { works: [] } },
+    })
+    expect(await edit({ kind: 'redo' })).toMatchObject({
+      status: 'editor',
+      state: { dirty: false, revision: version + 2 },
+    })
+    expect(dialogs.save).toHaveBeenCalledTimes(1)
+  })
+  it('ошибка места и устаревшая версия не меняют текущий документ', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const initial = await editorState()
+    expect(await edit({ kind: 'add', draft: { ...draft, text: '20 км пк 11' } })).toMatchObject({
+      status: 'invalid',
+      issues: [{ field: 'place' }],
+    })
+    expect((await editorState()).revision).toBe(initial.revision)
+    const request = {
+      action: 'editor' as const,
+      command: { kind: 'add' as const, draft },
+      revision: initial.revision,
+      area: 'district',
+    }
+    const responses = await Promise.all([invoke(request), invoke(request)])
+    expect(responses.map((r) => r.status)).toEqual(['editor', 'error'])
+    expect((await editorState()).view?.works).toHaveLength(1)
+  })
+  it('ошибка «Сохранить как» сохраняет прежний путь и возможность повторной записи', async () => {
+    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    await edit({ kind: 'add', draft })
+    dialogs.save.mockResolvedValueOnce(join(directory, 'нет-папки', 'test.ppr.json'))
+    expect(await edit({ kind: 'save', saveAs: true })).toMatchObject({ status: 'error' })
+    expect((await editorState()).dirty).toBe(true)
+    expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({
+      status: 'editor',
+      state: { dirty: false },
+    })
+    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { works: [{ note: 'Учебная' }] },
+    })
+  })
+  it('отмена открытия оставляет план и историю; другой файл начинает новую историю', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    await edit({ kind: 'add', draft })
+    const current = await editorState()
+    dialogs.open.mockResolvedValueOnce(undefined)
+    expect(await edit({ kind: 'open' })).toEqual({ status: 'cancelled' })
+    expect(await editorState()).toEqual(current)
+    await writeFile(path, document(2028))
+    expect(await edit({ kind: 'open' })).toMatchObject({
+      status: 'editor',
+      state: { view: { year: 2028, works: [], canUndo: false } },
+    })
+  })
+  it('предлагает автокопию и восстанавливает только по явной команде', async () => {
+    await writeFile(path, document(2027))
+    const recovered = decodePlan(document(2028))
+    if (!recovered.ok) throw new Error('Нет учебного плана')
+    await new FilePlanStore(path, '0.1.0').autosave(recovered.value)
+    expect(await edit({ kind: 'open' })).toMatchObject({
+      status: 'editor',
+      state: { hasRecovery: true, view: { year: 2027 } },
+    })
+    expect(await edit({ kind: 'add', draft })).toMatchObject({ status: 'error' })
+    expect(await edit({ kind: 'recover', accept: true })).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { year: 2028 } },
+    })
+    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { year: 2027 },
+    })
+  })
+
+  it('явный отказ от автокопии удаляет только её и разрешает редактирование основного плана', async () => {
+    await writeFile(path, document(2027))
+    const recovery = decodePlan(document(2028))
+    if (!recovery.ok) throw new Error('Нет учебного плана')
+    await new FilePlanStore(path, '0.1.0').autosave(recovery.value)
+    await edit({ kind: 'open' })
+    expect(await edit({ kind: 'recover', accept: false })).toMatchObject({
+      status: 'editor',
+      state: { hasRecovery: false, view: { year: 2027 } },
+    })
+    await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readFile(path, 'utf8')).toBe(document(2027))
+    expect(await edit({ kind: 'add', draft })).toMatchObject({ status: 'editor' })
   })
 })

@@ -11,7 +11,8 @@ import { registerManualTemplateHandlers } from './ipc/manual-template'
 import { XlsxManualDataTemplate } from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
 import { repairReports } from '@eow/passport/application'
-import { openPortablePassport } from '@eow/passport/infrastructure'
+import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
+import { choosePassportLocation } from './passport-location-dialog'
 import {
   APP_ORIGIN,
   APP_SCHEME,
@@ -116,6 +117,8 @@ if (!app.requestSingleInstanceLock()) {
           : resolve(__dirname, '../../../private-data'),
         localDataDirectory: process.env['LOCALAPPDATA'] ?? app.getPath('appData'),
         migrationsDirectory: join(__dirname, 'migrations'),
+        chooseLocation: (locations) =>
+          choosePassportLocation(locations, (options) => dialog.showMessageBox(options)),
       })
       applySecurity()
       registerAppProtocol()
@@ -205,6 +208,10 @@ if (!app.requestSingleInstanceLock()) {
       createMainWindow()
     })
     .catch((error: unknown) => {
+      if (error instanceof PassportLocationCancelled) {
+        app.quit()
+        return
+      }
       dialog.showErrorBox(
         'Паспорт не открыт',
         error instanceof Error

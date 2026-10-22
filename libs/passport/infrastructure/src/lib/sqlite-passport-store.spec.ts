@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mkdtemp, readdir, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdtemp, readdir, readFile, rm, writeFile, mkdir, rename, link } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -12,6 +12,7 @@ import {
 import { loadPassportMigrations, migratePassport } from './migrations'
 import { editionTables } from './edition-tables'
 import { seedPassport } from './testing/passport-fixture'
+import { PassportLocationCancelled, type PassportLocationChooser } from './passport-location'
 
 const migrations = resolve(import.meta.dirname, '../../migrations')
 const input = { date: '2027-01-01', label: 'Учебный паспорт' }
@@ -271,36 +272,181 @@ describe('SQLite паспорта', () => {
     expect(await readdir(root)).not.toContain('portable')
   })
 
-  it('использует явно перенесённую базу рядом с exe при наличии резервной', async () => {
+  it.each(['portable', 'local'] as const)(
+    'после возвращения переносной базы открывает только явно выбранную %s',
+    async (choice) => {
+      const options = {
+        executableDirectory: join(root, 'portable'),
+        localDataDirectory: join(root, 'local'),
+        migrationsDirectory: migrations,
+      }
+      const primary = await openPortablePassport(options)
+      stores.push(primary)
+      const carried = value(
+        await primary.createDraft({ ...input, label: 'Переносимая учебная редакция' }),
+      )
+      await primary.close()
+      const primaryDirectory = join(options.executableDirectory, 'data')
+      const parked = join(options.executableDirectory, 'temporarily-unavailable')
+      await rename(primaryDirectory, parked)
+      await writeFile(primaryDirectory, 'недоступный каталог')
+      const chooseLocation = vi.fn<PassportLocationChooser>(async () => choice)
+      const fallback = await openPortablePassport({ ...options, chooseLocation })
+      stores.push(fallback)
+      const localEdition = value(
+        await fallback.createDraft({ ...input, label: 'Локальная учебная редакция' }),
+      )
+      await fallback.close()
+      expect(chooseLocation).not.toHaveBeenCalled()
+      await rm(primaryDirectory)
+      await rename(parked, primaryDirectory)
+
+      const unselected = choice === 'portable' ? fallback.path : primary.path
+      const before = await readFile(unselected)
+      const reopened = await openPortablePassport({ ...options, chooseLocation })
+      stores.push(reopened)
+      expect(chooseLocation).toHaveBeenCalledExactlyOnceWith({
+        portablePath: primary.path,
+        localPath: fallback.path,
+      })
+      expect(reopened.path).toBe(choice === 'portable' ? primary.path : fallback.path)
+      expect(value(await reopened.list())).toEqual([choice === 'portable' ? carried : localEdition])
+      value(await reopened.createDraft({ ...input, label: 'После явного выбора' }))
+      await reopened.close()
+      expect(await readFile(unselected)).toEqual(before)
+      const again = await openPortablePassport({ ...options, chooseLocation })
+      stores.push(again)
+      expect(chooseLocation).toHaveBeenCalledTimes(2)
+      expect(value(await again.list())).toHaveLength(2)
+    },
+  )
+
+  it.each(['cancel', 'missing-handler'] as const)(
+    'не открывает ни одну из двух баз при %s',
+    async (mode) => {
+      const portable = join(root, 'portable', 'data')
+      const local = join(root, 'local', 'editor-of-work')
+      await mkdir(portable, { recursive: true })
+      await mkdir(local, { recursive: true })
+      const files = [join(portable, 'passport.sqlite'), join(local, 'passport.sqlite')]
+      await writeFile(files[0]!, 'Первая учебная база')
+      await writeFile(files[1]!, 'Вторая учебная база')
+      const before = await Promise.all(files.map((file) => readFile(file)))
+      const chooseLocation = vi.fn<PassportLocationChooser>(async () => undefined)
+      const opening = openPortablePassport({
+        executableDirectory: join(root, 'portable'),
+        localDataDirectory: join(root, 'local'),
+        migrationsDirectory: join(root, 'missing-migrations'),
+        ...(mode === 'cancel' ? { chooseLocation } : {}),
+      })
+      await expect(opening).rejects.toThrow(
+        mode === 'cancel' ? new PassportLocationCancelled() : 'Найдены две базы паспорта',
+      )
+      expect(chooseLocation).toHaveBeenCalledTimes(mode === 'cancel' ? 1 : 0)
+      expect(await Promise.all(files.map((file) => readFile(file)))).toEqual(before)
+      expect(await readdir(portable)).toEqual(['passport.sqlite'])
+      expect(await readdir(local)).toEqual(['passport.sqlite'])
+    },
+  )
+
+  it.each(['portable', 'local'] as const)(
+    'при повреждении выбранной %s не переключается и не меняет другую базу',
+    async (choice) => {
+      const portable = join(root, 'portable', 'data')
+      const local = join(root, 'local', 'editor-of-work')
+      await mkdir(portable, { recursive: true })
+      await mkdir(local, { recursive: true })
+      const portablePath = join(portable, 'passport.sqlite')
+      const localPath = join(local, 'passport.sqlite')
+      const chosen = choice === 'portable' ? portablePath : localPath
+      const other = choice === 'portable' ? localPath : portablePath
+      const valid = await openPassportDatabase(other, migrations)
+      stores.push(valid)
+      value(await valid.createDraft(input))
+      await valid.close()
+      await writeFile(chosen, 'Учебная повреждённая база')
+      const before = await readFile(other)
+      const damaged = await readFile(chosen)
+      await expect(
+        openPortablePassport({
+          executableDirectory: join(root, 'portable'),
+          localDataDirectory: join(root, 'local'),
+          migrationsDirectory: migrations,
+          chooseLocation: async () => choice,
+        }),
+      ).rejects.toThrow('file is not a database')
+      expect(await readFile(other)).toEqual(before)
+      expect(await readFile(chosen)).toEqual(damaged)
+      expect(await readdir(portable)).toEqual(['passport.sqlite'])
+      expect(await readdir(local)).toEqual(['passport.sqlite'])
+    },
+  )
+
+  it('не создаёт пустую базу, если выбранный файл исчез во время диалога', async () => {
+    const portable = join(root, 'portable', 'data')
+    const local = join(root, 'local', 'editor-of-work')
+    await mkdir(portable, { recursive: true })
+    await mkdir(local, { recursive: true })
+    await writeFile(join(portable, 'passport.sqlite'), 'Первая учебная база')
+    await writeFile(join(local, 'passport.sqlite'), 'Вторая учебная база')
+    await expect(
+      openPortablePassport({
+        executableDirectory: join(root, 'portable'),
+        localDataDirectory: join(root, 'local'),
+        migrationsDirectory: migrations,
+        chooseLocation: async ({ portablePath }) => {
+          await rm(portablePath)
+          return 'portable'
+        },
+      }),
+    ).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(await readdir(portable)).toEqual([])
+    expect(await readFile(join(local, 'passport.sqlite'), 'utf8')).toBe('Вторая учебная база')
+  })
+
+  it('не переключается на локальную базу при потере доступа к выбранной переносной', async () => {
+    const portable = join(root, 'portable', 'data')
+    const local = join(root, 'local', 'editor-of-work')
+    const parked = join(root, 'portable', 'temporarily-unavailable')
+    await mkdir(portable, { recursive: true })
+    await mkdir(local, { recursive: true })
+    await writeFile(join(portable, 'passport.sqlite'), 'Первая учебная база')
+    await writeFile(join(local, 'passport.sqlite'), 'Вторая учебная база')
+    await expect(
+      openPortablePassport({
+        executableDirectory: join(root, 'portable'),
+        localDataDirectory: join(root, 'local'),
+        migrationsDirectory: migrations,
+        chooseLocation: async () => {
+          await rename(portable, parked)
+          await writeFile(portable, 'недоступный каталог')
+          return 'portable'
+        },
+      }),
+    ).rejects.toMatchObject({ code: expect.stringMatching(/EEXIST|ENOTDIR/) })
+    expect(await readFile(join(parked, 'passport.sqlite'), 'utf8')).toBe('Первая учебная база')
+    expect(await readFile(join(local, 'passport.sqlite'), 'utf8')).toBe('Вторая учебная база')
+    expect(await readdir(local)).toEqual(['passport.sqlite'])
+  })
+
+  it('не предлагает выбор для двух ссылок на один файл', async () => {
     const options = {
       executableDirectory: join(root, 'portable'),
       localDataDirectory: join(root, 'local'),
       migrationsDirectory: migrations,
     }
-    const fallbackDirectory = join(root, 'local', 'editor-of-work')
-    await mkdir(fallbackDirectory, { recursive: true })
-    const fallback = await openPassportDatabase(
-      join(fallbackDirectory, 'passport.sqlite'),
-      migrations,
-    )
-    stores.push(fallback)
-    value(await fallback.createDraft(input))
-    await fallback.close()
-    const primaryDirectory = join(root, 'portable', 'data')
-    await mkdir(primaryDirectory, { recursive: true })
-    const primary = await openPassportDatabase(
-      join(primaryDirectory, 'passport.sqlite'),
-      migrations,
-    )
+    const primary = await openPortablePassport(options)
     stores.push(primary)
-    const carried = value(
-      await primary.createDraft({ ...input, label: 'Переносимая учебная редакция' }),
-    )
+    const edition = value(await primary.createDraft(input))
     await primary.close()
-    const reopened = await openPortablePassport(options)
+    const fallback = join(options.localDataDirectory, 'editor-of-work')
+    await mkdir(fallback, { recursive: true })
+    await link(primary.path, join(fallback, 'passport.sqlite'))
+    const chooseLocation = vi.fn<PassportLocationChooser>(async () => undefined)
+    const reopened = await openPortablePassport({ ...options, chooseLocation })
     stores.push(reopened)
-    expect(reopened.path).toBe(primary.path)
-    expect(value(await reopened.list())).toEqual([carried])
+    expect(chooseLocation).not.toHaveBeenCalled()
+    expect(value(await reopened.list())).toEqual([edition])
   })
 
   it('не подменяет повреждённую переносную базу пустой резервной', async () => {

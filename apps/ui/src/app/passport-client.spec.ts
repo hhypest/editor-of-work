@@ -12,6 +12,7 @@ const data = {
 
 function api(): EowApi {
   return {
+    manualTemplate: async () => ({ status: 'cancelled' }),
     appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
     planFile: async () => ({ status: 'cancelled' }),
     passport: vi.fn<EowApi['passport']>(async () => ({ status: 'ok', editions: [data.edition] })),

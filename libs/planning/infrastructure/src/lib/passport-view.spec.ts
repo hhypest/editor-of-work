@@ -197,4 +197,14 @@ describe('Адаптер паспорта для нового плана', () =>
       value: { pds: [{ pchu: 'Не указан', segments: [expect.any(Object)] }] },
     })
   })
+  it('отклоняет одинаковые имена направлений, даже если на них не ссылаются границы ПД', () => {
+    const d = data()
+    expect(
+      passportPlanBasis({
+        ...d,
+        lines: [...d.lines, { ...d.lines[0]!, id: 'second' }],
+        org: { ...d.org, boundaries: [] },
+      }),
+    ).toMatchObject({ ok: false, error: { message: expect.stringContaining('неоднозначно') } })
+  })
 })

@@ -68,7 +68,11 @@ export function passportPlanBasis(
   const count = data.org.boundaries.length
   if (count * count > 10_000_000) return invalid('Слишком много границ для создания плана.')
   const lines: BasisLine[] = []
+  const lineNames = new Set<string>()
   for (const source of data.lines) {
+    if (lineNames.has(source.name))
+      return invalid(`Направление «${source.name}» неоднозначно в редакции.`)
+    lineNames.add(source.name)
     const lengths = KmLengths.of(source.kmLengths)
     if (!lengths.ok) return invalid(`Направление «${source.name}»: неверные длины километров.`)
     const extent: TrackSpan[] = []

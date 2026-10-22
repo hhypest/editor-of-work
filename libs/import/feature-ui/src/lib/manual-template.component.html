@@ -1,0 +1,92 @@
+<section aria-labelledby="manual-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="manual-title">{{ text.title }}</h2>
+  <p>{{ text.instruction }}</p>
+  <button type="button" [disabled]="facade.busy() || !!facade.review()" (click)="facade.load()">
+    {{ text.retry }}
+  </button>
+  @if (!facade.busy() && !facade.error() && !facade.editions().length) {
+    <p>{{ text.noEditions }}</p>
+  }
+  @if (facade.editions().length) {
+    <div class="controls">
+      <label for="manual-edition">{{ text.edition }}</label>
+      <select
+        id="manual-edition"
+        [value]="facade.selected() ?? ''"
+        [disabled]="facade.busy() || !!facade.review()"
+        (change)="select($event)"
+      >
+        @for (edition of facade.editions(); track edition.id) {
+          <option [value]="edition.id">
+            № {{ edition.number }} · {{ edition.date }} · {{ edition.label }} ·
+            {{ text.statusText[edition.status] }}
+          </option>
+        }
+      </select>
+      <button
+        type="button"
+        [disabled]="facade.busy() || !!facade.review()"
+        (click)="facade.run('export')"
+      >
+        {{ text.export }}
+      </button>
+      <button
+        type="button"
+        [disabled]="facade.busy() || !!facade.review() || !facade.canEdit()"
+        (click)="facade.run('prepare')"
+      >
+        {{ text.prepare }}
+      </button>
+    </div>
+    @if (!facade.canEdit()) {
+      <p>{{ text.immutable }}</p>
+    }
+  }
+  @if (facade.busy()) {
+    <p role="status">{{ text.pending }}</p>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert" class="error">{{ error }}</p>
+  }
+  @if (facade.message(); as message) {
+    <p role="status">{{ message }}</p>
+  }
+  @if (facade.review(); as review) {
+    <h3>{{ text.review }}</h3>
+    <p>{{ review.fileName }}</p>
+    <p>{{ text.expiry }}</p>
+    <div class="table-scroll" role="region" tabindex="0" aria-label="Изменения ручных данных">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ text.sheet }}</th>
+            <th scope="col">{{ text.added }}</th>
+            <th scope="col">{{ text.changed }}</th>
+            <th scope="col">{{ text.removed }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (change of review.changes; track change.sheet) {
+            <tr>
+              <th scope="row">{{ change.sheet }}</th>
+              <td>{{ change.added }}</td>
+              <td>{{ change.changed }}</td>
+              <td>{{ change.removed }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if (facade.unchanged()) {
+      <p>{{ text.unchanged }}</p>
+    }
+    <div class="controls">
+      <button type="button" [disabled]="facade.busy()" (click)="facade.run('apply')">
+        {{ text.confirm }}
+      </button>
+      <button type="button" [disabled]="facade.busy()" (click)="facade.run('discard')">
+        {{ text.cancel }}
+      </button>
+    </div>
+  }
+</section>

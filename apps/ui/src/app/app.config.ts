@@ -1,4 +1,5 @@
-import { OVERVIEW_CLIENT, SHEET_MEASURER } from '@eow/documents/ui-sheets'
+import { pdSheetClient } from './pd-sheet-client'
+import { PD_SHEET_CLIENT, OVERVIEW_CLIENT, SHEET_MEASURER } from '@eow/documents/ui-sheets'
 import { prepareSheetMeasurer } from '@eow/documents/infrastructure'
 import { overviewClient } from './overview-client'
 import { type ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core'
@@ -14,6 +15,7 @@ import { passportClient } from './passport-client'
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: PD_SHEET_CLIENT, useFactory: () => pdSheetClient(window.eow) },
     { provide: OVERVIEW_CLIENT, useFactory: () => overviewClient(window.eow) },
     { provide: SHEET_MEASURER, useValue: () => prepareSheetMeasurer(document) },
     { provide: EXPORT_WIZARD_CLIENT, useFactory: () => exportWizardClient(window.eow) },

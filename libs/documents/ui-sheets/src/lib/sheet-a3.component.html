@@ -4,7 +4,7 @@
   [attr.width]="page().width.value * zoom() + 'mm'"
   [attr.height]="page().height.value * zoom() + 'mm'"
   role="img"
-  [attr.aria-label]="'Общая схема дистанции, лист ' + page().number + ', А3 420 на 297 мм'"
+  [attr.aria-label]="'Лист А3 ' + page().number + ', А3 420 на 297 мм'"
 >
   <g stroke="#111" stroke-width="0.25" fill="none">
     @for (shape of page().primitives; track $index) {

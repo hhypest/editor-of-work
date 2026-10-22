@@ -47,6 +47,44 @@ describe('планы в main', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
+  it('просматривает другой файл без замены текущего плана, пути и содержимого файлов', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const original = document(2028)
+    await writeFile(path, original)
+    const preview = await invoke({ action: 'previewSheets', open: true })
+    expect(preview).toMatchObject({
+      status: 'sheets',
+      source: { year: 2028, pds: [{ id: 'ПД-1' }, { id: 'ПД-2' }] },
+    })
+    expect(await readFile(path, 'utf8')).toBe(original)
+    expect(await invoke({ action: 'state' })).toMatchObject({
+      status: 'ok',
+      document: document(2027),
+    })
+    expect(await invoke({ action: 'previewSheets', open: false })).toMatchObject({
+      status: 'sheets',
+      source: { year: 2027 },
+    })
+    const savePath = join(directory, 'other.ppr.json')
+    dialogs.save.mockResolvedValue(savePath)
+    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    expect(dialogs.save).toHaveBeenCalledTimes(1)
+    expect(await readFile(path, 'utf8')).toBe(original)
+  })
+  it('отличает отсутствие текущего плана, отмену и неверный файл', async () => {
+    expect(await invoke({ action: 'previewSheets', open: false })).toEqual({
+      status: 'sheets',
+      source: null,
+    })
+    dialogs.open.mockResolvedValueOnce(undefined)
+    expect(await invoke({ action: 'previewSheets', open: true })).toEqual({ status: 'cancelled' })
+    await writeFile(path, '{broken')
+    expect(await invoke({ action: 'previewSheets', open: true })).toMatchObject({ status: 'error' })
+    expect(await invoke({ action: 'previewSheets', open: false })).toEqual({
+      status: 'sheets',
+      source: null,
+    })
+  })
   it('выбирает путь диалогом и сохраняет проверенный документ', async () => {
     expect(await invoke({ action: 'save', document: document(2027), saveAs: false })).toMatchObject(
       { status: 'ok' },

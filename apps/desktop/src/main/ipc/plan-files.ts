@@ -1,6 +1,8 @@
 import { channels, planDocumentSchema, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
 import {
   decodePlan,
+  readPlanText,
+  PlanTextReadError,
   encodePlan,
   FilePlanStore,
   startPlanAutosave,
@@ -8,7 +10,6 @@ import {
 import type { AnnualPlan } from '@eow/planning/domain'
 import { importPrototype } from '@eow/import/infrastructure'
 import { planSheetData, buildImportedPlan } from '@eow/planning/application'
-import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { registerHandler, type IpcMainLike } from './register'
 import {
@@ -253,7 +254,9 @@ export function registerPlanFileHandlers(
       case 'importPrototype': {
         const path = await dialogs.openPrototype()
         if (!path) return { status: 'cancelled' }
-        const parsed = importPrototype(await readFile(path, 'utf8'), {
+        const source = await readPlanText(path)
+        if (source === undefined) return failure('Файл проекта прототипа не найден.')
+        const parsed = importPrototype(source, {
           edition: request.edition,
           ids: { next: randomUUID },
           ...(request.catalog === undefined ? {} : { catalog: request.catalog }),
@@ -325,8 +328,12 @@ export function registerPlanFileHandlers(
   }
 
   registerHandler(ipc, channels.planFile, (request) =>
-    enqueue(() => handle(request)).catch(() =>
-      failure('Не удалось выполнить операцию с файлом плана.'),
+    enqueue(() => handle(request)).catch((error: unknown) =>
+      failure(
+        error instanceof PlanTextReadError
+          ? error.message
+          : 'Не удалось выполнить операцию с файлом плана.',
+      ),
     ),
   )
   return async () => {

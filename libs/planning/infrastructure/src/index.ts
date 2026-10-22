@@ -1,3 +1,4 @@
 export * from './lib/plan-file'
 export * from './lib/file-plan-store'
 export * from './lib/plan-autosave'
+export { readPlanText, PlanTextReadError, MAX_PLAN_FILE_BYTES } from './lib/read-plan-text'

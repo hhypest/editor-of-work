@@ -1,9 +1,15 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile, open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { channels, type RequestOf } from '@eow/ipc/contracts'
 import { addWork, createAnnualPlan, planBasis, samplePlanBasis, workId } from '@eow/planning/domain'
-import { decodePlan, encodePlan, readPlanFile, FilePlanStore } from '@eow/planning/infrastructure'
+import {
+  decodePlan,
+  encodePlan,
+  readPlanFile,
+  FilePlanStore,
+  MAX_PLAN_FILE_BYTES,
+} from '@eow/planning/infrastructure'
 import { registerPlanFileHandlers } from './plan-files'
 import type { EditorAction, EditorDraft } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
@@ -87,6 +93,39 @@ describe('планы в main', () => {
       source: null,
     })
   })
+  it.each(['open', 'prototype', 'recovery'] as const)(
+    'отказ чтения большого %s сохраняет текущий файл и путь',
+    async (operation) => {
+      const original = document(2026)
+      await invoke({ action: 'save', document: original, saveAs: false })
+      const selected = join(directory, 'large.json')
+      const large = operation === 'recovery' ? `${selected}.autosave` : selected
+      if (operation === 'recovery') await writeFile(selected, document(2027))
+      const handle = await open(large, 'w')
+      try {
+        await handle.truncate(MAX_PLAN_FILE_BYTES + 1)
+      } finally {
+        await handle.close()
+      }
+      dialogs.open.mockResolvedValueOnce(selected)
+      dialogs.openPrototype.mockResolvedValueOnce(selected)
+      const response = await invoke(
+        operation === 'prototype'
+          ? { action: 'importPrototype', edition: { number: 'test', date: '2026-01-01' } }
+          : { action: 'open' },
+      )
+      expect(response).toMatchObject({
+        status: 'error',
+        message: expect.stringContaining('80 МиБ'),
+      })
+      expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', document: original })
+      expect(
+        await invoke({ action: 'save', document: document(2028), saveAs: false }),
+      ).toMatchObject({ status: 'ok' })
+      expect(dialogs.save).toHaveBeenCalledTimes(1)
+      expect(await readFile(path, 'utf8')).toBe(document(2028))
+    },
+  )
   it('выбирает путь диалогом и сохраняет проверенный документ', async () => {
     expect(await invoke({ action: 'save', document: document(2027), saveAs: false })).toMatchObject(
       { status: 'ok' },

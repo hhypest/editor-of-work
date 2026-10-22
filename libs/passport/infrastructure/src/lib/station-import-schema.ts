@@ -96,6 +96,10 @@ export const stationRowSchema = z.discriminatedUnion('form', [
 export const stationImportSchema = z
   .object({
     date: z.iso.date(),
+    expectedEditionToken: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
     basisToken: z.string().regex(/^[a-f0-9]{64}$/u),
     files: z.array(stationFileSchema).min(1),
     rows: z.array(stationRowSchema),

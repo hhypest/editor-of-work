@@ -120,6 +120,8 @@ export interface SegmentBasis {
   }[]
 }
 export interface SegmentImport {
+  /** Срез, который видел пользователь перед подтверждением; проверяется внутри записи. */
+  readonly expectedEditionToken?: string | undefined
   readonly date: string
   readonly basisToken: string
   /** Полный набор частей каждой переданной формы. Остальные формы не изменяются. */

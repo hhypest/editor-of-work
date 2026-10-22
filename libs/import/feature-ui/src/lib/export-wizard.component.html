@@ -1,0 +1,157 @@
+<section aria-labelledby="export-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="export-title">{{ text.title }}</h2>
+  <p>{{ text.intro }}</p>
+  <button type="button" [disabled]="facade.locked()" (click)="facade.load()">
+    {{ text.retry }}
+  </button>
+  @if (!facade.busy() && !facade.error() && !facade.editions().length) {
+    <p>{{ text.empty }}</p>
+  }
+  @if (facade.editions().length) {
+    <div class="controls">
+      <label for="export-edition">{{ text.edition }}</label>
+      <select
+        id="export-edition"
+        [value]="facade.editionId() ?? ''"
+        [disabled]="facade.locked()"
+        (change)="selectEdition($event)"
+      >
+        @for (edition of facade.editions(); track edition.id) {
+          <option [value]="edition.id">
+            № {{ edition.number }} · {{ edition.date }} · {{ edition.label }}
+          </option>
+        }
+      </select>
+    </div>
+    @if (!facade.canEdit()) {
+      <p>{{ text.immutable }}</p>
+    }
+    <nav class="controls" aria-label="Шаги импорта">
+      @for (step of steps; track step.id) {
+        <button
+          type="button"
+          [disabled]="facade.locked()"
+          [attr.aria-current]="facade.group() === step.id ? 'step' : null"
+          (click)="facade.selectGroup(step.id)"
+        >
+          {{ step.title }}
+        </button>
+      }
+    </nav>
+    <h3>{{ facade.step().title }}</h3>
+    <p>{{ facade.step().description }}</p>
+    <button
+      type="button"
+      [disabled]="facade.locked() || !facade.canEdit()"
+      (click)="facade.run('choose')"
+    >
+      {{ text.choose }}
+    </button>
+  }
+  @if (facade.busy()) {
+    <p role="status">{{ text.busy }}</p>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert" class="error">{{ error }}</p>
+  }
+  @if (facade.message(); as message) {
+    <p role="status">{{ message }}</p>
+  }
+  @if (facade.choices(); as selection) {
+    <h3>{{ text.units }}</h3>
+    <p>{{ text.choiceHint }}</p>
+    <ul>
+      @for (choice of selection.choices; track choice.code) {
+        <li>
+          <label
+            ><input
+              type="checkbox"
+              [disabled]="facade.busy()"
+              [checked]="facade.selected().includes(choice.code)"
+              (change)="toggle(choice.code, $event)"
+            />
+            {{ choice.code }} · {{ choice.type }} · {{ choice.parent ?? 'Дистанция' }}</label
+          >
+          <span>
+            · Границ: {{ choice.segments }}; действует с
+            {{ choice.validFrom ?? 'неизвестной даты' }}.</span
+          >
+          @if (choice.suggested) {
+            <span> Предложено проверкой.</span>
+          }
+          @if (choice.note) {
+            <span> {{ choice.note }}</span>
+          }
+          @if (choice.overlapsWith.length) {
+            <span> Пересечения: {{ choice.overlapsWith.join(', ') }}</span>
+          }
+        </li>
+      }
+    </ul>
+    <div class="controls">
+      <button
+        type="button"
+        [disabled]="facade.busy() || !facade.selected().length"
+        (click)="facade.run('review')"
+      >
+        {{ text.review }}
+      </button>
+      <button type="button" [disabled]="facade.busy()" (click)="facade.run('discard')">
+        {{ text.cancel }}
+      </button>
+    </div>
+  }
+  @if (facade.review(); as review) {
+    <h3>{{ text.preview }}</h3>
+    <p>{{ text.scope }}</p>
+    <p>{{ text.expiry }}</p>
+    <p>
+      {{ text.before }}: {{ review.previousRows }}. {{ text.incoming }}: {{ review.incomingRows }}.
+    </p>
+    <div class="table-scroll" role="region" tabindex="0" aria-label="Файлы подготовленного пакета">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">{{ text.file }}</th>
+            <th scope="col">{{ text.form }}</th>
+            <th scope="col">{{ text.sourceRows }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (file of review.files; track $index) {
+            <tr>
+              <td>{{ file.name }}</td>
+              <td>{{ formTitle(file.form) }}</td>
+              <td>{{ file.rows }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <h4>{{ text.remarks }} ({{ review.remarks.length }})</h4>
+    @if (!review.remarks.length) {
+      <p>{{ text.noRemarks }}</p>
+    }
+    <ul>
+      @for (remark of review.remarks; track $index) {
+        <li>{{ remark }}</li>
+      }
+    </ul>
+    @if (review.exclusionCandidates.length) {
+      <h4>{{ text.candidates }}</h4>
+      <ul>
+        @for (station of review.exclusionCandidates; track station) {
+          <li>{{ station }}</li>
+        }
+      </ul>
+    }
+    <div class="controls">
+      <button type="button" [disabled]="facade.busy()" (click)="facade.run('apply')">
+        {{ text.apply }}
+      </button>
+      <button type="button" [disabled]="facade.busy()" (click)="facade.run('discard')">
+        {{ text.cancel }}
+      </button>
+    </div>
+  }
+</section>

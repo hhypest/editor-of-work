@@ -15,7 +15,7 @@ import { err, type Result } from '@eow/shared/kernel'
 import { PassportExportSource } from './passport-export-source'
 import { readExportFile } from './read-export-file'
 
-export async function importSegmentExports(
+export async function prepareSegmentExports(
   store: PassportSegmentImport,
   request: {
     readonly editionId: number
@@ -69,6 +69,19 @@ export async function importSegmentExports(
       })
   }
   const preview = prepareSegmentImport(parsed, files, basis.value)
+  if (!preview.ok) return preview
+  return preview
+}
+
+export async function importSegmentExports(
+  store: PassportSegmentImport,
+  request: {
+    readonly editionId: number
+    readonly files: readonly ExportFile[]
+    readonly importedAt: string
+  },
+): Promise<Result<SegmentPreview, OrgImportError>> {
+  const preview = await prepareSegmentExports(store, request)
   if (!preview.ok) return preview
   const saved = await store.applySegmentImport(request.editionId, preview.value.command)
   return saved.ok ? preview : saved

@@ -98,6 +98,8 @@
 | Данные оргструктуры редакции             | `OrgData`               |
 | Данные редакции для просмотра            | `EditionData`           |
 | Порт чтения данных редакции              | `PassportEditionData`   |
+| Клиент мастера выгрузок                  | `ExportWizardClient`    |
+| Проверяемый пакет выгрузок               | `ExportReview`          |
 | Клиент мастера ручных данных             | `ManualTemplateClient`  |
 | Предпросмотр ручных данных               | `ManualTemplateReview`  |
 | Сравнение редакций                       | `EditionDiff`           |

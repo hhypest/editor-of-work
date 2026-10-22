@@ -115,6 +115,10 @@ export const segmentRowSchema = z.discriminatedUnion('form', [
 export const segmentImportSchema = z
   .object({
     date: z.iso.date(),
+    expectedEditionToken: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
     basisToken: z.string().regex(/^[a-f0-9]{64}$/u),
     files: z.array(segmentFileSchema).min(1),
     rows: z.array(segmentRowSchema),

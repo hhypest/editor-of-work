@@ -139,6 +139,8 @@ export interface StationBasis {
   readonly excludedStations: readonly StationExclusion[]
 }
 export interface StationImport {
+  /** Срез, который видел пользователь перед подтверждением; проверяется внутри записи. */
+  readonly expectedEditionToken?: string | undefined
   readonly date: string
   readonly basisToken: string
   /** Все части семи форм: станции, экспликации, три книги переездов, ОКАТО. */

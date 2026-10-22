@@ -65,6 +65,10 @@ export const orgDataSchema = z.object({
 export const orgImportSchema = z
   .object({
     date: z.iso.date(),
+    expectedEditionToken: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
     files: z.array(orgFileSchema),
     subdivisions: z.array(orgSubdivisionSchema),
     boundaries: z.array(orgBoundarySchema),

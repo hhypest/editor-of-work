@@ -55,7 +55,7 @@ import {
 } from './station-import-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
-import { readEditionData } from './edition-data'
+import { readEditionData, editionTokenMatches } from './edition-data'
 import { readRepairSnapshot } from './repair-snapshot'
 import type {
   ManualBasis,
@@ -69,6 +69,10 @@ const editionSchema = z.object({
   date: z.string(),
   label: z.string(),
   status: z.enum(['draft', 'active', 'archived']),
+})
+const stalePreview = (): PassportError => ({
+  kind: 'invalid-import',
+  message: 'Паспорт изменился после предпросмотра. Подготовьте импорт заново.',
 })
 const storageError = (): PassportError => ({
   kind: 'storage',
@@ -162,6 +166,8 @@ class SqlitePassportStore implements PassportDatabase {
             kind: 'invalid-import',
             message: 'Дата импорта не совпадает с датой редакции. Повторите отбор строк.',
           })
+        if (!(await editionTokenMatches(transaction, id, data.expectedEditionToken)))
+          return err(stalePreview())
         return writeOrgImport(transaction, id, data)
       }),
     )
@@ -246,6 +252,8 @@ class SqlitePassportStore implements PassportDatabase {
         if (!edition) return err(absent())
         if (edition.status !== 'draft')
           return err({ kind: 'immutable', message: 'Импорт разрешён только в черновик редакции.' })
+        if (!(await editionTokenMatches(transaction, id, parsed.data.expectedEditionToken)))
+          return err(stalePreview())
         return writeSegmentImport(transaction, id, parsed.data)
       }),
     )
@@ -383,7 +391,11 @@ class SqlitePassportStore implements PassportDatabase {
             'Неверные станционные данные. Проверьте координаты, даты и поля.',
         }),
       )
-    return this.stationDraft(id, (db) => writeStationImport(db, id, parsed.data))
+    return this.stationDraft(id, async (db) => {
+      if (!(await editionTokenMatches(db, id, parsed.data.expectedEditionToken)))
+        return err(stalePreview())
+      return writeStationImport(db, id, parsed.data)
+    })
   }
   setStationExclusions(
     id: number,

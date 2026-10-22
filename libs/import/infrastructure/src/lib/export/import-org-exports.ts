@@ -9,7 +9,12 @@ import {
   type OrgSourceFile,
   type OrgSources,
 } from '@eow/import/application'
-import type { OrgImportFile, OrgImportError, PassportOrgImport } from '@eow/passport/import-api'
+import type {
+  OrgImport,
+  OrgImportFile,
+  OrgImportError,
+  PassportOrgImport,
+} from '@eow/passport/import-api'
 import { err, type Result } from '@eow/shared/kernel'
 import { PassportExportSource } from './passport-export-source'
 import { readExportFile } from './read-export-file'
@@ -17,15 +22,13 @@ import { readExportFile } from './read-export-file'
 const invalid = (message: string): Result<never, OrgImportError> =>
   err({ kind: 'invalid-import', message })
 
-/** Main-процесс: файлы уже выбраны пользователем; UI мастера относится к #21. */
-export async function importOrgExports(
-  store: PassportOrgImport,
+/** Чтение и разбор без записи: исходные строки остаются в main. */
+export async function readOrgExports(
   files: readonly ExportFile[],
-  date: string,
-  selected: ReadonlySet<string>,
   importedAt: string,
-  editionId: number,
-): Promise<Result<readonly OrgImportFile[], OrgImportError>> {
+): Promise<
+  Result<{ readonly sources: OrgSources; readonly files: readonly OrgSourceFile[] }, OrgImportError>
+> {
   const source = new PassportExportSource()
   const sources: { -readonly [K in keyof OrgSources]: OrgSources[K][number][] } = {
     subdivisions: [],
@@ -82,7 +85,28 @@ export async function importOrgExports(
         sha256: read.value.sha256,
       })
   }
-  const prepared = prepareOrgImport(sources, metadata, date, selected)
+  return { ok: true, value: { sources, files: metadata } }
+}
+
+export async function prepareOrgExports(
+  files: readonly ExportFile[],
+  date: string,
+  selected: ReadonlySet<string>,
+  importedAt: string,
+): Promise<Result<OrgImport, OrgImportError>> {
+  const read = await readOrgExports(files, importedAt)
+  return read.ok ? prepareOrgImport(read.value.sources, read.value.files, date, selected) : read
+}
+
+export async function importOrgExports(
+  store: PassportOrgImport,
+  files: readonly ExportFile[],
+  date: string,
+  selected: ReadonlySet<string>,
+  importedAt: string,
+  editionId: number,
+): Promise<Result<readonly OrgImportFile[], OrgImportError>> {
+  const prepared = await prepareOrgExports(files, date, selected, importedAt)
   if (!prepared.ok) return prepared
   const saved = await store.applyOrgImport(editionId, prepared.value)
   return saved.ok ? { ok: true, value: prepared.value.files } : saved

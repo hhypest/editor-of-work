@@ -33,7 +33,7 @@ export const planFile = defineChannel(
         action: z.literal('editor'),
         command: editorActionSchema,
         revision: z.number().int().nonnegative(),
-        area: z.string().max(500),
+        area: z.string(),
       })
       .strict(),
   ]),

@@ -46,22 +46,29 @@ export function registerPlanFileHandlers(
   let pending: Promise<unknown> = Promise.resolve()
   const stop = startPlanAutosave(
     {
-      autosave: async (plan) => {
-        if (hasRecovery) return { ok: true, value: undefined }
-        const result = store
-          ? await store.autosave(plan)
-          : ({ ok: true, value: undefined } as const)
-        if (result.ok) {
-          autosaveError = null
-        }
-        return result
-      },
+      autosave: () =>
+        enqueue(async () => {
+          // После ожидания очереди снимок мог измениться или стать сохранённым.
+          if (hasRecovery || !dirty || !current) return { ok: true, value: undefined } as const
+          const result = store
+            ? await store.autosave(current)
+            : ({ ok: true, value: undefined } as const)
+          if (result.ok) autosaveError = null
+          return result
+        }),
     },
     () => (dirty ? current : undefined),
     (error) => {
       autosaveError = error.message
     },
   )
+
+  /** Таймер и команды разделяют очередь: старая автозапись не обгонит отмену. */
+  function enqueue<T>(action: () => Promise<T>): Promise<T> {
+    const next = pending.then(action)
+    pending = next.catch(() => undefined)
+    return next
+  }
 
   function encodeDocument(plan: AnnualPlan): ReturnType<typeof encodePlan> {
     const encoded = encodePlan(plan, appVersion)
@@ -209,6 +216,11 @@ export function registerPlanFileHandlers(
     if (prepared.status !== 'editor') return prepared
     const encoded = encodeDocument(changed.value.present)
     if (!encoded.ok) return failure(encoded.error.message)
+    if (dirty && !nextDirty && store) {
+      // Сначала удаляем автокопию: при сбое отмена остаётся доступной для повтора.
+      const discarded = await store.discardRecovery()
+      if (!discarded.ok) return failure(discarded.error.message)
+    }
     history = changed.value
     current = changed.value.present
     revision = nextRevision
@@ -269,13 +281,22 @@ export function registerPlanFileHandlers(
           const recovery = await store.recovery()
           if (!recovery.ok) return failure(recovery.error.message)
           if (recovery.value) {
-            return replaceCurrent(recovery.value, store, true, autosaveError, editorArea)
+            const response = await replaceCurrent(
+              recovery.value,
+              store,
+              true,
+              autosaveError,
+              editorArea,
+            )
+            if (response.status === 'ok') hasRecovery = false
+            return response
           }
           // Автокопия остаётся до явного сохранения восстановленного документа.
         } else {
           const discarded = await store.discardRecovery()
           if (!discarded.ok) return failure(discarded.error.message)
         }
+        hasRecovery = false
         return state()
       }
       case 'editor':
@@ -283,13 +304,11 @@ export function registerPlanFileHandlers(
     }
   }
 
-  registerHandler(ipc, channels.planFile, (request) => {
-    const next = pending
-      .then(() => handle(request))
-      .catch(() => failure('Не удалось выполнить операцию с файлом плана.'))
-    pending = next
-    return next
-  })
+  registerHandler(ipc, channels.planFile, (request) =>
+    enqueue(() => handle(request)).catch(() =>
+      failure('Не удалось выполнить операцию с файлом плана.'),
+    ),
+  )
   return async () => {
     await pending
     await stop()

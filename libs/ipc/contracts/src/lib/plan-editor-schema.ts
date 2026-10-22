@@ -1,6 +1,7 @@
 import { z } from 'zod'
-const text = z.string().max(10000),
-  id = z.string().max(500)
+// Длины строк совместимы с файлами v1/v2; общий размер проверяет main.
+const text = z.string(),
+  id = z.string()
 const approval = z.object({ title: text, name: text, year: z.number().int() }).strict()
 const edition = z.object({ number: id, date: z.iso.date() }).strict()
 export const editorDraftSchema = z
@@ -12,7 +13,7 @@ export const editorDraftSchema = z
     station: id,
     objectKind: z.enum(['none', 'track', 'switch']),
     objectNumber: id,
-    volume: z.string().max(100),
+    volume: z.string(),
     note: text,
     callout: z.boolean(),
   })
@@ -21,11 +22,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('manualRows'),
-      rows: z
-        .array(
-          z.object({ code: id, plan: z.string().max(100), need: z.string().max(100) }).strict(),
-        )
-        .max(1000),
+      rows: z.array(z.object({ code: id, plan: z.string(), need: z.string() }).strict()).max(1000),
     })
     .strict(),
   z.object({ kind: z.literal('state') }).strict(),
@@ -44,7 +41,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
       kind: z.literal('manual'),
       code: id,
       field: z.enum(['overrides', 'needs']),
-      value: z.string().max(100),
+      value: z.string(),
     })
     .strict(),
   approval.extend({ kind: z.literal('approval') }).strict(),

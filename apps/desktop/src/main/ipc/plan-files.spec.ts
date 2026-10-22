@@ -2,8 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { channels, type RequestOf } from '@eow/ipc/contracts'
-import { createAnnualPlan, samplePlanBasis } from '@eow/planning/domain'
-import { decodePlan, encodePlan, FilePlanStore } from '@eow/planning/infrastructure'
+import { addWork, createAnnualPlan, planBasis, samplePlanBasis, workId } from '@eow/planning/domain'
+import { decodePlan, encodePlan, readPlanFile, FilePlanStore } from '@eow/planning/infrastructure'
 import { registerPlanFileHandlers } from './plan-files'
 import type { EditorAction, EditorDraft } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
@@ -44,6 +44,7 @@ describe('планы в main', () => {
   })
   afterEach(async () => {
     await stop()
+    vi.restoreAllMocks()
     vi.useRealTimers()
     await rm(directory, { recursive: true, force: true })
   })
@@ -287,6 +288,7 @@ describe('планы в main', () => {
       status: 'ok',
       document: document(2027),
     })
+    expect((await editorState()).hasRecovery).toBe(false)
     expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
       ok: true,
       value: { year: 2026 },
@@ -464,5 +466,190 @@ describe('планы в main', () => {
     await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
     expect(await readFile(path, 'utf8')).toBe(document(2027))
     expect(await edit({ kind: 'add', draft })).toMatchObject({ status: 'editor' })
+  })
+  it.each([1, 2])(
+    'открывает и редактирует длинные поля файла v%s без изменения формата',
+    async (version) => {
+      const longId = 'Учебный-'.repeat(80)
+      const longText = 'Вымышленное примечание. '.repeat(500)
+      const original = samplePlanBasis()
+      const basis = planBasis({
+        edition: original.edition,
+        lines: [...original.lines.values()],
+        stations: [...original.stations.values()].map((s) => ({ ...s, pd: longId })),
+        pds: [...original.pds.values()].map((p, i) => ({ ...p, id: i === 1 ? longId : p.id })),
+        workKinds: [...original.workKinds.values()],
+      })
+      if (!basis.ok) throw new Error('Нет среза')
+      const plan = createAnnualPlan(2027, basis.value, {
+        title: longText,
+        name: longText,
+        year: 2026,
+      })
+      if (!plan.ok) throw new Error('Нет плана')
+      const work = addWork(plan.value, workId(longId), {
+        kind: 'КСП',
+        place: { kind: 'station', station: 'S1' },
+        volume: 2,
+        note: longText,
+        callout: false,
+      })
+      if (!work.ok) throw new Error('Нет работы')
+      const encoded = encodePlan(work.value, '0.1.0')
+      if (!encoded.ok) throw new Error('Нет файла')
+      const file = readPlanFile(encoded.value)
+      if (!file.ok) throw new Error('Нет документа')
+      const oldPlan = file.value.plan
+      const content =
+        version === 1
+          ? {
+              ...file.value,
+              format: { ...file.value.format, version },
+              plan: {
+                year: oldPlan.year,
+                approval: oldPlan.approval,
+                works: oldPlan.works,
+                manual: oldPlan.manual,
+              },
+            }
+          : file.value
+      await writeFile(path, JSON.stringify(content))
+      expect(await edit({ kind: 'open' })).toMatchObject({ status: 'editor' })
+      const state = await editorState()
+      expect(state.view?.approval.name).toBe(longText)
+      const row = state.view!.works[0]!
+      expect(row.id).toBe(longId)
+      expect(row.draft.note).toBe(longText)
+      expect(
+        await edit(
+          { kind: 'edit', id: row.id, draft: { ...row.draft, note: longText + 'Правка' } },
+          `pd:${longId}`,
+        ),
+      ).toMatchObject({ status: 'editor' })
+      expect(
+        await edit({ kind: 'approval', title: longText, name: longText + 'Правка', year: 2026 }),
+      ).toMatchObject({ status: 'editor' })
+      expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
+      expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+        ok: true,
+        value: {
+          works: [{ id: longId, note: longText + 'Правка' }],
+          approval: { name: longText + 'Правка' },
+        },
+      })
+    },
+  )
+
+  async function restartWithTimers(): Promise<void> {
+    await stop()
+    vi.useFakeTimers()
+    stop = registerPlanFileHandlers(
+      {
+        handle: (_name, fn) => {
+          listener = fn
+        },
+      },
+      dialogs,
+      '0.1.0',
+    )
+  }
+
+  it('отказ через прежний IPC снимает блокировку редактора и возобновляет автокопию', async () => {
+    await writeFile(path, document(2027))
+    await writeFile(`${path}.autosave`, document(2028))
+    await restartWithTimers()
+    await invoke({ action: 'open' })
+    expect((await editorState()).hasRecovery).toBe(true)
+    expect(await invoke({ action: 'recover', accept: false })).toMatchObject({
+      status: 'ok',
+      recovery: null,
+    })
+    expect((await editorState()).hasRecovery).toBe(false)
+    expect(await edit({ kind: 'add', draft })).toMatchObject({ status: 'editor' })
+    await vi.advanceTimersByTimeAsync(60_000)
+    const state = await invoke({ action: 'state' })
+    if (state.status !== 'ok' || !state.recovery) throw new Error('Нет автокопии')
+    expect(decodePlan(state.recovery)).toMatchObject({
+      ok: true,
+      value: { works: [{ note: draft.note }] },
+    })
+  })
+
+  it.each(['undo', 'redo'] as const)(
+    '%s до сохранённого снимка удаляет устаревшую автокопию',
+    async (kind) => {
+      await writeFile(path, document(2027))
+      await restartWithTimers()
+      await edit({ kind: 'open' })
+      await edit({ kind: 'add', draft })
+      if (kind === 'redo') {
+        await edit({ kind: 'save', saveAs: false })
+        await edit({ kind: 'undo' })
+      }
+      await vi.advanceTimersByTimeAsync(60_000)
+      expect(await invoke({ action: 'state' })).toMatchObject({
+        status: 'ok',
+        recovery: expect.any(String),
+      })
+      expect(await edit({ kind })).toMatchObject({ status: 'editor', state: { dirty: false } })
+      await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+      await vi.advanceTimersByTimeAsync(60_000)
+      await edit({ kind: 'open' })
+      expect((await editorState()).hasRecovery).toBe(false)
+    },
+  )
+
+  it('сбой удаления автокопии сохраняет правку и историю до успешного повтора отмены', async () => {
+    await writeFile(path, document(2027))
+    await restartWithTimers()
+    await edit({ kind: 'open' })
+    await edit({ kind: 'add', draft })
+    await vi.advanceTimersByTimeAsync(60_000)
+    const state = await editorState()
+    vi.spyOn(FilePlanStore.prototype, 'discardRecovery').mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'io', message: 'Учебный сбой удаления' },
+    })
+    expect(await edit({ kind: 'undo' })).toMatchObject({
+      status: 'error',
+      message: 'Учебный сбой удаления',
+    })
+    expect(await editorState()).toEqual(state)
+    expect(await readFile(`${path}.autosave`, 'utf8')).toContain(draft.note)
+    expect(await edit({ kind: 'undo' })).toMatchObject({
+      status: 'editor',
+      state: { dirty: false },
+    })
+    await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('тик таймера во время отмены не возвращает устаревшую автокопию', async () => {
+    await writeFile(path, document(2027))
+    await restartWithTimers()
+    await edit({ kind: 'open' })
+    await edit({ kind: 'add', draft })
+    await vi.advanceTimersByTimeAsync(60_000)
+    const discard = FilePlanStore.prototype.discardRecovery
+    let release!: () => void
+    let entered!: () => void
+    const started = new Promise<void>((resolve) => {
+      entered = resolve
+    })
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.spyOn(FilePlanStore.prototype, 'discardRecovery').mockImplementationOnce(async function (
+      this: FilePlanStore,
+    ) {
+      entered()
+      await gate
+      return discard.call(this)
+    })
+    const undo = edit({ kind: 'undo' })
+    await started
+    await vi.advanceTimersByTimeAsync(60_000)
+    release()
+    expect(await undo).toMatchObject({ status: 'editor', state: { dirty: false } })
+    expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', recovery: null })
   })
 })

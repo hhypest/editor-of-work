@@ -59,6 +59,10 @@ describe('файлы интерфейса по app://', () => {
     expect(resolveAppFile('app://ui/', root, join, sep)).toBe(join(root, 'index.html'))
   })
 
+  it('перезагрузка hash-маршрута отчёта открывает index.html', () => {
+    expect(resolveAppFile('app://ui/#/repairs', root, join, sep)).toBe(join(root, 'index.html'))
+  })
+
   it('отдаёт файлы внутри папки интерфейса', () => {
     expect(resolveAppFile('app://ui/main-ABC.js', root, join, sep)).toBe(join(root, 'main-ABC.js'))
   })

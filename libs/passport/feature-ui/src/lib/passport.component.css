@@ -1,0 +1,82 @@
+:host {
+  display: block;
+  padding: 16px;
+  color: #202937;
+}
+h2 {
+  margin-top: 0;
+}
+p {
+  max-width: 100ch;
+  line-height: 1.5;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+select,
+input,
+button {
+  font: inherit;
+  padding: 8px;
+  max-width: 100%;
+}
+.table-scroll {
+  overflow: auto;
+  max-height: 480px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  border: 1px solid #b9c0ca;
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+thead {
+  background: #edf0f4;
+}
+thead th {
+  position: sticky;
+  top: 0;
+}
+.current {
+  background: #e7f0e7;
+}
+.added {
+  background: #e7f0e7;
+}
+.removed {
+  background: #f6e3e3;
+}
+.changed {
+  background: #fff1d9;
+}
+.actions button {
+  margin-right: 8px;
+}
+.confirm {
+  border: 1px solid #b9c0ca;
+  padding: 8px;
+  margin: 8px 0 0;
+}
+[role='alert'] {
+  color: #9e1b1b;
+}
+[role='tab'][aria-selected='true'] {
+  font-weight: bold;
+  border-bottom: 3px solid #195db0;
+}
+button:focus-visible,
+select:focus-visible,
+input:focus-visible,
+.table-scroll:focus-visible {
+  outline: 3px solid #195db0;
+  outline-offset: 2px;
+}

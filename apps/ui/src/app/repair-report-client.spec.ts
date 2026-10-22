@@ -12,6 +12,10 @@ describe('Порт отчёта через preload', () => {
       appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
       planFile: async () => ({ status: 'cancelled' }),
       passport: vi.fn<EowApi['passport']>(async () => ({ status: 'ok', editions: [] })),
+      passportData: vi.fn<EowApi['passportData']>(async () => ({
+        status: 'error',
+        message: 'unused',
+      })),
       repairs: vi.fn<EowApi['repairs']>(async () =>
         channels.repairs.response.parse({ status: 'ok', report: { date: '2027-01-01', rows: [] } }),
       ),

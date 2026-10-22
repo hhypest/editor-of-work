@@ -7,8 +7,10 @@ import { z } from 'zod'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import { canActivate, validateEdition } from '@eow/passport/domain'
 import type {
+  EditionData,
   EditionInput,
   PassportEdition,
+  PassportEditionData,
   PassportError,
   PassportStore,
   RepairReportSource,
@@ -53,6 +55,7 @@ import {
 } from './station-import-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
+import { readEditionData } from './edition-data'
 import { readRepairSnapshot } from './repair-snapshot'
 import type {
   ManualBasis,
@@ -80,6 +83,7 @@ const absent = (): PassportError => ({
 export interface PassportDatabase
   extends
     PassportStore,
+    PassportEditionData,
     RepairReportSource,
     PassportOrgImport,
     PassportSegmentImport,
@@ -199,6 +203,15 @@ class SqlitePassportStore implements PassportDatabase {
       this.queries.transaction().execute(async (transaction) => {
         const basis = await readSegmentBasis(transaction, id)
         return basis ? ok(basis) : err(absent())
+      }),
+    )
+  }
+
+  editionData(id: number): Promise<Result<EditionData, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const data = await readEditionData(db, id)
+        return data ? ok(data) : err(absent())
       }),
     )
   }

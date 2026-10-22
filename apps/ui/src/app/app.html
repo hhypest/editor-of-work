@@ -1,6 +1,12 @@
 <header class="app-header">
   <h1>{{ title }}</h1>
   <p>Паспорт дистанции и схемы ППР</p>
+  <nav aria-label="Разделы">
+    <a routerLink="/" routerLinkActive="current" [routerLinkActiveOptions]="{ exact: true }">
+      Паспорт
+    </a>
+    <a routerLink="/repairs" routerLinkActive="current">Потребность в ремонте</a>
+  </nav>
 </header>
 <main>
   <router-outlet />

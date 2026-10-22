@@ -12,3 +12,25 @@
   margin: 4px 0 0;
   color: #5b6472;
 }
+
+.app-header nav {
+  margin-top: 8px;
+  display: flex;
+  gap: 16px;
+}
+
+.app-header nav a {
+  color: #195db0;
+  text-decoration: none;
+  padding: 4px 0;
+}
+
+.app-header nav a.current {
+  font-weight: bold;
+  border-bottom: 3px solid #195db0;
+}
+
+.app-header nav a:focus-visible {
+  outline: 3px solid #195db0;
+  outline-offset: 2px;
+}

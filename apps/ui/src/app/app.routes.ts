@@ -1,4 +1,7 @@
 import { type Route } from '@angular/router'
-import { RepairReportComponent } from '@eow/passport/feature-ui'
+import { PassportComponent, RepairReportComponent } from '@eow/passport/feature-ui'
 
-export const appRoutes: Route[] = [{ path: '', component: RepairReportComponent }]
+export const appRoutes: Route[] = [
+  { path: '', component: PassportComponent },
+  { path: 'repairs', component: RepairReportComponent },
+]

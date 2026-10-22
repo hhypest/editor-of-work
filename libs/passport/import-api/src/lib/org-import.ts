@@ -78,6 +78,14 @@ export interface OrgImport {
   readonly tracks: readonly OrgImportTrack[]
 }
 
+/** Данные оргструктуры редакции для просмотра и сравнения. */
+export interface OrgData {
+  readonly subdivisions: readonly OrgImportSubdivision[]
+  readonly boundaries: readonly OrgImportBoundary[]
+  readonly stations: readonly OrgImportStation[]
+  readonly tracks: readonly OrgImportTrack[]
+}
+
 /** Опубликованный сценарий Паспорта: Импорт не получает доступа к таблицам БД. */
 export interface PassportOrgImport {
   applyOrgImport(editionId: number, input: OrgImport): Promise<Result<void, OrgImportError>>

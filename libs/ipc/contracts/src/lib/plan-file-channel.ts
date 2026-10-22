@@ -6,6 +6,7 @@ import {
   editorStateSchema,
   editorIssueSchema,
   placeHintSchema,
+  planEditionChoiceSchema,
 } from './plan-editor-schema'
 
 export const planDocumentSchema = z
@@ -40,6 +41,9 @@ export const planFile = defineChannel(
       .strict(),
   ]),
   z.discriminatedUnion('status', [
+    z
+      .object({ status: z.literal('editions'), editions: z.array(planEditionChoiceSchema) })
+      .strict(),
     z
       .object({
         status: z.literal('ok'),

@@ -210,4 +210,75 @@ describe('Редактор плана', () => {
     const input = element.querySelector('#work-place')!
     expect(input.closest('fieldset')?.disabled).toBe(true)
   })
+  it('загружает редакции, проверяет год и требует выбора перед заменой незавершённого ввода', async () => {
+    const { facade, port, fixture, element } = await setup()
+    facade.patch({ note: 'Не потерять при создании' })
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'editions',
+      editions: [{ id: 7, number: 7, date: '2027-01-01', label: '<Учебная>', status: 'active' }],
+    })
+    await facade.loadEditions()
+    fixture.detectChanges()
+    expect(element.textContent).toContain('<Учебная>')
+    expect(element.querySelector('учебная')).toBeNull()
+    expect(facade.newEdition()).toBe(7)
+    facade.newYear.set('2027,5')
+    await facade.create()
+    expect(facade.error()).toContain('год плана')
+    expect(port.send).toHaveBeenCalledTimes(2)
+    facade.newYear.set('2028')
+    await facade.create()
+    expect(facade.pendingOpen()).toEqual({ kind: 'create', editionId: 7, year: 2028 })
+    expect(port.send).toHaveBeenCalledTimes(2)
+    facade.pendingOpen.set(null)
+    expect(facade.form().note).toBe('Не потерять при создании')
+    await facade.create()
+    vi.mocked(port.send).mockRejectedValueOnce(new Error('Нет видов работ'))
+    await facade.discardAndOpen()
+    expect(facade.form().note).toBe('Не потерять при создании')
+    expect(facade.error()).toBe('Нет видов работ')
+    await facade.create()
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'state',
+      state: {
+        ...state,
+        dirty: true,
+        hasFile: false,
+        revision: 2,
+        view: { ...state.view!, year: 2028, canUndo: false },
+      },
+    })
+    await facade.discardAndOpen()
+    expect(facade.formDirty()).toBe(false)
+    expect(facade.state()?.view?.year).toBe(2028)
+  })
+  it('отмена сохранения перед созданием оставляет текущий план и выбранное действие', async () => {
+    const { facade, port } = await setup()
+    facade.state.set({ ...state, dirty: true })
+    facade.newEdition.set(7)
+    facade.editionsLoaded.set(true)
+    facade.editions.set([
+      { id: 7, number: 7, date: '2027-01-01', label: 'Учебная', status: 'active' },
+    ])
+    facade.newYear.set('2028')
+    await facade.create()
+    vi.mocked(port.send).mockResolvedValueOnce({ kind: 'cancelled' })
+    await facade.saveAndOpen()
+    expect(facade.pendingOpen()?.kind).toBe('create')
+    expect(facade.view()?.year).toBe(2027)
+    expect(vi.mocked(port.send).mock.calls.filter(([c]) => c.kind === 'create')).toHaveLength(0)
+  })
+  it('ошибка повторной загрузки редакций отключает создание и сохраняет ввод', async () => {
+    const { facade, port, fixture, element } = await setup()
+    vi.mocked(port.send).mockResolvedValueOnce({ kind: 'editions', editions: [] })
+    await facade.loadEditions()
+    fixture.detectChanges()
+    expect(element.textContent).toContain('Нет введённых в действие редакций')
+    facade.newYear.set('2028')
+    vi.mocked(port.send).mockRejectedValueOnce(new Error('Нет доступа к паспорту'))
+    await facade.loadEditions()
+    fixture.detectChanges()
+    expect(facade.newYear()).toBe('2028')
+    expect(element.querySelector<HTMLButtonElement>('#create-plan')?.disabled).toBe(true)
+  })
 })

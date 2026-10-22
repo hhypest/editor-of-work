@@ -19,6 +19,14 @@ export const editorDraftSchema = z
   })
   .strict()
 export const editorActionSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('editions') }).strict(),
+  z
+    .object({
+      kind: z.literal('create'),
+      editionId: z.number().int().positive(),
+      year: z.number().int().min(2000).max(2100),
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('manualRows'),
@@ -118,5 +126,15 @@ export const placeHintSchema = z
     normalized: text.nullable(),
     meters: z.number().nonnegative().nullable(),
     issues: z.array(editorIssueSchema),
+  })
+  .strict()
+
+export const planEditionChoiceSchema = z
+  .object({
+    id: z.number().int().positive(),
+    number: z.number().int().positive(),
+    date: z.iso.date(),
+    label: z.string(),
+    status: z.enum(['active', 'archived']),
   })
   .strict()

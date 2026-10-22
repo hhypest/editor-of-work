@@ -5,7 +5,7 @@ import { channels, type RequestOf } from '@eow/ipc/contracts'
 import { addWork, createAnnualPlan, planBasis, samplePlanBasis, workId } from '@eow/planning/domain'
 import { decodePlan, encodePlan, readPlanFile, FilePlanStore } from '@eow/planning/infrastructure'
 import { registerPlanFileHandlers } from './plan-files'
-import type { EditorAction, EditorDraft } from '@eow/planning/application'
+import type { EditorAction, EditorDraft, PassportView } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
 
 function document(year: number): string {
@@ -16,7 +16,29 @@ function document(year: number): string {
   return text.value
 }
 
+function passportInput() {
+  const b = samplePlanBasis()
+  return {
+    edition: b.edition,
+    lines: [...b.lines.values()],
+    pds: [...b.pds.values()],
+    stations: [...b.stations.values()],
+    workKinds: [...b.workKinds.values()],
+  }
+}
 describe('планы в main', () => {
+  const passport: PassportView = {
+    editions: vi.fn<PassportView['editions']>(async () => ({
+      ok: true as const,
+      value: [
+        { id: 7, number: 7, date: '2026-01-15', label: 'Учебная', status: 'active' as const },
+      ],
+    })),
+    basis: vi.fn<PassportView['basis']>(async () => ({
+      ok: true as const,
+      value: passportInput(),
+    })),
+  }
   let directory: string
   let path: string
   let stop: () => Promise<void>
@@ -40,7 +62,8 @@ describe('планы в main', () => {
         listener = fn
       },
     }
-    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0')
+    vi.mocked(passport.basis).mockReset().mockResolvedValue({ ok: true, value: passportInput() })
+    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0', passport)
   })
   afterEach(async () => {
     await stop()
@@ -689,5 +712,86 @@ describe('планы в main', () => {
     release()
     expect(await undo).toMatchObject({ status: 'editor', state: { dirty: false } })
     expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', recovery: null })
+  })
+  it('создаёт план без пути и старой истории; первое сохранение выбирает новый файл', async () => {
+    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    await edit({ kind: 'add', draft })
+    const old = await editorState()
+    expect(await edit({ kind: 'editions' })).toMatchObject({
+      status: 'editions',
+      editions: [{ id: 7 }],
+    })
+    expect(await editorState()).toEqual(old)
+    expect(await edit({ kind: 'create', editionId: 7, year: 2028 })).toMatchObject({
+      status: 'editor',
+      state: {
+        dirty: true,
+        hasFile: false,
+        hasRecovery: false,
+        revision: old.revision + 1,
+        view: { year: 2028, works: [], canUndo: false, canRedo: false },
+      },
+    })
+    expect(await readFile(path, 'utf8')).toBe(document(2027))
+    const newPath = join(directory, 'new.ppr.json')
+    dialogs.save.mockResolvedValueOnce(newPath)
+    expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({
+      status: 'editor',
+      state: { dirty: false, hasFile: true },
+    })
+    expect(dialogs.save).toHaveBeenCalledTimes(2)
+    expect(decodePlan(await readFile(newPath, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { year: 2028, works: [], manual: new Map() },
+    })
+    expect(await readFile(path, 'utf8')).toBe(document(2027))
+    expect(await invoke({ action: 'previewSheets', open: false })).toMatchObject({
+      status: 'sheets',
+      source: { year: 2028, pds: expect.any(Array) },
+    })
+  })
+  it.each(['read', 'size'] as const)(
+    'сбой создания (%s) сохраняет прежние файл, историю и ввод',
+    async (problem) => {
+      await invoke({ action: 'save', document: document(2027), saveAs: false })
+      await edit({ kind: 'add', draft })
+      const old = await editorState()
+      if (problem === 'read')
+        vi.mocked(passport.basis).mockResolvedValueOnce({
+          ok: false,
+          error: { message: 'Учебный сбой чтения' },
+        })
+      else
+        vi.mocked(passport.basis).mockResolvedValueOnce({
+          ok: true,
+          value: {
+            ...passportInput(),
+            edition: { number: 'X'.repeat(21 * 1024 * 1024), date: '2027-01-01' },
+          },
+        })
+      expect(await edit({ kind: 'create', editionId: 7, year: 2028 })).toMatchObject({
+        status: 'error',
+      })
+      expect(await editorState()).toEqual(old)
+      expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
+      expect(dialogs.save).toHaveBeenCalledTimes(1)
+      expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+        ok: true,
+        value: { works: [{ note: draft.note }] },
+      })
+    },
+  )
+  it('не создаёт новый план по устаревшей ревизии', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    expect(
+      await invoke({
+        action: 'editor',
+        command: { kind: 'create', editionId: 7, year: 2028 },
+        revision: 0,
+        area: 'district',
+      }),
+    ).toMatchObject({ status: 'error' })
+    expect(passport.basis).not.toHaveBeenCalled()
+    expect((await editorState()).view?.year).toBe(2027)
   })
 })

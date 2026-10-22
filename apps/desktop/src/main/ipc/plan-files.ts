@@ -17,6 +17,8 @@ import {
   inspectEditorPlace,
   openPlanSession,
   type PlanSession,
+  createPlanFromPassport,
+  type PassportView,
 } from '@eow/planning/application'
 
 /** Диалоги main. Через IPC путь не принимается и не возвращается. */
@@ -45,6 +47,7 @@ export function registerPlanFileHandlers(
   ipc: IpcMainLike,
   dialogs: PlanFileDialogs,
   appVersion: string,
+  passport?: PassportView,
 ): () => Promise<void> {
   let store: FilePlanStore | undefined
   let current: AnnualPlan | undefined
@@ -170,11 +173,25 @@ export function registerPlanFileHandlers(
 
   async function handleEditor(request: Extract<Request, { action: 'editor' }>): Promise<Response> {
     const command = request.command
+    if (command.kind === 'editions') {
+      if (!passport) return failure('Паспорт недоступен для создания плана.')
+      const result = await passport.editions()
+      return result.ok
+        ? channels.planFile.response.parse({ status: 'editions', editions: result.value })
+        : failure(result.error.message)
+    }
     if (command.kind === 'state') return editorResponse(history, request.area)
     if (request.revision !== revision)
       return failure(
         'План изменился в другом действии. Обновите редактор; введённая форма сохранена на экране.',
       )
+    if (command.kind === 'create') {
+      if (!passport) return failure('Паспорт недоступен для создания плана.')
+      const plan = await createPlanFromPassport(passport, command.editionId, command.year)
+      if (!plan.ok) return failure(plan.error.message)
+      const response = await replaceCurrent(plan.value, undefined, true, null, 'district')
+      return response.status === 'ok' ? editorResponse(history, 'district') : response
+    }
     if (command.kind === 'open' || command.kind === 'import' || command.kind === 'recover') {
       const operation: Request =
         command.kind === 'open'

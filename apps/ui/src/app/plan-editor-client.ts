@@ -16,7 +16,7 @@ export function planEditorClient(api: EowApi | undefined): PlanEditorClient {
           issues: [
             {
               field: 'form',
-              message: 'Проверьте заполнение полей, дату и длину текста.',
+              message: 'Проверьте заполнение полей, дату, редакцию и год плана (2000–2100).',
               start: null,
               end: null,
             },
@@ -24,6 +24,8 @@ export function planEditorClient(api: EowApi | undefined): PlanEditorClient {
         }
       const response = await api.planFile(request.data)
       switch (response.status) {
+        case 'editions':
+          return { kind: 'editions', editions: response.editions }
         case 'editor':
           return { kind: 'state', state: response.state }
         case 'place':

@@ -33,4 +33,27 @@ describe('Порт редактора через preload', () => {
       planEditorClient(undefined).send({ kind: 'state' }, 0, 'district'),
     ).rejects.toThrow('настольной')
   })
+  it('передаёт создание и список редакций; неверный год не доходит до IPC', async () => {
+    const port = planEditorClient(api)
+    vi.mocked(api.planFile).mockClear()
+    expect(
+      await port.send({ kind: 'create', editionId: 7, year: 1999 }, 2, 'district'),
+    ).toMatchObject({ kind: 'invalid' })
+    expect(api.planFile).not.toHaveBeenCalled()
+    vi.mocked(api.planFile).mockResolvedValueOnce({
+      status: 'editions',
+      editions: [{ id: 7, number: 7, date: '2027-01-01', label: 'Учебная', status: 'archived' }],
+    })
+    expect(await port.send({ kind: 'editions' }, 2, 'district')).toMatchObject({
+      kind: 'editions',
+      editions: [{ id: 7 }],
+    })
+    await port.send({ kind: 'create', editionId: 7, year: 2028 }, 2, 'district')
+    expect(api.planFile).toHaveBeenLastCalledWith({
+      action: 'editor',
+      command: { kind: 'create', editionId: 7, year: 2028 },
+      revision: 2,
+      area: 'district',
+    })
+  })
 })

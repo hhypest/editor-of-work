@@ -1,3 +1,4 @@
+import type { PlanEditionChoice } from './passport-view'
 /** DTO редактора. UI не получает доменные объекты и пути файлов. */
 export interface EditorDraft {
   readonly kind: string
@@ -45,6 +46,8 @@ export type EditorChange =
     }
 export type EditorAction =
   | EditorChange
+  | { readonly kind: 'editions' }
+  | { readonly kind: 'create'; readonly editionId: number; readonly year: number }
   | { readonly kind: 'state' }
   | { readonly kind: 'open' }
   | {
@@ -106,6 +109,7 @@ export interface PlaceHint {
   readonly issues: readonly EditorIssue[]
 }
 export type EditorReply =
+  | { readonly kind: 'editions'; readonly editions: readonly PlanEditionChoice[] }
   | { readonly kind: 'state'; readonly state: EditorState }
   | { readonly kind: 'place'; readonly revision: number; readonly hint: PlaceHint }
   | { readonly kind: 'invalid'; readonly issues: readonly EditorIssue[] }

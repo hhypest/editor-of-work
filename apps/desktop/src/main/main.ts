@@ -3,6 +3,7 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { registerIpcHandlers } from './ipc/handlers'
 import { registerPlanFileHandlers } from './ipc/plan-files'
+import { passportPlanView } from '@eow/planning/infrastructure'
 import { registerPassportHandlers } from './ipc/passport'
 import { registerPassportDataHandlers } from './ipc/passport-data'
 import { registerExportWizardHandlers } from './ipc/export-wizard'
@@ -180,6 +181,7 @@ if (!app.requestSingleInstanceLock()) {
           },
         },
         app.getVersion(),
+        passportPlanView(passport),
       )
       let closing = false
       let canQuit = false

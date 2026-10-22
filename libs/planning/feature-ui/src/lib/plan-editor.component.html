@@ -29,6 +29,54 @@
     </button>
   </div>
   <details>
+    <summary>Новый план из паспорта</summary>
+    <p>
+      Выберите введённую в действие или архивную редакцию и год. Новый план получит собственный срез
+      паспорта, пустые работы и ручные значения.
+    </p>
+    <button type="button" [disabled]="facade.busy()" (click)="facade.loadEditions()">
+      Загрузить редакции паспорта
+    </button>
+    @if (facade.editionsLoaded() && !facade.editions().length) {
+      <p role="status">
+        Нет введённых в действие редакций. Подготовьте паспорт, загрузите виды работ через «Ручные
+        данные» и введите редакцию в действие.
+      </p>
+    }
+    <label for="new-plan-edition">Редакция паспорта</label>
+    <select
+      id="new-plan-edition"
+      [ngModel]="facade.newEdition()"
+      (ngModelChange)="facade.newEdition.set($event)"
+      [disabled]="facade.busy() || !facade.editionsLoaded()"
+    >
+      <option [ngValue]="null">Выберите редакцию</option>
+      @for (edition of facade.editions(); track edition.id) {
+        <option [ngValue]="edition.id">
+          № {{ edition.number }} · {{ edition.date }} · {{ edition.label }} ·
+          {{ edition.status === 'active' ? 'Действует' : 'Архив' }}
+        </option>
+      }
+    </select>
+    <label for="new-plan-year">Год нового плана</label>
+    <input
+      id="new-plan-year"
+      inputmode="numeric"
+      placeholder="ГГГГ"
+      [ngModel]="facade.newYear()"
+      (ngModelChange)="facade.newYear.set($event)"
+      [disabled]="facade.busy()"
+    />
+    <button
+      id="create-plan"
+      type="button"
+      [disabled]="facade.busy() || facade.newEdition() === null || !facade.editionsLoaded()"
+      (click)="facade.create()"
+    >
+      Создать новый план
+    </button>
+  </details>
+  <details>
     <summary>Импорт проекта HTML-прототипа</summary>
     <p>
       Укажите редакцию для переносимого проекта. Исходный файл сохраняется в плане вместе с отчётом

@@ -27,3 +27,19 @@ export interface EditionData {
 export interface PassportEditionData {
   editionData(editionId: number): Promise<Result<EditionData, PassportError>>
 }
+
+/** Действующие на дату редакции объекты для создания годового плана. */
+export interface PlanningEditionData extends Pick<
+  EditionData,
+  'edition' | 'lines' | 'org' | 'manual'
+> {
+  readonly stations: readonly {
+    readonly id: string
+    readonly name: string
+    readonly tracks: readonly string[]
+    readonly switches: readonly string[]
+  }[]
+}
+export interface PassportPlanningSource {
+  planningData(editionId: number): Promise<Result<PlanningEditionData, PassportError>>
+}

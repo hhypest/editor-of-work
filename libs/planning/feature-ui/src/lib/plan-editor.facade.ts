@@ -6,6 +6,7 @@ import type {
   EditorState,
   PlaceHint,
   PlanEditorClient,
+  PlanEditionChoice,
 } from '@eow/planning/application'
 export const PLAN_EDITOR_CLIENT = new InjectionToken<PlanEditorClient>('Редактор годового плана')
 const emptyDraft = (): EditorDraft => ({
@@ -43,6 +44,10 @@ export class PlanEditorFacade {
   readonly approval = signal({ title: '', name: '', year: 0 })
   readonly approvalDirty = signal(false)
   readonly pendingOpen = signal<EditorAction | null>(null)
+  readonly editions = signal<readonly PlanEditionChoice[]>([])
+  readonly editionsLoaded = signal(false)
+  readonly newEdition = signal<number | null>(null)
+  readonly newYear = signal('')
   readonly hasCells = computed(() => Object.keys(this.cells()).length > 0)
   readonly pending = computed(() => this.formDirty() || this.hasCells() || this.approvalDirty())
   readonly placeIssues = computed(() => [
@@ -70,6 +75,52 @@ export class PlanEditorFacade {
   }
   async initialize(): Promise<void> {
     if (!this.state() && (await this.run({ kind: 'state' }))) this.resetAll()
+  }
+  async loadEditions(): Promise<void> {
+    if (this.busy()) return
+    this.busy.set(true)
+    this.error.set(null)
+    try {
+      const reply = await this.client.send(
+        { kind: 'editions' },
+        this.state()?.revision ?? 0,
+        'district',
+      )
+      if (reply.kind !== 'editions') throw new Error('Не удалось получить редакции паспорта.')
+      this.editions.set(reply.editions)
+      this.editionsLoaded.set(true)
+      const selected = this.newEdition()
+      this.newEdition.set(
+        reply.editions.find((e) => e.id === selected)?.id ??
+          reply.editions.find((e) => e.status === 'active')?.id ??
+          reply.editions[0]?.id ??
+          null,
+      )
+    } catch (error) {
+      this.editionsLoaded.set(false)
+      this.error.set(
+        error instanceof Error ? error.message : 'Не удалось получить редакции паспорта.',
+      )
+    } finally {
+      this.busy.set(false)
+    }
+  }
+  async create(): Promise<void> {
+    const editionId = this.newEdition()
+    const text = this.newYear().trim()
+    const year = Number(text)
+    if (
+      !this.editionsLoaded() ||
+      !this.editions().some((e) => e.id === editionId) ||
+      editionId === null ||
+      !/^\d{4}$/u.test(text) ||
+      year < 2000 ||
+      year > 2100
+    ) {
+      this.error.set('Выберите редакцию и укажите год плана от 2000 до 2100.')
+      return
+    }
+    await this.requestOpen({ kind: 'create', editionId, year })
   }
   private async run(action: EditorAction, area = this.area()): Promise<boolean> {
     if (this.busy()) return false

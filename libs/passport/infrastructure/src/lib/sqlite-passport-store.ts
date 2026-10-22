@@ -15,6 +15,8 @@ import type {
   PassportStore,
   RepairReportSource,
   RepairSnapshot,
+  PassportPlanningSource,
+  PlanningEditionData,
 } from '@eow/passport/application'
 import {
   SEGMENT_FORMS,
@@ -55,7 +57,7 @@ import {
 } from './station-import-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
-import { readEditionData, editionTokenMatches } from './edition-data'
+import { readEditionData, readPlanningData, editionTokenMatches } from './edition-data'
 import { readRepairSnapshot } from './repair-snapshot'
 import type {
   ManualBasis,
@@ -88,6 +90,7 @@ export interface PassportDatabase
   extends
     PassportStore,
     PassportEditionData,
+    PassportPlanningSource,
     RepairReportSource,
     PassportOrgImport,
     PassportSegmentImport,
@@ -227,6 +230,15 @@ class SqlitePassportStore implements PassportDatabase {
       this.queries.transaction().execute(async (db) => {
         const snapshot = await readRepairSnapshot(db, id)
         return snapshot ? ok(snapshot) : err(absent())
+      }),
+    )
+  }
+
+  planningData(id: number): Promise<Result<PlanningEditionData, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const data = await readPlanningData(db, id)
+        return data ? ok(data) : err(absent())
       }),
     )
   }

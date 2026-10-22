@@ -39,7 +39,7 @@ import {
 import { sqliteQueries } from './sqlite-dialect'
 import { editionTables } from './edition-tables'
 import { loadPassportMigrations, migratePassport } from './migrations'
-import { passportLocation } from './passport-location'
+import { passportLocation, type PassportLocationChooser } from './passport-location'
 import { orgFileSchema, orgImportSchema } from './org-import-schema'
 import { writeOrgImport, type PassportSchema as Schema } from './org-import-storage'
 import { segmentFileSchema, segmentImportSchema } from './segment-import-schema'
@@ -602,7 +602,12 @@ export async function openPortablePassport(options: {
   readonly executableDirectory: string
   readonly localDataDirectory: string
   readonly migrationsDirectory: string
+  readonly chooseLocation?: PassportLocationChooser
 }): Promise<PassportDatabase> {
-  const path = await passportLocation(options.executableDirectory, options.localDataDirectory)
+  const path = await passportLocation(
+    options.executableDirectory,
+    options.localDataDirectory,
+    options.chooseLocation,
+  )
   return openPassportDatabase(path, options.migrationsDirectory)
 }

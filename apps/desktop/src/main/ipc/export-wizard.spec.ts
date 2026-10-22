@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, open, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { channels } from '@eow/ipc/contracts'
@@ -259,6 +259,44 @@ describe('Мастер выгрузок: файлы → предпросмотр
     })
     expect(dialogs.open).not.toHaveBeenCalled()
   })
+  it('пакет сверх 128 МиБ отклоняется до разбора, хотя каждый файл укладывается в 64 МиБ', async () => {
+    const paths: string[] = []
+    for (const [i, size] of [64 * 1024 * 1024, 64 * 1024 * 1024, 1].entries()) {
+      const path = join(root, `part-${i}.xls`)
+      const file = await open(path, 'w')
+      try {
+        await file.truncate(size)
+      } finally {
+        await file.close()
+      }
+      paths.push(path)
+    }
+    vi.mocked(dialogs.open).mockResolvedValueOnce(paths)
+    expect(await invoke({ action: 'choose', editionId: id, group: 'org' })).toMatchObject({
+      status: 'error',
+      message: expect.stringContaining('128 МиБ'),
+    })
+    expect(value(await store.orgImportReport(id))).toEqual([])
+    expect((await prepare('org')).files).toHaveLength(4)
+  })
+
+  it('ошибка лимита возвращается через IPC без записи, повторная подготовка возможна', async () => {
+    const path = join(root, 'large.xls')
+    const file = await open(path, 'w')
+    try {
+      await file.truncate(64 * 1024 * 1024 + 1)
+    } finally {
+      await file.close()
+    }
+    vi.mocked(dialogs.open).mockResolvedValueOnce([path])
+    expect(await invoke({ action: 'choose', editionId: id, group: 'org' })).toMatchObject({
+      status: 'error',
+      message: expect.stringContaining('64 МиБ'),
+    })
+    expect(value(await store.orgImportReport(id))).toEqual([])
+    expect((await prepare('org')).files).toHaveLength(4)
+  })
+
   it('программный API импорта без токена остаётся совместимым', async () => {
     const files = await Promise.all(
       groups.org.map(async (path) => ({ name: basename(path), bytes: await readFile(path) })),

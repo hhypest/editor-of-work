@@ -26,7 +26,7 @@ import type {
   OrgImportRemark,
 } from '@eow/passport/import-api'
 import { registerHandler, type IpcMainLike } from './register'
-import { selectedExportFile } from './export-files'
+import { selectedExportFile, ExportReadBudget, ExportReadLimitError } from './export-files'
 
 export interface ExportWizardDialogs {
   open(group: ExportGroup): Promise<readonly string[] | undefined>
@@ -153,7 +153,8 @@ export function registerExportWizardHandlers(
     if (!paths?.length) return { status: 'cancelled' }
     if (paths.length > 1000) return failure('За один шаг выберите не более 1000 частей выгрузок.')
     const files: ExportFile[] = []
-    for (const path of paths) files.push(await selectedExportFile(path))
+    const budget = new ExportReadBudget()
+    for (const path of paths) files.push(await selectedExportFile(path, budget))
     const session: Session = {
       token: randomUUID(),
       editionId: request.editionId,
@@ -217,8 +218,9 @@ export function registerExportWizardHandlers(
     busy = true
     try {
       return await run(request)
-    } catch {
+    } catch (error) {
       pending = undefined
+      if (error instanceof ExportReadLimitError) return failure(error.message)
       return failure(
         'Не удалось прочитать или записать выгрузки. Проверьте доступ к файлам и подготовьте импорт заново.',
       )

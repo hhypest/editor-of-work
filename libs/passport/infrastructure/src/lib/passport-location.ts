@@ -81,23 +81,13 @@ export async function passportLocation(
     throw error
   })
   if (primaryExists && fallbackExists) {
-    const [portableFile, localFile] = await Promise.all([
-      stat(portablePath, { bigint: true }),
-      stat(localPath, { bigint: true }),
-    ])
-    // Символические и жёсткие ссылки на один файл не означают расхождение баз.
-    const sameFile =
-      portableFile.ino !== 0n &&
-      portableFile.dev === localFile.dev &&
-      portableFile.ino === localFile.ino
-    if (!sameFile) {
-      if (!chooseLocation)
-        throw new Error('Найдены две базы паспорта. Перед открытием необходимо выбрать базу.')
-      const choice = await chooseLocation(Object.freeze({ portablePath, localPath }))
-      if (choice === undefined) throw new PassportLocationCancelled()
-      // После явного выбора недоступность не должна открывать другую базу.
-      return writableDatabase(choice === 'portable' ? primary : fallback, true)
-    }
+    // Даже при общем inode журналы WAL/SHM у разных путей могут различаться.
+    if (!chooseLocation)
+      throw new Error('Найдены две базы паспорта. Перед открытием необходимо выбрать базу.')
+    const choice = await chooseLocation(Object.freeze({ portablePath, localPath }))
+    if (choice === undefined) throw new PassportLocationCancelled()
+    // После явного выбора недоступность не должна открывать другую базу.
+    return writableDatabase(choice === 'portable' ? primary : fallback, true)
   }
   // Восстановление прав не должно создавать пустую базу вместо уже используемой.
   if (!primaryExists && fallbackExists) return writableDatabase(fallback)

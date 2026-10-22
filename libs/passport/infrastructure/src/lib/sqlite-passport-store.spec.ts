@@ -3,6 +3,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile, mkdir, rename, link } from '
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { spawnSync } from 'node:child_process'
 import type { Result } from '@eow/shared/kernel'
 import {
   openPassportDatabase,
@@ -429,7 +430,7 @@ describe('SQLite паспорта', () => {
     expect(await readdir(local)).toEqual(['passport.sqlite'])
   })
 
-  it('не предлагает выбор для двух ссылок на один файл', async () => {
+  it('требует выбор пути к общему файлу и читает его WAL после аварийного завершения', async () => {
     const options = {
       executableDirectory: join(root, 'portable'),
       localDataDirectory: join(root, 'local'),
@@ -441,12 +442,48 @@ describe('SQLite паспорта', () => {
     await primary.close()
     const fallback = join(options.localDataDirectory, 'editor-of-work')
     await mkdir(fallback, { recursive: true })
-    await link(primary.path, join(fallback, 'passport.sqlite'))
-    const chooseLocation = vi.fn<PassportLocationChooser>(async () => undefined)
+    const localPath = join(fallback, 'passport.sqlite')
+    await link(primary.path, localPath)
+    const crashed = spawnSync(
+      process.execPath,
+      [
+        '-e',
+        `const { DatabaseSync } = require('node:sqlite')
+         const db = new DatabaseSync(process.argv[1])
+         db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA wal_autocheckpoint=0; INSERT INTO edition(number,date,label,status) VALUES(2,'2027-01-02','Учебные изменения в локальном WAL','draft')")
+         process.exit(0)`,
+        localPath,
+      ],
+      { encoding: 'utf8', timeout: 10_000 },
+    )
+    expect(crashed.error).toBeUndefined()
+    expect(crashed.status).toBe(0)
+    const walBefore = await readFile(`${localPath}-wal`)
+    const mainBefore = await readFile(primary.path)
+    expect(walBefore.byteLength).toBeGreaterThan(0)
+    await expect(
+      openPortablePassport({ ...options, chooseLocation: async () => undefined }),
+    ).rejects.toBeInstanceOf(PassportLocationCancelled)
+    expect(await readFile(`${localPath}-wal`)).toEqual(walBefore)
+    expect(await readFile(primary.path)).toEqual(mainBefore)
+    const chooseLocation = vi.fn<PassportLocationChooser>(async () => 'local')
     const reopened = await openPortablePassport({ ...options, chooseLocation })
     stores.push(reopened)
-    expect(chooseLocation).not.toHaveBeenCalled()
-    expect(value(await reopened.list())).toEqual([edition])
+    expect(chooseLocation).toHaveBeenCalledExactlyOnceWith({
+      portablePath: primary.path,
+      localPath,
+    })
+    expect(reopened.path).toBe(localPath)
+    expect(value(await reopened.list())).toEqual([
+      edition,
+      {
+        id: 2,
+        number: 2,
+        date: '2027-01-02',
+        label: 'Учебные изменения в локальном WAL',
+        status: 'draft',
+      },
+    ])
   })
 
   it('не подменяет повреждённую переносную базу пустой резервной', async () => {

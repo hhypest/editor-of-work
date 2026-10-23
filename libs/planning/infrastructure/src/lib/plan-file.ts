@@ -7,6 +7,7 @@ import {
   describePlanError,
   planBasis,
   setManualValue,
+  setPlanIndicators,
   workId,
   type AnnualPlan,
   type BasisLine,
@@ -29,12 +30,13 @@ import {
   formatHeader,
   planFileSchema,
   planFileV1Schema,
+  planFileV2Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 2
+export const PLAN_FORMAT_VERSION = 3
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -43,6 +45,18 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    2,
+    (file) => {
+      const parsed = planFileV2Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 3 },
+        plan: { ...parsed.data.plan, indicators: [] },
+      }
+    },
+  ],
   [
     1,
     (file) => {
@@ -113,6 +127,12 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
   if (!snapshotResult.success) return err(invalid('срез паспорта содержит неверные данные'))
   const snapshot = snapshotResult.data
   const manual: PlanFile['plan']['manual'] = []
+  const indicators: PlanFile['plan']['indicators'] = []
+  for (const [key, rows] of plan.indicators) {
+    const area = areaFromKey(key)
+    if (!area) return err(invalid('неизвестная область показателей'))
+    indicators.push({ area, rows: rows.map((row) => ({ ...row })) })
+  }
   for (const [key, values] of plan.manual) {
     const area = areaFromKey(key)
     if (!area) return err(invalid('неизвестная область ручных значений'))
@@ -127,6 +147,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       approval: plan.approval,
       works: plan.works.map((w) => ({ ...w, volume: w.volume ?? null })),
       manual,
+      indicators,
     },
   })
   if (!file.success) return err(invalid('план содержит неверные данные'))
@@ -218,6 +239,15 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
     plan = result.value
   }
   const areas = new Set<string>()
+  const indicatorAreas = new Set<string>()
+  for (const entry of file.plan.indicators) {
+    const key = areaKey(entry.area)
+    if (indicatorAreas.has(key)) return err(invalid('область показателей повторяется'))
+    indicatorAreas.add(key)
+    const next = setPlanIndicators(plan, entry.area, entry.rows)
+    if (!next.ok) return err(invalid(next.error.map(describePlanError).join('; ')))
+    plan = next.value
+  }
   for (const row of file.plan.manual) {
     if (!areaExists(row.area, basis.value))
       return err(invalid('неизвестная область ручных значений'))

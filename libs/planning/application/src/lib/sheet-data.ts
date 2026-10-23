@@ -1,6 +1,6 @@
 import type { PlanSheetData } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
-import { planRows, shareIn, workVolume, type AnnualPlan } from '@eow/planning/domain'
+import { indicatorsOf, planRows, shareIn, workVolume, type AnnualPlan } from '@eow/planning/domain'
 
 const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).replace('.', ',')
 
@@ -135,6 +135,23 @@ export function planSheetData(
           w.note,
         ]),
       })
+      const indicators = indicatorsOf(plan, area)
+      if (indicators.length)
+        tables.push({
+          title: 'Ручные показатели ПД',
+          columns: [
+            { title: 'Показатель', width: 160 },
+            { title: 'Ед.', width: 30 },
+            { title: 'Значение', width: 60 },
+            { title: 'Примечание', width: 140 },
+          ],
+          rows: indicators.map((row) => [
+            row.name,
+            row.unit,
+            String(row.value).replace('.', ','),
+            row.note,
+          ]),
+        })
       return { id: pd.id, name: pd.name, pchu: pd.pchu, segments: pd.segments, works, tables }
     }),
   })

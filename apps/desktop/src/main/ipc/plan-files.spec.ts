@@ -469,6 +469,59 @@ describe('планы в main', () => {
         area,
       }),
     )
+  it('применяет показатели ПД одним пакетом, сохраняет v3 и повторно открывает с тем же id', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const rows = [
+      { id: null, name: 'Учебный показатель', unit: 'шт.', value: '0', note: 'Учебное примечание' },
+    ]
+    const before = await editorState()
+    expect(
+      await edit(
+        { kind: 'indicatorRows', rows: [...rows, { ...rows[0]!, value: 'не число' }] },
+        'pd:ПД-2',
+      ),
+    ).toMatchObject({ status: 'invalid' })
+    expect(await editorState()).toEqual(before)
+    const applied = await edit({ kind: 'indicatorRows', rows }, 'pd:ПД-2')
+    expect(applied).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { indicators: [{ id: expect.any(String), value: 0 }] } },
+    })
+    if (applied.status !== 'editor') throw new Error('Нет состояния редактора')
+    const indicators = applied.state.view!.indicators
+    expect(
+      await invoke({ action: 'previewEditorSheets', revision: applied.state.revision, pd: 'ПД-2' }),
+    ).toMatchObject({
+      status: 'editorSheets',
+      source: {
+        pds: [
+          { tables: [] },
+          {
+            tables: expect.arrayContaining([
+              {
+                title: 'Ручные показатели ПД',
+                columns: expect.any(Array),
+                rows: [['Учебный показатель', 'шт.', '0', 'Учебное примечание']],
+              },
+            ]),
+          },
+        ],
+      },
+    })
+    expect(await edit({ kind: 'undo' }, 'pd:ПД-2')).toMatchObject({
+      state: { view: { indicators: [] } },
+    })
+    expect(await edit({ kind: 'redo' }, 'pd:ПД-2')).toMatchObject({
+      state: { view: { indicators } },
+    })
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(3)
+    await edit({ kind: 'open' })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
+      state: { dirty: false, view: { indicators, canUndo: false } },
+    })
+    expect((await editorState()).view?.indicators).toEqual([])
+  })
   it('привязывает лист к ревизии редактора, отражает правки и историю без записи файла', async () => {
     expect(await invoke({ action: 'previewEditorSheets', revision: 0, pd: 'ПД-2' })).toMatchObject({
       status: 'error',

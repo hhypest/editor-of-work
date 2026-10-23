@@ -99,6 +99,41 @@ describe('Листы ПД', () => {
     const bad = result.value.flatMap((b) => b.boxes).filter((b) => b.x < 15 || b.x + b.width > 405)
     expect(bad).toEqual([])
   })
+  it('размещает ручные показатели ПД с единицей, знаком и многострочным примечанием', () => {
+    const data = {
+      ...source,
+      pds: source.pds.map((p) =>
+        p.id !== 'pd'
+          ? p
+          : {
+              ...p,
+              tables: [
+                ...p.tables,
+                {
+                  title: 'Ручные показатели ПД',
+                  columns: [
+                    { title: 'Показатель', width: 160 },
+                    { title: 'Ед.', width: 30 },
+                    { title: 'Значение', width: 60 },
+                    { title: 'Примечание', width: 140 },
+                  ],
+                  rows: [
+                    ['Учебный нулевой', 'шт.', '0', ''],
+                    ['Учебный подписанный', '', '-1,25', 'Учебное примечание '.repeat(10)],
+                  ],
+                },
+              ],
+            },
+      ),
+    }
+    const document = built(data),
+      all = document.pages.flatMap((p) => texts(p.primitives))
+    expect(all).toContain('Ручные показатели ПД')
+    expect(all).toContain('0')
+    expect(all).toContain('-1,25')
+    expect(all.filter((t) => t.includes('Учебное примечание')).length).toBeGreaterThan(1)
+    expect(document).toMatchSnapshot()
+  })
   it('переносит большие таблицы, повторяя заголовки и сохраняя каждую ячейку', () => {
     const rows = Array.from({ length: 100 }, (_, i) => [
       `Учебная строка ${i + 1}`,

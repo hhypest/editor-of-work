@@ -447,6 +447,95 @@
         Отменить ввод в таблицах
       </button>
     </section>
+    <section aria-labelledby="indicators-title">
+      <h3 id="indicators-title">Ручные показатели выбранной области</h3>
+      <p>
+        Наименования и единицы задаёт составитель. Значения самостоятельны для каждой области и не
+        суммируются автоматически. Изменения появятся на листе после применения.
+      </p>
+      <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">
+        <legend>Показатели</legend>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Наименование</th>
+                <th scope="col">Единица</th>
+                <th scope="col">Значение</th>
+                <th scope="col">Примечание</th>
+                <th scope="col">Действие</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of facade.indicatorRows(); track $index) {
+                <tr>
+                  <td>
+                    <input
+                      [attr.aria-label]="'Наименование показателя ' + ($index + 1)"
+                      [ngModel]="row.name"
+                      (ngModelChange)="facade.patchIndicator($index, { name: $event })"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      [attr.aria-label]="'Единица показателя ' + ($index + 1)"
+                      [ngModel]="row.unit"
+                      (ngModelChange)="facade.patchIndicator($index, { unit: $event })"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      inputmode="decimal"
+                      [attr.aria-label]="'Значение показателя ' + ($index + 1)"
+                      [ngModel]="row.value"
+                      (ngModelChange)="facade.patchIndicator($index, { value: $event })"
+                    />
+                  </td>
+                  <td>
+                    <textarea
+                      rows="2"
+                      [attr.aria-label]="'Примечание показателя ' + ($index + 1)"
+                      [ngModel]="row.note"
+                      (ngModelChange)="facade.patchIndicator($index, { note: $event })"
+                    ></textarea>
+                  </td>
+                  <td>
+                    <button type="button" (click)="facade.removeIndicator($index)">
+                      Удалить показатель {{ $index + 1 }}
+                    </button>
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="5">Ручные показатели не заданы.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <button
+          type="button"
+          [disabled]="facade.indicatorRows().length >= 10000"
+          (click)="facade.addIndicator()"
+        >
+          Добавить показатель
+        </button>
+        <button
+          type="button"
+          [disabled]="facade.indicatorDraft() === null"
+          (click)="facade.applyIndicators()"
+        >
+          Применить показатели
+        </button>
+        <button
+          type="button"
+          [disabled]="facade.indicatorDraft() === null"
+          (click)="facade.cancelIndicators()"
+        >
+          Отменить ввод показателей
+        </button>
+      </fieldset>
+    </section>
     <details>
       <summary>Гриф утверждения</summary>
       <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">

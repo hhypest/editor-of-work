@@ -1,4 +1,11 @@
 import type { PlanEditionChoice } from './passport-view'
+export interface EditorIndicatorDraft {
+  readonly id: string | null
+  readonly name: string
+  readonly unit: string
+  readonly value: string
+  readonly note: string
+}
 /** DTO редактора. UI не получает доменные объекты и пути файлов. */
 export interface EditorDraft {
   readonly kind: string
@@ -19,6 +26,7 @@ export interface EditorIssue {
   readonly end: number | null
 }
 export type EditorChange =
+  | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
   | {
       readonly kind: 'manualRows'
       readonly rows: readonly {
@@ -58,6 +66,13 @@ export type EditorAction =
   | { readonly kind: 'recover'; readonly accept: boolean }
   | { readonly kind: 'checkPlace'; readonly line: string; readonly text: string }
 export interface EditorView {
+  readonly indicators: readonly {
+    readonly id: string
+    readonly name: string
+    readonly unit: string
+    readonly value: number
+    readonly note: string
+  }[]
   readonly year: number
   readonly edition: { readonly number: string; readonly date: string }
   readonly approval: { readonly title: string; readonly name: string; readonly year: number }

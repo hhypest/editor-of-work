@@ -2,6 +2,7 @@ import { err, ok, type Result } from '@eow/shared/kernel'
 import { areaExists, areaKey, areaLabel, type PlanArea } from './distribution'
 import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
+import type { PlanIndicator } from './indicators'
 import {
   ownWork,
   sameWorkInput,
@@ -34,6 +35,7 @@ export interface AnnualPlan {
   readonly works: readonly PlannedWork[]
   /** Значения, введённые вручную, по ключу области ({@link areaKey}). */
   readonly manual: ReadonlyMap<string, AreaManual>
+  readonly indicators: ReadonlyMap<string, readonly PlanIndicator[]>
 }
 
 export interface PrototypeArchive {
@@ -83,7 +85,14 @@ export function createAnnualPlan(
 ): Result<AnnualPlan, readonly PlanError[]> {
   const checked = failIfAny([...yearErrors(year), ...approvalYearErrors(approval.year)])
   if (!checked.ok) return checked
-  return ok({ year, basis, approval: Object.freeze({ ...approval }), works: [], manual: new Map() })
+  return ok({
+    year,
+    basis,
+    approval: Object.freeze({ ...approval }),
+    works: [],
+    manual: new Map(),
+    indicators: new Map(),
+  })
 }
 
 export function setApproval(

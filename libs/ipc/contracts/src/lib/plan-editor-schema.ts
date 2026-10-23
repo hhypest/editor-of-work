@@ -21,6 +21,12 @@ export const editorDraftSchema = z
 export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
+      kind: z.literal('pdScale'),
+      scale: z.union([z.literal(25000), z.literal(50000), z.literal(100000)]),
+    })
+    .strict(),
+  z
+    .object({
       kind: z.literal('indicatorRows'),
       rows: z
         .array(
@@ -80,6 +86,7 @@ const view = z
     canUndo: z.boolean(),
     canRedo: z.boolean(),
     area: id,
+    pdScale: z.union([z.literal(25000), z.literal(50000), z.literal(100000)]).nullable(),
     indicators: z
       .array(z.object({ id, name: text, unit: text, value: z.number(), note: text }).strict())
       .max(10000),

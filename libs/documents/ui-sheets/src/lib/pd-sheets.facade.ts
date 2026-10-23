@@ -49,6 +49,7 @@ export class PdSheetsFacade {
       this.selected.set(
         result.value.pds.find((p) => p.id === this.selected())?.id ?? result.value.pds[0]?.id ?? '',
       )
+      this.scale.set(result.value.pds.find((p) => p.id === this.selected())?.scale ?? 50000)
       this.rebuild()
     } catch {
       if (revision === this.revision) {
@@ -62,6 +63,7 @@ export class PdSheetsFacade {
   select(id: string): void {
     if (this.busy() || !this.source()?.pds.some((p) => p.id === id)) return
     this.selected.set(id)
+    this.scale.set(this.source()?.pds.find((p) => p.id === id)?.scale ?? 50000)
     this.rebuild()
   }
   setScale(value: number): void {

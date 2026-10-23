@@ -13,6 +13,13 @@ const source = (entry: unknown) => ({
     { id: 'pd', name: 'Учебный ПД', pchu: 'Учебный', segments: [], works: [], tables: [entry] },
   ],
 })
+it('срез листа принимает только поддерживаемый сохранённый масштаб', () => {
+  const data = source(table)
+  const scaled = (scale: unknown) => ({ ...data, pds: data.pds.map((pd) => ({ ...pd, scale })) })
+  expect(planSheetDataSchema.safeParse(scaled(25000)).success).toBe(true)
+  expect(planSheetDataSchema.safeParse(scaled(75000)).success).toBe(false)
+  expect(planSheetDataSchema.safeParse(scaled('25000')).success).toBe(false)
+})
 it('срез листа принимает необязательные ID строк и отклоняет неверные типы и лишние поля', () => {
   expect(planSheetDataSchema.safeParse(source(table)).success).toBe(true)
   expect(planSheetDataSchema.safeParse(source({ ...table, workIds: ['w'] })).success).toBe(true)

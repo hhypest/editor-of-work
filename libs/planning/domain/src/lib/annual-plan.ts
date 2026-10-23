@@ -3,6 +3,7 @@ import { areaExists, areaKey, areaLabel, type PlanArea } from './distribution'
 import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
 import type { PlanIndicator } from './indicators'
+import type { PdScale } from './pd-scale'
 import {
   ownWork,
   sameWorkInput,
@@ -36,6 +37,7 @@ export interface AnnualPlan {
   /** Значения, введённые вручную, по ключу области ({@link areaKey}). */
   readonly manual: ReadonlyMap<string, AreaManual>
   readonly indicators: ReadonlyMap<string, readonly PlanIndicator[]>
+  readonly pdScales: ReadonlyMap<string, PdScale>
 }
 
 export interface PrototypeArchive {
@@ -92,6 +94,7 @@ export function createAnnualPlan(
     works: [],
     manual: new Map(),
     indicators: new Map(),
+    pdScales: new Map(),
   })
 }
 

@@ -8,6 +8,7 @@ import {
   planBasis,
   setManualValue,
   setPlanIndicators,
+  setPdScale,
   workId,
   type AnnualPlan,
   type BasisLine,
@@ -31,12 +32,13 @@ import {
   planFileSchema,
   planFileV1Schema,
   planFileV2Schema,
+  planFileV3Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 3
+export const PLAN_FORMAT_VERSION = 4
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -45,6 +47,18 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    3,
+    (file) => {
+      const parsed = planFileV3Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 4 },
+        plan: { ...parsed.data.plan, pdScales: [] },
+      }
+    },
+  ],
   [
     2,
     (file) => {
@@ -148,6 +162,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       works: plan.works.map((w) => ({ ...w, volume: w.volume ?? null })),
       manual,
       indicators,
+      pdScales: [...plan.pdScales].map(([pd, scale]) => ({ pd, scale })),
     },
   })
   if (!file.success) return err(invalid('план содержит неверные данные'))
@@ -220,6 +235,14 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
   let result = createAnnualPlan(file.plan.year, basis.value, file.plan.approval)
   if (!result.ok) return err(invalid(result.error.map(describePlanError).join('; ')))
   let plan = result.value
+  const scaledPds = new Set<string>()
+  for (const entry of file.plan.pdScales) {
+    if (scaledPds.has(entry.pd)) return err(invalid('настройка масштаба ПД повторяется'))
+    scaledPds.add(entry.pd)
+    const changed = setPdScale(plan, entry.pd, entry.scale)
+    if (!changed.ok) return err(invalid(changed.error.map(describePlanError).join('; ')))
+    plan = changed.value
+  }
   for (const work of file.plan.works) {
     const p = work.place
     const place: WorkPlace =

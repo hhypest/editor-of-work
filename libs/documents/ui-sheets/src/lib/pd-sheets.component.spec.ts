@@ -22,6 +22,27 @@ const providers = (port: PdSheetClient) => [
   { provide: SHEET_MEASURER, useValue: async () => measurer },
 ]
 describe('Предпросмотр ПД', () => {
+  it('открывает сохранённые масштабы ПД и сохраняет временный выбор при отмене диалога', async () => {
+    const port = client()
+    const scaled: PlanSheetData = {
+      ...source,
+      pds: source.pds.map((p) => ({ ...p, scale: p.id === 'a' ? 25000 : 100000 })),
+    }
+    vi.mocked(port.load).mockResolvedValue(ok(scaled))
+    TestBed.configureTestingModule({ providers: [PdSheetsFacade, ...providers(port)] })
+    const f = TestBed.inject(PdSheetsFacade)
+    await f.load(true)
+    expect(f.scale()).toBe(25000)
+    f.setScale(50000)
+    vi.mocked(port.load).mockResolvedValueOnce(ok('cancelled'))
+    await f.load(true)
+    expect(f.scale()).toBe(50000)
+    f.select('b')
+    expect(f.scale()).toBe(100000)
+    f.select('a')
+    expect(f.scale()).toBe(25000)
+    expect(scaled.pds[0]?.scale).toBe(25000)
+  })
   it('выбирает ПД и открывает план только для просмотра, рисуя безопасный текст', async () => {
     const port = client()
     await TestBed.configureTestingModule({

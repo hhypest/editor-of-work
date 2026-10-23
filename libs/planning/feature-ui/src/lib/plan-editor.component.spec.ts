@@ -24,6 +24,7 @@ const state: EditorState = {
     area: 'district',
     works: [],
     indicators: [],
+    pdScale: null,
     tables: [
       {
         title: 'Текущее содержание',
@@ -62,6 +63,42 @@ async function setup(port = client()) {
   }
 }
 describe('Редактор плана', () => {
+  it('не закрепляет масштаб для чужой ревизии, области или черновика и меняет эпоху только после открытия', async () => {
+    const port = client()
+    const pdState: EditorState = {
+      ...state,
+      view: { ...state.view!, area: 'pd:a', pdScale: 50000 },
+    }
+    vi.mocked(port.send).mockResolvedValue({ kind: 'state', state: pdState })
+    const { facade } = await setup(port)
+    const change = { revision: 1, area: 'pd:a', scale: 25000 } as const
+    expect(await facade.savePdScale({ ...change, revision: 0 })).toBe(false)
+    expect(await facade.savePdScale({ ...change, area: 'pd:b' })).toBe(false)
+    facade.patch({ note: 'Незавершённый ввод' })
+    expect(await facade.savePdScale(change)).toBe(false)
+    expect(facade.form().note).toBe('Незавершённый ввод')
+    facade.resetForm()
+    facade.state.set({ ...pdState, hasRecovery: true })
+    expect(await facade.savePdScale(change)).toBe(false)
+    facade.state.set(pdState)
+    expect(port.send).toHaveBeenCalledTimes(1)
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'state',
+      state: { ...pdState, revision: 2, dirty: true, view: { ...pdState.view!, pdScale: 25000 } },
+    })
+    expect(await facade.savePdScale(change)).toBe(true)
+    expect(port.send).toHaveBeenLastCalledWith({ kind: 'pdScale', scale: 25000 }, 1, 'pd:a')
+    expect(facade.planEpoch()).toBe(0)
+    expect(await facade.savePdScale(change)).toBe(false)
+    await facade.requestOpen({ kind: 'open' })
+    vi.mocked(port.send).mockResolvedValueOnce({ kind: 'cancelled' })
+    await facade.discardAndOpen()
+    expect(facade.planEpoch()).toBe(0)
+    await facade.requestOpen({ kind: 'open' })
+    vi.mocked(port.send).mockResolvedValueOnce({ kind: 'state', state })
+    await facade.discardAndOpen()
+    expect(facade.planEpoch()).toBe(1)
+  })
   it('фильтрует только список по странице той же ревизии; чужой и устаревший выбор скрывает', async () => {
     const port = client()
     vi.mocked(port.send).mockResolvedValue({

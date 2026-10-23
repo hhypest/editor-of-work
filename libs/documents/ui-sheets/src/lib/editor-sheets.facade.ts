@@ -18,8 +18,10 @@ export class EditorSheetsFacade {
   private key: string | null = null
   private source: PlanSheetData | null = null
   private measurer: TextMeasurer | undefined
+  private planEpoch: number | undefined
   readonly selected = signal('')
   readonly scale = signal<OverviewScale>(50000)
+  readonly savedScale = signal<OverviewScale>(50000)
   readonly zoom = signal(0.5)
   readonly busy = signal(false)
   readonly error = signal<string | null>(null)
@@ -58,16 +60,21 @@ export class EditorSheetsFacade {
       return
     }
     const pd = context.area.slice(3)
-    if (pd !== this.selected()) {
+    const savedScale = context.pdScale ?? 50000
+    const epoch = context.planEpoch ?? 0
+    if (pd !== this.selected() || savedScale !== this.savedScale() || epoch !== this.planEpoch) {
       this.index.set(0)
       this.selected.set(pd)
+      this.scale.set(savedScale)
+      this.savedScale.set(savedScale)
+      this.planEpoch = epoch
     }
     if (context.busy) {
       this.invalidate()
       this.busy.set(true)
       return
     }
-    const key = JSON.stringify([context.revision, pd])
+    const key = JSON.stringify([context.revision, pd, savedScale, epoch])
     if (key === this.key) return
     this.invalidate()
     this.key = key

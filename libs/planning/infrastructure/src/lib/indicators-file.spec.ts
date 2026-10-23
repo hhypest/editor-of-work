@@ -14,13 +14,13 @@ const value = <T>(r: Result<T, unknown>): T => {
   if (!r.ok) throw new Error('Учебная ошибка')
   return r.value
 }
-describe('Формат v3 и ручные показатели', () => {
+describe('Ручные показатели и совместимость форматов', () => {
   it.each([v1Fixture, v2Fixture])(
     'переносит прежний формат без изменения среза, работ и архива',
     (old) => {
       const before = JSON.stringify(old)
       const file = value(readPlanFile(before))
-      expect(file.format.version).toBe(3)
+      expect(file.format.version).toBe(4)
       expect(file.plan.indicators).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

@@ -8,6 +8,7 @@ import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-
   selector: 'eow-plan-workspace',
   imports: [PlanEditorComponent, EditorSheetsComponent],
   template: `<eow-plan-editor
+    #editor
     (previewContext)="context.set($event)"
     [pageSelection]="pageSelection()"
   >
@@ -15,6 +16,7 @@ import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-
       planPreview
       [context]="context()"
       (pageSelection)="pageSelection.set($event)"
+      (saveScale)="editor.savePdScale($event)"
     />
   </eow-plan-editor>`,
   changeDetection: ChangeDetectionStrategy.OnPush,

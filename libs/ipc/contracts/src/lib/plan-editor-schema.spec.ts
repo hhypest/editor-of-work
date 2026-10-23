@@ -1,5 +1,20 @@
 import { channels } from './channels'
 describe('Контракт редактора', () => {
+  it('принимает только поддерживаемые числовые масштабы и строгую команду', () => {
+    const request = (scale: unknown) => ({
+      action: 'editor',
+      command: { kind: 'pdScale', scale },
+      revision: 1,
+      area: 'pd:a',
+    })
+    for (const scale of [25000, 50000, 100000])
+      expect(channels.planFile.request.safeParse(request(scale)).success).toBe(true)
+    for (const scale of [0, 75000, 25000.1, '25000', null])
+      expect(channels.planFile.request.safeParse(request(scale)).success).toBe(false)
+    expect(
+      channels.planFile.request.safeParse({ ...request(25000), path: '/unexpected' }).success,
+    ).toBe(false)
+  })
   it('отклоняет неизвестное поле, отрицательную ревизию и неверную структуру до main', () => {
     const request = { action: 'editor', command: { kind: 'open' }, revision: 1, area: 'district' }
     expect(channels.planFile.request.safeParse(request).success).toBe(true)

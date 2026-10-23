@@ -187,4 +187,31 @@ it('composition root обновляет SVG после добавления, и�
   await input('editor-sheet-scale', '100000', 'change')
   expect(list()).toContain('Планово-предупредительная выправка')
   expect(session).toBe(currentSession)
+  await input('work-note', 'Незавершённый ввод перед настройкой')
+  const saveScale = [...element.querySelectorAll('button')].find(
+    (b) => b.textContent?.trim() === 'Сохранить масштаб в плане',
+  )!
+  expect(saveScale.disabled).toBe(true)
+  saveScale.click()
+  await settle()
+  expect(session).toBe(currentSession)
+  await click('Отменить ввод / новая работа')
+  await click('Сохранить масштаб в плане')
+  expect(session.present.pdScales.get('ПД-1')).toBe(100000)
+  expect(revision).toBe(currentRevision + 1)
+  expect(svg()).toContain('1:100000')
+  await history('KeyZ')
+  expect(element.querySelector<HTMLSelectElement>('#editor-sheet-scale')!.value).toBe('50000')
+  await history('KeyY')
+  expect(element.querySelector<HTMLSelectElement>('#editor-sheet-scale')!.value).toBe('100000')
+  await input('plan-area', 'pd:ПД-2', 'change')
+  expect(element.querySelector<HTMLSelectElement>('#editor-sheet-scale')!.value).toBe('50000')
+  await input('editor-sheet-scale', '25000', 'change')
+  await click('Сохранить масштаб в плане')
+  await input('plan-area', 'pd:ПД-1', 'change')
+  expect(element.querySelector<HTMLSelectElement>('#editor-sheet-scale')!.value).toBe('100000')
+  expect([...session.present.pdScales]).toEqual([
+    ['ПД-1', 100000],
+    ['ПД-2', 25000],
+  ])
 })

@@ -32,6 +32,7 @@ export type PlanError =
   | { readonly kind: 'unknown-area'; readonly area: string }
   | { readonly kind: 'invalid-manual-value'; readonly value: number }
   | { readonly kind: 'invalid-indicator'; readonly reason: 'id' | 'name' | 'value' | 'limit' }
+  | { readonly kind: 'invalid-pd-scale' }
 
 export type BasisPart = 'line' | 'station' | 'pd' | 'work-kind'
 
@@ -51,6 +52,8 @@ const BASIS_PART: Record<BasisPart, string> = {
 /** Текст ошибки для пользователя. */
 export function describePlanError(e: PlanError): string {
   switch (e.kind) {
+    case 'invalid-pd-scale':
+      return 'Выберите масштаб схемы ПД 1:25 000, 1:50 000 или 1:100 000'
     case 'invalid-indicator':
       return {
         id: 'Идентификаторы показателей должны быть непустыми и уникальными в области',

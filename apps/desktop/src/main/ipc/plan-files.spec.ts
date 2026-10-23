@@ -552,6 +552,9 @@ describe('планы в main', () => {
       status: 'editorSheets',
       source: { pds: [{ works: [], tables: [] }, { works: [{ id: work.id, volume: 0.064 }] }] },
     })
+    const source = await preview(added.revision)
+    if (source.status !== 'editorSheets') throw new Error('Нет среза листа')
+    expect(source.source.pds[1]?.tables.find((t) => t.workIds)?.workIds).toEqual([work.id])
     await edit({
       kind: 'edit',
       id: work.id,

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
 import { mm, type EditorSheetClient, type TextMeasurer } from '@eow/documents/application'
-import type { PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
+import type { PlanPageSelection, PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
 import { EDITOR_SHEET_CLIENT, EditorSheetsFacade } from './editor-sheets.facade'
 import { EditorSheetsComponent } from './editor-sheets.component'
 import { SHEET_MEASURER } from './overview.facade'
@@ -69,11 +69,14 @@ describe('Лист в редакторе плана', () => {
       providers: providers(port),
     }).compileComponents()
     const fixture = TestBed.createComponent(EditorSheetsComponent)
+    const selections: (PlanPageSelection | null)[] = []
+    fixture.componentInstance.pageSelection.subscribe((selection) => selections.push(selection))
     fixture.componentRef.setInput('context', context)
     await fixture.whenStable()
     fixture.detectChanges()
     const element = fixture.nativeElement as HTMLElement
     expect(element.querySelector('svg')?.textContent).toContain('Учебный ПД a')
+    expect(selections.at(-1)).toEqual({ revision: 1, area: 'pd:a', page: 1, workIds: [] })
     fixture.componentRef.setInput('context', { ...context, pending: true })
     await fixture.whenStable()
     expect(element.textContent).toContain('Есть незавершённый ввод')
@@ -81,6 +84,7 @@ describe('Лист в редакторе плана', () => {
     fixture.componentRef.setInput('context', { ...context, area: 'station:s' })
     await fixture.whenStable()
     expect(element.querySelector('svg')).toBeNull()
+    expect(selections.at(-1)).toBeNull()
     expect(element.textContent).toContain('выберите ПД')
   })
   it.each(['load', 'fonts'] as const)(
@@ -114,11 +118,13 @@ describe('Лист в редакторе плана', () => {
     const pending = f.sync({ ...context, revision: 2 })
     await f.sync({ ...context, revision: 2, busy: true })
     expect(f.document()).toBeNull()
+    expect(f.selection()).toBeNull()
     old.resolve(ok(source))
     await pending
     expect(f.document()).toBeNull()
     await f.sync({ ...context, revision: 3 })
     expect(f.document()).not.toBeNull()
+    expect(f.selection()).toMatchObject({ revision: 3, area: 'pd:a' })
   })
   it.each(['result', 'throw', 'fonts'] as const)(
     'ошибка %s очищает лист; масштаб и zoom не возвращают старые данные, повтор доступен',
@@ -140,9 +146,11 @@ describe('Лист в редакторе плана', () => {
       f.setScale(25000)
       f.setZoom(1)
       expect(f.document()).toBeNull()
+      expect(f.selection()).toBeNull()
       expect(f.error()).toBe(error)
       await f.retry(next)
       expect(f.document()).not.toBeNull()
+      expect(f.selection()).toMatchObject({ revision: 2, area: 'pd:a' })
       expect(f.error()).toBeNull()
     },
   )
@@ -152,15 +160,18 @@ describe('Лист в редакторе плана', () => {
     await f.sync(context)
     expect(f.document()!.pages.length).toBeGreaterThan(1)
     f.move(1)
+    expect(f.selection()?.page).toBe(2)
     await f.sync({ ...context, revision: 2 })
     expect(f.index()).toBe(1)
     vi.mocked(port.source).mockResolvedValueOnce(ok(source))
     await f.sync({ ...context, revision: 3 })
     expect(f.index()).toBe(0)
+    expect(f.selection()).toMatchObject({ revision: 3, page: 1 })
     await f.sync({ ...context, revision: 4 })
     f.move(1)
     await f.sync({ ...context, area: 'pd:b', revision: 4 })
     expect(f.index()).toBe(0)
+    expect(f.selection()).toMatchObject({ area: 'pd:b', page: 1 })
     const document = f.document()
     f.setZoom(1)
     expect(f.document()).toBe(document)

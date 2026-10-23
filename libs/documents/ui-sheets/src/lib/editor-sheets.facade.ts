@@ -2,11 +2,11 @@ import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from
 import {
   buildPdSheets,
   type EditorSheetClient,
-  type OverviewDocument,
+  type PdDocument,
   type OverviewScale,
   type TextMeasurer,
 } from '@eow/documents/application'
-import type { PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
+import type { PlanPageSelection, PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
 import { SHEET_MEASURER } from './overview.facade'
 
 export const EDITOR_SHEET_CLIENT = new InjectionToken<EditorSheetClient>('Листы редактора плана')
@@ -23,9 +23,21 @@ export class EditorSheetsFacade {
   readonly zoom = signal(0.5)
   readonly busy = signal(false)
   readonly error = signal<string | null>(null)
-  readonly document = signal<OverviewDocument | null>(null)
+  private readonly readyContext = signal<{
+    readonly revision: number
+    readonly area: string
+  } | null>(null)
+  readonly document = signal<PdDocument | null>(null)
   readonly index = signal(0)
   readonly page = computed(() => this.document()?.pages[this.index()] ?? null)
+  readonly selection = computed<PlanPageSelection | null>(() => {
+    const context = this.readyContext(),
+      page = this.page(),
+      ids = this.document()?.workIdsByPage[this.index()]
+    return context && page && ids && !this.busy()
+      ? { ...context, page: page.number, workIds: ids }
+      : null
+  })
   constructor() {
     inject(DestroyRef).onDestroy(() => ++this.generation)
   }
@@ -33,6 +45,7 @@ export class EditorSheetsFacade {
     ++this.generation
     this.key = null
     this.source = null
+    this.readyContext.set(null)
     this.document.set(null)
     this.error.set(null)
     this.busy.set(false)
@@ -72,6 +85,7 @@ export class EditorSheetsFacade {
       this.measurer = measurer
       this.source = result.value
       this.rebuild()
+      this.readyContext.set({ revision: context.revision, area: context.area })
     } catch {
       if (generation === this.generation)
         this.error.set('Не удалось подготовить лист или встроенные шрифты. Повторите попытку.')

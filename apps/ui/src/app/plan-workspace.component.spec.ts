@@ -160,4 +160,31 @@ it('composition root обновляет SVG после добавления, и�
   expect(svg()).toContain('<Учебный показатель>')
   expect(sheets.source).toHaveBeenLastCalledWith(revision, 'ПД-1')
   expect(session.present.works).toHaveLength(1)
+  const currentSession = session,
+    currentRevision = revision,
+    sourceCalls = vi.mocked(sheets.source).mock.calls.length
+  const list = () => element.querySelector('[aria-labelledby="works-title"]')!.textContent!
+  await input('work-list-scope', 'page', 'change')
+  expect(list()).toContain('На текущем листе нет работ')
+  expect(list()).toContain('0 из 1')
+  await click('Предыдущий лист')
+  expect(list()).toContain('Планово-предупредительная выправка')
+  expect(list()).toContain('1 из 1')
+  await click('Изменить')
+  await input('work-note', 'Черновик при переходе страницы')
+  await click('Следующий лист')
+  expect(list()).toContain('На текущем листе нет работ')
+  expect(element.querySelector<HTMLTextAreaElement>('#work-note')!.value).toBe(
+    'Черновик при переходе страницы',
+  )
+  await input('work-list-scope', 'area', 'change')
+  expect(list()).toContain('Планово-предупредительная выправка')
+  expect(session).toBe(currentSession)
+  expect(revision).toBe(currentRevision)
+  expect(sheets.source).toHaveBeenCalledTimes(sourceCalls)
+  await click('Отменить ввод / новая работа')
+  await input('work-list-scope', 'page', 'change')
+  await input('editor-sheet-scale', '100000', 'change')
+  expect(list()).toContain('Планово-предупредительная выправка')
+  expect(session).toBe(currentSession)
 })

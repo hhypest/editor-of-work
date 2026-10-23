@@ -54,6 +54,7 @@ export const planSheetDataSchema = z
                   z.object({ title: z.string(), width: z.number().positive() }).strict(),
                 ),
                 rows: z.array(z.array(z.string())),
+                workIds: z.array(z.string().min(1)).optional(),
               })
               .strict(),
           ),

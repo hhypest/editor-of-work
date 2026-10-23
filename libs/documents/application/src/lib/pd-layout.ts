@@ -39,6 +39,9 @@ export interface PdSheetClient {
 export interface EditorSheetClient {
   source(revision: number, pd: string): Promise<Result<PlanSheetData, SheetError>>
 }
+export interface PdDocument extends OverviewDocument {
+  readonly workIdsByPage: readonly (readonly string[])[]
+}
 const TOP = 53,
   BOTTOM = 245
 interface Row {
@@ -176,14 +179,26 @@ export function buildPdSheets(
   pdId: string,
   scale: OverviewScale,
   measurer: TextMeasurer,
-): Result<OverviewDocument, SheetError> {
+): Result<PdDocument, SheetError> {
   const prepared = prepare(data, pdId, scale)
   if (!prepared.ok) return prepared
   const pd = data.pds.find((p) => p.id === pdId)
   if (!pd) return err({ message: 'ПД отсутствует в срезе плана.' })
   if (pd.works.length > 10000 || pd.tables.reduce((n, t) => n + t.rows.length, 0) > 20000)
     return err({ message: 'Слишком много работ или строк таблиц.' })
+  const knownWorks = new Set(pd.works.map((w) => w.id))
+  if (
+    knownWorks.size !== pd.works.length ||
+    pd.tables.some(
+      (t) =>
+        t.workIds !== undefined &&
+        (t.workIds.length !== t.rows.length || t.workIds.some((id) => !knownWorks.has(id))),
+    )
+  )
+    return err({ message: 'Неверные ссылки строк ведомости на работы ПД.' })
   const pages: SheetPage[] = [],
+    workIdsByPage: string[][] = [],
+    pageWorks = new Set<string>(),
     warnings: string[] = []
   if (pd.works.some((w) => w.lineId === null && w.callout))
     warnings.push('Станционные работы показаны в ведомости: в срезе плана нет координат их осей.')
@@ -241,6 +256,8 @@ export function buildPdSheets(
         ),
       ],
     })
+    workIdsByPage.push([...pageWorks])
+    pageWorks.clear()
     shapes = []
     y = TOP
     return ok(null)
@@ -248,6 +265,7 @@ export function buildPdSheets(
   for (const row of prepared.value) {
     const x = (at: Chainage) => 35 + (distance(row.span.from, at, row.lengths) * 1000) / scale
     const marks: SheetPrimitive[] = [],
+      rowWorks: string[] = [],
       callouts: CalloutInput[] = []
     for (const [index, w] of pd.works.entries()) {
       if (w.lineId !== row.span.line) continue
@@ -294,6 +312,7 @@ export function buildPdSheets(
         }
       }
       const anchor = anchors[0]
+      if (anchor !== undefined) rowWorks.push(w.id)
       if (w.callout && anchor !== undefined)
         callouts.push({
           id: w.id,
@@ -370,6 +389,7 @@ export function buildPdSheets(
             : [label],
         ),
       )
+      for (const id of rowWorks) pageWorks.add(id)
       y += height + 4
     }
   }
@@ -396,7 +416,7 @@ export function buildPdSheets(
     }
     let h = heading()
     if (!h.ok) return h
-    for (const r of m.rows) {
+    for (const [index, r] of m.rows.entries()) {
       if (TOP + 8 + m.header.height + r.height > BOTTOM)
         return err({ message: `Строка таблицы «${m.title}» не помещается на листе с заголовком.` })
       if (y + r.height > BOTTOM) {
@@ -406,6 +426,8 @@ export function buildPdSheets(
         if (!h.ok) return h
       }
       shapes.push(...moveShapes(r.primitives, y))
+      const workId = table.workIds?.[index]
+      if (workId !== undefined) pageWorks.add(workId)
       y += r.height
     }
     if (!m.rows.length) {
@@ -416,5 +438,5 @@ export function buildPdSheets(
   }
   const saved = flush()
   if (!saved.ok) return saved
-  return ok({ pages, warnings })
+  return ok({ pages, warnings, workIdsByPage })
 }

@@ -120,6 +120,7 @@ export function planSheetData(
       })
       tables.push({
         title: 'Ведомость работ ПД',
+        workIds: works.map((w) => w.id),
         columns: [
           { title: '№', width: 12 },
           { title: 'Вид работ', width: 75 },

@@ -361,6 +361,91 @@ describe('Редактор плана', () => {
     await fixture.whenStable()
     expect(vi.mocked(port.send).mock.lastCall?.[0]).toEqual({ kind: 'undo' })
   })
+  it.each([
+    ['s', 'save'],
+    ['S', 'save'],
+    ['ы', 'save'],
+    ['Ы', 'save'],
+    ['z', 'undo'],
+    ['я', 'undo'],
+    ['y', 'redo'],
+    ['н', 'redo'],
+  ])('Ctrl+%s без физического code выполняет %s', async (key, command) => {
+    const { fixture, port } = await setup()
+    const event = new KeyboardEvent('keydown', {
+      key,
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    })
+    document.dispatchEvent(event)
+    await fixture.whenStable()
+    expect(event.defaultPrevented).toBe(true)
+    expect(vi.mocked(port.send).mock.lastCall?.[0].kind).toBe(command)
+    expect(port.send).toHaveBeenCalledTimes(2)
+  })
+  it.each(['p', 'P', 'з', 'З'])(
+    'Ctrl+%s с неопознанным code передаёт одну команду PDF',
+    async (key) => {
+      const { fixture, port } = await setup()
+      const print = vi.fn<() => void>()
+      fixture.componentInstance.printRequested.subscribe(print)
+      const event = new KeyboardEvent('keydown', {
+        code: 'Unidentified',
+        key,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      document.dispatchEvent(event)
+      await fixture.whenStable()
+      expect(event.defaultPrevented).toBe(true)
+      expect(print).toHaveBeenCalledTimes(1)
+      expect(port.send).toHaveBeenCalledTimes(1)
+    },
+  )
+  it.each(['я', 'н', 'z', 'y'])(
+    'Ctrl+%s без code в поле оставляет нативную историю текста',
+    async (key) => {
+      const { fixture, port, element } = await setup()
+      const event = new KeyboardEvent('keydown', {
+        key,
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      })
+      element.querySelector('input')!.dispatchEvent(event)
+      await fixture.whenStable()
+      expect(event.defaultPrevented).toBe(false)
+      expect(port.send).toHaveBeenCalledTimes(1)
+    },
+  )
+  it.each([
+    { key: 's' },
+    { key: 'ы', ctrlKey: true, altKey: true },
+    { key: 'q', ctrlKey: true },
+    { code: 'KeyQ', key: 's', ctrlKey: true },
+  ])('не перехватывает постороннее сочетание %j', async (init) => {
+    const { fixture, port } = await setup()
+    const event = new KeyboardEvent('keydown', { ...init, bubbles: true, cancelable: true })
+    document.dispatchEvent(event)
+    await fixture.whenStable()
+    expect(event.defaultPrevented).toBe(false)
+    expect(port.send).toHaveBeenCalledTimes(1)
+  })
+  it('Shift с резервным key сохраняет «Сохранить как» и повтор', async () => {
+    const { fixture, port } = await setup()
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'ы', ctrlKey: true, shiftKey: true }),
+    )
+    await fixture.whenStable()
+    expect(vi.mocked(port.send).mock.lastCall?.[0]).toEqual({ kind: 'save', saveAs: true })
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'я', ctrlKey: true, shiftKey: true }),
+    )
+    await fixture.whenStable()
+    expect(vi.mocked(port.send).mock.lastCall?.[0]).toEqual({ kind: 'redo' })
+  })
   it('при отмене открытия сохраняет ввод, а перед закрытием требует подтверждения', async () => {
     const { facade, port } = await setup()
     facade.patch({ note: 'Не потерять' })

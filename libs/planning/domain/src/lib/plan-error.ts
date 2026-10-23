@@ -31,6 +31,7 @@ export type PlanError =
   /** area — подпись для текста: «ПД «ПД-9»», «Станция «S9»». */
   | { readonly kind: 'unknown-area'; readonly area: string }
   | { readonly kind: 'invalid-manual-value'; readonly value: number }
+  | { readonly kind: 'invalid-indicator'; readonly reason: 'id' | 'name' | 'value' | 'limit' }
 
 export type BasisPart = 'line' | 'station' | 'pd' | 'work-kind'
 
@@ -50,6 +51,13 @@ const BASIS_PART: Record<BasisPart, string> = {
 /** Текст ошибки для пользователя. */
 export function describePlanError(e: PlanError): string {
   switch (e.kind) {
+    case 'invalid-indicator':
+      return {
+        id: 'Идентификаторы показателей должны быть непустыми и уникальными в области',
+        name: 'Укажите наименование каждого показателя',
+        value: 'Значение показателя должно быть конечным числом',
+        limit: 'В одной области допускается не более 10 000 показателей',
+      }[e.reason]
     case 'invalid-year':
       return `Год плана должен быть целым числом от 2000 до 2100, а не ${e.year}`
     case 'invalid-approval-year':

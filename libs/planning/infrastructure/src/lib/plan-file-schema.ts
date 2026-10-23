@@ -162,7 +162,7 @@ const placeV2 = z.union([
   linePlaceV2,
   z.object({ kind: z.literal('station'), station: id, object: stationObject.optional() }).strict(),
 ])
-export const planFileSchema = planFileV1Schema
+export const planFileV2Schema = planFileV1Schema
   .extend({
     format: z.object({ version: z.literal(2), appVersion: id }).strict(),
     edition: planFileV1Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
@@ -183,6 +183,36 @@ export const planFileSchema = planFileV1Schema
           })
           .strict()
           .nullable(),
+      })
+      .strict(),
+  })
+  .strict()
+
+export const planFileSchema = planFileV2Schema
+  .extend({
+    format: z.object({ version: z.literal(3), appVersion: id }).strict(),
+    plan: planFileV2Schema.shape.plan
+      .extend({
+        indicators: z.array(
+          z
+            .object({
+              area,
+              rows: z
+                .array(
+                  z
+                    .object({
+                      id,
+                      name: z.string(),
+                      unit: z.string(),
+                      value: z.number(),
+                      note: z.string(),
+                    })
+                    .strict(),
+                )
+                .max(10000),
+            })
+            .strict(),
+        ),
       })
       .strict(),
   })

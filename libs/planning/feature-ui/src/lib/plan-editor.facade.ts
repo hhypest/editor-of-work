@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from
 import type {
   EditorAction,
   EditorDraft,
+  EditorIndicatorDraft,
   EditorIssue,
   EditorState,
   PlaceHint,
@@ -41,6 +42,16 @@ export class PlanEditorFacade {
   readonly formDirty = signal(false)
   readonly hint = signal<PlaceHint | null>(null)
   readonly cells = signal<Readonly<Record<string, CellDraft>>>({})
+  readonly indicatorDraft = signal<readonly EditorIndicatorDraft[] | null>(null)
+  readonly indicatorRows = computed<readonly EditorIndicatorDraft[]>(
+    () =>
+      this.indicatorDraft() ??
+      this.view()?.indicators.map((row) => ({
+        ...row,
+        value: String(row.value).replace('.', ','),
+      })) ??
+      [],
+  )
   readonly approval = signal({ title: '', name: '', year: 0 })
   readonly approvalDirty = signal(false)
   readonly pendingOpen = signal<EditorAction | null>(null)
@@ -49,7 +60,10 @@ export class PlanEditorFacade {
   readonly newEdition = signal<number | null>(null)
   readonly newYear = signal('')
   readonly hasCells = computed(() => Object.keys(this.cells()).length > 0)
-  readonly pending = computed(() => this.formDirty() || this.hasCells() || this.approvalDirty())
+  readonly pending = computed(
+    () =>
+      this.formDirty() || this.hasCells() || this.approvalDirty() || this.indicatorDraft() !== null,
+  )
   readonly placeIssues = computed(() => [
     ...this.issues().filter((e) => e.field === 'place'),
     ...(this.hint()?.issues ?? []),
@@ -171,6 +185,7 @@ export class PlanEditorFacade {
     ++this.hintGeneration
   }
   private resetAll(): void {
+    this.indicatorDraft.set(null)
     this.resetForm()
     this.cells.set({})
     this.approvalDirty.set(false)
@@ -291,6 +306,33 @@ export class PlanEditorFacade {
   cancelTables(): void {
     this.cells.set({})
   }
+  addIndicator(): void {
+    if (this.busy() || this.state()?.hasRecovery || this.indicatorRows().length >= 10000) return
+    this.indicatorDraft.set([
+      ...this.indicatorRows(),
+      { id: null, name: '', unit: '', value: '', note: '' },
+    ])
+  }
+  patchIndicator(index: number, patch: Partial<EditorIndicatorDraft>): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.indicatorRows(),
+      row = rows[index]
+    if (row) this.indicatorDraft.set(rows.with(index, { ...row, ...patch }))
+  }
+  removeIndicator(index: number): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    this.indicatorDraft.set(this.indicatorRows().filter((_row, i) => i !== index))
+  }
+  cancelIndicators(): void {
+    this.indicatorDraft.set(null)
+  }
+  async applyIndicators(): Promise<boolean> {
+    const rows = this.indicatorDraft()
+    if (rows === null) return true
+    if (!(await this.run({ kind: 'indicatorRows', rows }))) return false
+    this.indicatorDraft.set(null)
+    return true
+  }
   cancelApproval(): void {
     this.approvalDirty.set(false)
     const approval = this.view()?.approval
@@ -299,7 +341,12 @@ export class PlanEditorFacade {
   async save(saveAs = false): Promise<boolean> {
     if (this.busy()) return false
     if (this.formDirty() && !(await this.apply())) return false
-    if (!(await this.applyCells()) || !(await this.applyApproval())) return false
+    if (
+      !(await this.applyCells()) ||
+      !(await this.applyIndicators()) ||
+      !(await this.applyApproval())
+    )
+      return false
     const saved = await this.run({ kind: 'save', saveAs })
     if (saved) this.notice.set('План сохранён.')
     return saved

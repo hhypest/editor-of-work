@@ -19,6 +19,16 @@ export const editorDraftSchema = z
   })
   .strict()
 export const editorActionSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('indicatorRows'),
+      rows: z
+        .array(
+          z.object({ id: id.nullable(), name: text, unit: text, value: text, note: text }).strict(),
+        )
+        .max(10000),
+    })
+    .strict(),
   z.object({ kind: z.literal('editions') }).strict(),
   z
     .object({
@@ -70,6 +80,9 @@ const view = z
     canUndo: z.boolean(),
     canRedo: z.boolean(),
     area: id,
+    indicators: z
+      .array(z.object({ id, name: text, unit: text, value: z.number(), note: text }).strict())
+      .max(10000),
     lines: z.array(z.object({ id, name: text }).strict()),
     stations: z.array(
       z.object({ id, name: text, tracks: z.array(id), switches: z.array(id) }).strict(),

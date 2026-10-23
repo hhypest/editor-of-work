@@ -23,6 +23,7 @@ const state: EditorState = {
     ],
     area: 'district',
     works: [],
+    indicators: [],
     tables: [
       {
         title: 'Текущее содержание',
@@ -191,6 +192,66 @@ describe('Редактор плана', () => {
     expect(facade.cell('work').plan).toBe('не число')
     expect(vi.mocked(port.send).mock.calls.filter(([c]) => c.kind === 'save')).toHaveLength(0)
   })
+  it('сохраняет черновик показателей при ошибке, блокирует переход и применяет пакет перед Ctrl+S', async () => {
+    const { facade, port, fixture, element } = await setup()
+    facade.addIndicator()
+    fixture.detectChanges()
+    const name = element.querySelector<HTMLInputElement>(
+      '[aria-label="Наименование показателя 1"]',
+    )!
+    name.value = '<Учебный показатель>'
+    name.dispatchEvent(new Event('input'))
+    await fixture.whenStable()
+    facade.patchIndicator(0, { value: 'ошибка', note: 'Не потерять' })
+    await facade.filter('pd:a')
+    expect(facade.area()).toBe('district')
+    expect(port.send).toHaveBeenCalledTimes(1)
+    const close = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(close)
+    expect(close.defaultPrevented).toBe(true)
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'invalid',
+      issues: [{ field: 'form', message: 'Показатель 1: введите число.', start: null, end: null }],
+    })
+    expect(await facade.save()).toBe(false)
+    expect(facade.indicatorRows()[0]).toMatchObject({
+      name: '<Учебный показатель>',
+      value: 'ошибка',
+      note: 'Не потерять',
+    })
+    expect(vi.mocked(port.send).mock.calls.some(([c]) => c.kind === 'save')).toBe(false)
+    facade.patchIndicator(0, { value: '0', unit: 'шт.' })
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await fixture.whenStable()
+    expect(
+      vi
+        .mocked(port.send)
+        .mock.calls.slice(-2)
+        .map(([c]) => c),
+    ).toEqual([
+      {
+        kind: 'indicatorRows',
+        rows: [
+          { id: null, name: '<Учебный показатель>', value: '0', unit: 'шт.', note: 'Не потерять' },
+        ],
+      },
+      { kind: 'save', saveAs: false },
+    ])
+    expect(facade.pending()).toBe(false)
+    facade.addIndicator()
+    facade.removeIndicator(0)
+    expect(facade.indicatorRows()).toEqual([])
+    expect(facade.pending()).toBe(true)
+    facade.cancelIndicators()
+    expect(facade.pending()).toBe(false)
+  })
   it('требует отдельного подтверждения отказа от найденной автокопии', async () => {
     const port = client()
     vi.mocked(port.send).mockResolvedValue({
@@ -209,6 +270,12 @@ describe('Редактор плана', () => {
     expect(facade.pendingOpen()).toEqual({ kind: 'recover', accept: false })
     const input = element.querySelector('#work-place')!
     expect(input.closest('fieldset')?.disabled).toBe(true)
+    const indicator = [...element.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === 'Добавить показатель',
+    )!
+    expect(indicator.closest('fieldset')?.disabled).toBe(true)
+    facade.addIndicator()
+    expect(facade.indicatorDraft()).toBeNull()
   })
   it('загружает редакции, проверяет год и требует выбора перед заменой незавершённого ввода', async () => {
     const { facade, port, fixture, element } = await setup()

@@ -16,6 +16,8 @@ import {
   planRows,
   setApproval,
   setManualValue,
+  setPlanIndicators,
+  indicatorsOf,
   shareIn,
   workId,
   workVolume,
@@ -129,6 +131,27 @@ export function changeEditor(
 ): Result<PlanSession, readonly EditorIssue[]> {
   if (change.kind === 'undo') return ok(undoPlan(session))
   if (change.kind === 'redo') return ok(redoPlan(session))
+  if (change.kind === 'indicatorRows') {
+    const area = editorArea(areaId)
+    if (!area || !areaExists(area, session.present.basis))
+      return err([issue('Выберите область из среза плана.')])
+    const rows = []
+    for (const [index, row] of change.rows.entries()) {
+      const normalized = row.value.trim().replace(',', '.')
+      const value = Number(normalized)
+      if (!/^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/iu.test(normalized) || !Number.isFinite(value))
+        return err([
+          issue(
+            `Показатель ${index + 1}: введите число; десятичная часть — через запятую или точку.`,
+          ),
+        ])
+      rows.push({ ...row, id: row.id ?? ids.next(), value })
+    }
+    const changed = setPlanIndicators(session.present, area, rows)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'approval') {
     const result = setApproval(session.present, {
       title: change.title,
@@ -206,6 +229,7 @@ export function editorView(
     canUndo: canUndoPlan(session),
     canRedo: canRedoPlan(session),
     area: key,
+    indicators: indicatorsOf(plan, area).map((row) => ({ ...row })),
     lines: [...plan.basis.lines.values()].map((l) => ({ id: l.id, name: l.name })),
     stations: [...plan.basis.stations.values()].map((s) => ({
       id: s.id,

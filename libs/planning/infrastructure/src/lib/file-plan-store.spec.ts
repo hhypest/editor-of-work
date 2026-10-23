@@ -1,7 +1,13 @@
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createAnnualPlan, samplePlanBasis, type AnnualPlan } from '@eow/planning/domain'
+import {
+  createAnnualPlan,
+  samplePlanBasis,
+  setPlanIndicators,
+  type AnnualPlan,
+} from '@eow/planning/domain'
+import { v2Fixture } from './testing/v2-fixture'
 import { FilePlanStore, nodePlanFileIO } from './file-plan-store'
 import { decodePlan } from './plan-file'
 
@@ -27,6 +33,24 @@ describe('файл плана на диске', () => {
   it('записывает и открывает план с русским именем файла', async () => {
     expect(await store.save(plan(2027))).toEqual({ ok: true, value: undefined })
     expect(await store.load()).toEqual({ ok: true, value: plan(2027) })
+  })
+  it('открывает v2, сохраняет показатели в v3 с исходной резервной копией и восстанавливает автокопию', async () => {
+    const original = JSON.stringify(v2Fixture)
+    await writeFile(path, original)
+    const loaded = await store.load()
+    if (!loaded.ok) throw new Error('Учебная ошибка')
+    const changed = setPlanIndicators(loaded.value, { kind: 'pd', pd: 'D' }, [
+      { id: 'i', name: 'Учебный', unit: '', value: 0, note: '' },
+    ])
+    if (!changed.ok) throw new Error('Учебная ошибка')
+    expect((await store.autosave(changed.value)).ok).toBe(true)
+    const restarted = new FilePlanStore(path, '0.3.0')
+    expect(await readFile(path, 'utf8')).toBe(original)
+    expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
+    expect((await restarted.save(changed.value)).ok).toBe(true)
+    expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(3)
+    expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
   })
 
   it('хранит ровно пять последних предыдущих версий', async () => {
@@ -64,7 +88,7 @@ describe('файл плана на диске', () => {
   )
 
   it('не перезаписывает файл будущей версии даже без его открытия', async () => {
-    const future = '{"format":{"version":3},"data":"будущие данные"}'
+    const future = '{"format":{"version":4},"data":"будущие данные"}'
     await writeFile(path, future)
     expect(await store.save(plan(2027))).toMatchObject({
       ok: false,

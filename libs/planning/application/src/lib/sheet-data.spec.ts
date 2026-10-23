@@ -13,6 +13,25 @@ const value = <T>(r: Result<T, unknown>): T => {
 }
 
 describe('Срез плана для листов', () => {
+  it('рассчитывает только выбранный ПД, сохраняя соседние границы и прежнюю полную проекцию', () => {
+    let plan = value(createAnnualPlan(2027, samplePlanBasis()))
+    plan = value(
+      addWork(plan, workId('s'), {
+        kind: 'КСП',
+        place: { kind: 'station', station: 'S1' },
+        volume: 2,
+        note: 'Учебная',
+        callout: true,
+      }),
+    )
+    const full = value(planSheetData(plan))
+    const selected = value(planSheetData(plan, 'ПД-2'))
+    expect(selected.pds[1]).toEqual(full.pds[1])
+    expect(selected.pds[0]).toEqual({ ...full.pds[0], works: [], tables: [] })
+    expect(selected.lines).toEqual(full.lines)
+    expect(planSheetData(plan, 'нет ПД')).toMatchObject({ ok: false })
+    expect(value(planSheetData(plan))).toEqual(full)
+  })
   it('передаёт доли по ПД, «входит в», ручной план и потребность без повторения расчётов в Документах', () => {
     const basis = samplePlanBasis()
     let plan = value(createAnnualPlan(2027, basis))

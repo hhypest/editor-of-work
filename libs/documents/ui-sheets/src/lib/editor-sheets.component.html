@@ -1,0 +1,76 @@
+<section aria-labelledby="editor-sheet-title" [attr.aria-busy]="facade.busy()">
+  <h3 id="editor-sheet-title">Текущий лист ПД</h3>
+  @if (context()?.hasRecovery) {
+    <p>Сначала восстановите автокопию или откажитесь от неё.</p>
+  } @else if (!context()?.hasPlan || !context()?.area?.startsWith('pd:')) {
+    <p>Для предпросмотра выберите ПД в области работ и таблиц.</p>
+  } @else {
+    <p>
+      Листы показывают применённые изменения. Таблицы и фильтр работ относятся ко всему ПД, включая
+      страницы продолжения.
+    </p>
+    @if (context()?.pending) {
+      <p role="status">Есть незавершённый ввод. Примените его, чтобы увидеть изменения на листе.</p>
+    }
+    <div class="controls">
+      <label for="editor-sheet-scale">Масштаб схемы</label>
+      <select
+        id="editor-sheet-scale"
+        [value]="facade.scale()"
+        [disabled]="facade.busy()"
+        (change)="scale($event)"
+      >
+        <option value="25000">1:25 000</option>
+        <option value="50000">1:50 000</option>
+        <option value="100000">1:100 000</option>
+      </select>
+      <label for="editor-sheet-zoom">Просмотр: {{ (facade.zoom() * 100).toFixed(0) }}%</label>
+      <input
+        id="editor-sheet-zoom"
+        type="range"
+        min="0.3"
+        max="1.5"
+        step="0.1"
+        [value]="facade.zoom()"
+        (input)="zoom($event)"
+      />
+    </div>
+    @if (facade.busy()) {
+      <p role="status">Подготовка текущего листа…</p>
+    }
+    @if (facade.error(); as error) {
+      <p role="alert">{{ error }}</p>
+      <button type="button" [disabled]="facade.busy()" (click)="facade.retry(context())">
+        Повторить подготовку
+      </button>
+    }
+    @if (facade.document(); as document) {
+      <div class="controls">
+        <button type="button" [disabled]="facade.index() === 0" (click)="facade.move(-1)">
+          Предыдущий лист
+        </button>
+        <span role="status">Лист {{ facade.index() + 1 }} из {{ document.pages.length }}</span>
+        <button
+          type="button"
+          [disabled]="facade.index() + 1 >= document.pages.length"
+          (click)="facade.move(1)"
+        >
+          Следующий лист
+        </button>
+      </div>
+      @if (document.warnings.length) {
+        <h4>Замечания к листам</h4>
+        <ul>
+          @for (warning of document.warnings; track $index) {
+            <li>{{ warning }}</li>
+          }
+        </ul>
+      }
+      @if (facade.page(); as page) {
+        <div class="sheet-scroll" role="region" tabindex="0" aria-label="Текущий лист ПД">
+          <eow-sheet-a3 [page]="page" [zoom]="facade.zoom()" />
+        </div>
+      }
+    }
+  }
+</section>

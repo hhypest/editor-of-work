@@ -6,14 +6,17 @@ const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).
 
 export function planSheetData(
   plan: AnnualPlan,
+  selectedPd?: string,
 ): Result<PlanSheetData, { readonly message: string }> {
+  if (selectedPd !== undefined && !plan.basis.pds.has(selectedPd))
+    return err({ message: 'ПД отсутствует в срезе плана.' })
   const boundaries = [...plan.basis.pds.values()].reduce((n, p) => n + p.segments.length, 0)
   const items = plan.works.reduce(
     (n, w) => n + (w.place.kind === 'line' ? w.place.spec.items.length : 1),
     0,
   )
   const cost =
-    plan.basis.pds.size *
+    (selectedPd === undefined ? plan.basis.pds.size : 1) *
     (5 * items * Math.max(1, boundaries) + plan.works.length + 3 * plan.basis.workKinds.size)
   if (cost > 10_000_000 || plan.works.length > 10_000 || plan.basis.pds.size > 2000)
     return err({
@@ -31,6 +34,16 @@ export function planSheetData(
       kmLengths: l.kmLengths.entries(),
     })),
     pds: [...plan.basis.pds.values()].map((pd) => {
+      // Соседние границы нужны геометрии, их работы и таблицы здесь не рассчитываются.
+      if (selectedPd !== undefined && pd.id !== selectedPd)
+        return {
+          id: pd.id,
+          name: pd.name,
+          pchu: pd.pchu,
+          segments: pd.segments,
+          works: [],
+          tables: [],
+        }
       const area = { kind: 'pd', pd: pd.id } as const
       const works = plan.works
         .filter((w) => shareIn(w, area, plan.basis) > 0)

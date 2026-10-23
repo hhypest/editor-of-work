@@ -461,7 +461,68 @@ describe('планы в main', () => {
     return response.state
   }
   const edit = async (command: EditorAction, area = 'district') =>
-    invoke({ action: 'editor', command, revision: (await editorState()).revision, area })
+    invoke(
+      channels.planFile.request.parse({
+        action: 'editor',
+        command,
+        revision: (await editorState()).revision,
+        area,
+      }),
+    )
+  it('привязывает лист к ревизии редактора, отражает правки и историю без записи файла', async () => {
+    expect(await invoke({ action: 'previewEditorSheets', revision: 0, pd: 'ПД-2' })).toMatchObject({
+      status: 'error',
+    })
+    await writeFile(path, document(2027))
+    await invoke({ action: 'open' })
+    const original = await readFile(path, 'utf8')
+    const before = await editorState()
+    const preview = async (revision = before.revision) =>
+      invoke({ action: 'previewEditorSheets', revision, pd: 'ПД-2' })
+    expect(await preview()).toMatchObject({
+      status: 'editorSheets',
+      revision: before.revision,
+      source: { pds: [{ tables: [] }, { works: [] }] },
+    })
+    expect(await editorState()).toEqual(before)
+    expect(
+      await invoke({ action: 'previewEditorSheets', revision: before.revision, pd: 'нет' }),
+    ).toMatchObject({ status: 'error' })
+    await edit({ kind: 'add', draft })
+    expect(await preview()).toMatchObject({
+      status: 'error',
+      message: expect.stringContaining('План изменился'),
+    })
+    const added = await editorState()
+    const work = added.view!.works[0]!
+    expect(await preview(added.revision)).toMatchObject({
+      status: 'editorSheets',
+      source: { pds: [{ works: [], tables: [] }, { works: [{ id: work.id, volume: 0.064 }] }] },
+    })
+    await edit({
+      kind: 'edit',
+      id: work.id,
+      draft: { ...draft, note: 'Изменённая учебная', volume: '2' },
+    })
+    expect(await preview((await editorState()).revision)).toMatchObject({
+      source: { pds: [{}, { works: [{ note: 'Изменённая учебная', volume: 2 }] }] },
+    })
+    await edit({ kind: 'undo' })
+    expect(await preview((await editorState()).revision)).toMatchObject({
+      source: { pds: [{}, { works: [{ volume: 0.064 }] }] },
+    })
+    await edit({ kind: 'redo' })
+    expect(await preview((await editorState()).revision)).toMatchObject({
+      source: { pds: [{}, { works: [{ volume: 2 }] }] },
+    })
+    await edit({ kind: 'remove', id: work.id })
+    expect(await preview((await editorState()).revision)).toMatchObject({
+      source: { pds: [{}, { works: [] }] },
+    })
+    expect(await readFile(path, 'utf8')).toBe(original)
+    expect(dialogs.save).not.toHaveBeenCalled()
+    expect((await editorState()).view?.canUndo).toBe(true)
+  })
   it('редактирует, сохраняет и отменяет; сохранение не сбрасывает историю', async () => {
     await invoke({ action: 'update', document: document(2027) })
     expect(await edit({ kind: 'add', draft })).toMatchObject({

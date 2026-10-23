@@ -1,5 +1,11 @@
 import { pdSheetClient } from './pd-sheet-client'
-import { PD_SHEET_CLIENT, OVERVIEW_CLIENT, SHEET_MEASURER } from '@eow/documents/ui-sheets'
+import {
+  PD_SHEET_CLIENT,
+  OVERVIEW_CLIENT,
+  SHEET_MEASURER,
+  EDITOR_SHEET_CLIENT,
+} from '@eow/documents/ui-sheets'
+import { editorSheetClient } from './editor-sheet-client'
 import { prepareSheetMeasurer } from '@eow/documents/infrastructure'
 import { overviewClient } from './overview-client'
 import { type ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core'
@@ -17,6 +23,7 @@ import { planEditorClient } from './plan-editor-client'
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: EDITOR_SHEET_CLIENT, useFactory: () => editorSheetClient(window.eow) },
     { provide: PD_SHEET_CLIENT, useFactory: () => pdSheetClient(window.eow) },
     { provide: OVERVIEW_CLIENT, useFactory: () => overviewClient(window.eow) },
     { provide: SHEET_MEASURER, useValue: () => prepareSheetMeasurer(document) },

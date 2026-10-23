@@ -259,6 +259,20 @@ export function registerPlanFileHandlers(
 
   async function handle(request: Request, editorArea?: string): Promise<Response> {
     switch (request.action) {
+      case 'previewEditorSheets': {
+        if (request.revision !== revision)
+          return failure('План изменился. Обновите редактор для предпросмотра листа.')
+        if (!current) return failure('Сначала откройте или создайте план.')
+        if (hasRecovery) return failure('Сначала восстановите автокопию или откажитесь от неё.')
+        const source = planSheetData(current, request.pd)
+        if (!source.ok) return failure(source.error.message)
+        const response = { status: 'editorSheets', revision, source: source.value }
+        if (JSON.stringify(response).length > 20 * 1024 * 1024)
+          return failure(
+            'Срез листов ПД превышает 20 МиБ. Уменьшите число объектов или длину примечаний.',
+          )
+        return channels.planFile.response.parse(response)
+      }
       case 'previewSheets': {
         if (request.open) {
           const path = await dialogs.open()

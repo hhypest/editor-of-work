@@ -26,6 +26,13 @@ export const planFile = defineChannel(
     z.object({ action: z.literal('open') }).strict(),
     z.object({ action: z.literal('previewSheets'), open: z.boolean() }).strict(),
     z
+      .object({
+        action: z.literal('previewEditorSheets'),
+        revision: z.number().int().nonnegative(),
+        pd: z.string().min(1),
+      })
+      .strict(),
+    z
       .object({ action: z.literal('save'), document: planDocumentSchema, saveAs: z.boolean() })
       .strict(),
     z.object({ action: z.literal('update'), document: planDocumentSchema }).strict(),
@@ -53,6 +60,13 @@ export const planFile = defineChannel(
       })
       .strict(),
     z.object({ status: z.literal('sheets'), source: planSheetDataSchema.nullable() }).strict(),
+    z
+      .object({
+        status: z.literal('editorSheets'),
+        revision: z.number().int().nonnegative(),
+        source: planSheetDataSchema,
+      })
+      .strict(),
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
     z.object({ status: z.literal('editor'), state: editorStateSchema }).strict(),

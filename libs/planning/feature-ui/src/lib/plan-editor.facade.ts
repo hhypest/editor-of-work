@@ -9,6 +9,7 @@ import type {
   PlanEditorClient,
   PlanEditionChoice,
 } from '@eow/planning/application'
+import type { PlanPdScaleChange } from '@eow/planning/sheet-api'
 export const PLAN_EDITOR_CLIENT = new InjectionToken<PlanEditorClient>('Редактор годового плана')
 const emptyDraft = (): EditorDraft => ({
   kind: '',
@@ -33,6 +34,7 @@ export class PlanEditorFacade {
   readonly state = signal<EditorState | null>(null)
   readonly view = computed(() => this.state()?.view ?? null)
   readonly busy = signal(false)
+  readonly planEpoch = signal(0)
   readonly error = signal<string | null>(null)
   readonly notice = signal<string | null>(null)
   readonly issues = signal<readonly EditorIssue[]>([])
@@ -267,6 +269,24 @@ export class PlanEditorFacade {
     }
     if (await this.run({ kind })) this.resetAll()
   }
+  async savePdScale(change: PlanPdScaleChange): Promise<boolean> {
+    if (this.busy() || this.state()?.hasRecovery) return false
+    if (this.pending()) {
+      this.error.set('Сначала примените или отмените введённые изменения.')
+      return false
+    }
+    if (
+      change.revision !== this.state()?.revision ||
+      change.area !== this.view()?.area ||
+      !change.area.startsWith('pd:')
+    ) {
+      this.error.set('Лист изменился. Обновите предпросмотр и повторите настройку масштаба.')
+      return false
+    }
+    const applied = await this.run({ kind: 'pdScale', scale: change.scale })
+    if (applied) this.notice.set('Масштаб ПД применён к плану. Сохраните файл для записи на диск.')
+    return applied
+  }
   cell(code: string): CellDraft {
     const staged = this.cells()[code]
     if (staged) return staged
@@ -360,7 +380,10 @@ export class PlanEditorFacade {
     await this.open(action)
   }
   private async open(action: EditorAction): Promise<void> {
-    if (await this.run(action, 'district')) this.resetAll()
+    if (await this.run(action, 'district')) {
+      this.resetAll()
+      this.planEpoch.update((value) => value + 1)
+    }
     this.pendingOpen.set(null)
   }
   async discardAndOpen(): Promise<void> {

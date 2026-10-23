@@ -24,6 +24,21 @@
         <option value="50000">1:50 000</option>
         <option value="100000">1:100 000</option>
       </select>
+      <span>В плане: 1:{{ facade.savedScale() }}</span>
+      <button
+        type="button"
+        [disabled]="
+          facade.busy() ||
+          context()?.busy ||
+          context()?.pending ||
+          !facade.selection() ||
+          facade.scale() === facade.savedScale()
+        "
+        (click)="save()"
+      >
+        Сохранить масштаб в плане
+      </button>
+      <span>Переключатель меняет предпросмотр; кнопка применяет масштаб к плану.</span>
       <label for="editor-sheet-zoom">Просмотр: {{ (facade.zoom() * 100).toFixed(0) }}%</label>
       <input
         id="editor-sheet-zoom"

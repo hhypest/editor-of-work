@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
 import { mm, type EditorSheetClient, type TextMeasurer } from '@eow/documents/application'
-import type { PlanPageSelection, PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
+import type {
+  PlanPageSelection,
+  PlanPdScaleChange,
+  PlanPreviewContext,
+  PlanSheetData,
+} from '@eow/planning/sheet-api'
 import { EDITOR_SHEET_CLIENT, EditorSheetsFacade } from './editor-sheets.facade'
 import { EditorSheetsComponent } from './editor-sheets.component'
 import { SHEET_MEASURER } from './overview.facade'
@@ -62,6 +67,58 @@ const longSource: PlanSheetData = {
 }
 
 describe('Лист в редакторе плана', () => {
+  it('восстанавливает сохранённый масштаб, сохраняет временный при правке работ и сбрасывает для другого плана', async () => {
+    const { facade: f } = facade()
+    await f.sync({ ...context, pdScale: 50000, planEpoch: 0 })
+    f.setScale(25000)
+    await f.sync({ ...context, revision: 2, pdScale: 50000, planEpoch: 0 })
+    expect(f.scale()).toBe(25000)
+    expect(f.savedScale()).toBe(50000)
+    await f.sync({ ...context, revision: 3, pdScale: 100000, planEpoch: 0 })
+    expect(f.scale()).toBe(100000)
+    expect(f.index()).toBe(0)
+    await f.sync({ ...context, revision: 4, pdScale: 50000, planEpoch: 0 })
+    expect(f.scale()).toBe(50000)
+    f.setScale(25000)
+    await f.sync({ ...context, revision: 5, pdScale: 50000, planEpoch: 1 })
+    expect(f.scale()).toBe(50000)
+    await f.sync({ ...context, revision: 5, area: 'pd:b', pdScale: 25000, planEpoch: 1 })
+    expect(f.scale()).toBe(25000)
+  })
+  it('закрепляет масштаб только явной кнопкой, блокируя незавершённый ввод', async () => {
+    await TestBed.configureTestingModule({
+      imports: [EditorSheetsComponent],
+      providers: providers(client()),
+    }).compileComponents()
+    const fixture = TestBed.createComponent(EditorSheetsComponent)
+    const changes = vi.fn<(change: PlanPdScaleChange) => void>()
+    fixture.componentInstance.saveScale.subscribe(changes)
+    fixture.componentRef.setInput('context', { ...context, pdScale: 25000 })
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    const select = element.querySelector<HTMLSelectElement>('#editor-sheet-scale')!
+    expect(select.value).toBe('25000')
+    select.value = '100000'
+    select.dispatchEvent(new Event('change'))
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(changes).not.toHaveBeenCalled()
+    const button = [...element.querySelectorAll('button')].find(
+      (b) => b.textContent?.trim() === 'Сохранить масштаб в плане',
+    )!
+    fixture.componentRef.setInput('context', { ...context, pdScale: 25000, pending: true })
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(button.disabled).toBe(true)
+    button.click()
+    expect(changes).not.toHaveBeenCalled()
+    fixture.componentRef.setInput('context', { ...context, pdScale: 25000 })
+    await fixture.whenStable()
+    fixture.detectChanges()
+    button.click()
+    expect(changes).toHaveBeenCalledExactlyOnceWith({ revision: 1, area: 'pd:a', scale: 100000 })
+  })
   it('показывает SVG и незавершённый ввод, не перезагружая ту же ревизию', async () => {
     const port = client()
     await TestBed.configureTestingModule({

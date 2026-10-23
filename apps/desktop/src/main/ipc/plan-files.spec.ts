@@ -469,7 +469,46 @@ describe('планы в main', () => {
         area,
       }),
     )
-  it('применяет показатели ПД одним пакетом, сохраняет v3 и повторно открывает с тем же id', async () => {
+  it('закрепляет масштаб по ПД, отменяет, сохраняет и открывает; устаревшая команда не меняет настройку', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const before = await editorState()
+    expect(await edit({ kind: 'pdScale', scale: 25000 }, 'district')).toMatchObject({
+      status: 'invalid',
+    })
+    expect(await editorState()).toEqual(before)
+    expect(await edit({ kind: 'pdScale', scale: 25000 }, 'pd:ПД-2')).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { pdScale: 25000 } },
+    })
+    const changed = await editorState()
+    expect(
+      await invoke({
+        action: 'editor',
+        command: { kind: 'pdScale', scale: 100000 },
+        revision: before.revision,
+        area: 'pd:ПД-2',
+      }),
+    ).toMatchObject({ status: 'error' })
+    expect((await editorState()).revision).toBe(changed.revision)
+    expect(
+      await invoke({ action: 'previewEditorSheets', revision: changed.revision, pd: 'ПД-2' }),
+    ).toMatchObject({ source: { pds: [{ scale: 50000 }, { scale: 25000 }] } })
+    expect(await edit({ kind: 'undo' }, 'pd:ПД-2')).toMatchObject({
+      state: { view: { pdScale: 50000 } },
+    })
+    expect(await edit({ kind: 'redo' }, 'pd:ПД-2')).toMatchObject({
+      state: { view: { pdScale: 25000 } },
+    })
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    await edit({ kind: 'open' })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
+      state: { dirty: false, view: { pdScale: 25000, canUndo: false } },
+    })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-1')).toMatchObject({
+      state: { view: { pdScale: 50000 } },
+    })
+  })
+  it('применяет показатели ПД одним пакетом, сохраняет v4 и повторно открывает с тем же id', async () => {
     await invoke({ action: 'update', document: document(2027) })
     const rows = [
       { id: null, name: 'Учебный показатель', unit: 'шт.', value: '0', note: 'Учебное примечание' },
@@ -515,7 +554,7 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(3)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(4)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },

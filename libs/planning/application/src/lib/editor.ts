@@ -18,6 +18,8 @@ import {
   setManualValue,
   setPlanIndicators,
   indicatorsOf,
+  pdScaleOf,
+  setPdScale,
   shareIn,
   workId,
   workVolume,
@@ -131,6 +133,14 @@ export function changeEditor(
 ): Result<PlanSession, readonly EditorIssue[]> {
   if (change.kind === 'undo') return ok(undoPlan(session))
   if (change.kind === 'redo') return ok(redoPlan(session))
+  if (change.kind === 'pdScale') {
+    const area = editorArea(areaId)
+    if (area?.kind !== 'pd') return err([issue('Выберите ПД для настройки масштаба.')])
+    const changed = setPdScale(session.present, area.pd, change.scale)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'indicatorRows') {
     const area = editorArea(areaId)
     if (!area || !areaExists(area, session.present.basis))
@@ -229,6 +239,7 @@ export function editorView(
     canUndo: canUndoPlan(session),
     canRedo: canRedoPlan(session),
     area: key,
+    pdScale: area.kind === 'pd' ? pdScaleOf(plan, area.pd) : null,
     indicators: indicatorsOf(plan, area).map((row) => ({ ...row })),
     lines: [...plan.basis.lines.values()].map((l) => ({ id: l.id, name: l.name })),
     stations: [...plan.basis.stations.values()].map((s) => ({

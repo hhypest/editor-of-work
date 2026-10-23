@@ -5,9 +5,11 @@ import {
   createAnnualPlan,
   samplePlanBasis,
   setPlanIndicators,
+  setPdScale,
   type AnnualPlan,
 } from '@eow/planning/domain'
 import { v2Fixture } from './testing/v2-fixture'
+import { v3Fixture } from './testing/v3-fixture'
 import { FilePlanStore, nodePlanFileIO } from './file-plan-store'
 import { decodePlan } from './plan-file'
 
@@ -34,7 +36,7 @@ describe('файл плана на диске', () => {
     expect(await store.save(plan(2027))).toEqual({ ok: true, value: undefined })
     expect(await store.load()).toEqual({ ok: true, value: plan(2027) })
   })
-  it('открывает v2, сохраняет показатели в v3 с исходной резервной копией и восстанавливает автокопию', async () => {
+  it('открывает v2, сохраняет показатели с исходной резервной копией и восстанавливает автокопию', async () => {
     const original = JSON.stringify(v2Fixture)
     await writeFile(path, original)
     const loaded = await store.load()
@@ -49,8 +51,26 @@ describe('файл плана на диске', () => {
     expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
     expect((await restarted.save(changed.value)).ok).toBe(true)
     expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(3)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(4)
     expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
+  })
+  it('сохраняет масштаб в v4, исходный v3 в .bak и восстанавливает настройку из автокопии', async () => {
+    const original = JSON.stringify(v3Fixture)
+    await writeFile(path, original)
+    const loaded = await store.load()
+    if (!loaded.ok) throw new Error('Учебная ошибка')
+    const changed = setPdScale(loaded.value, 'D', 100000)
+    if (!changed.ok) throw new Error('Учебная ошибка')
+    expect((await store.autosave(changed.value)).ok).toBe(true)
+    const restarted = new FilePlanStore(path, '0.4.0')
+    expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
+    expect(await readFile(path, 'utf8')).toBe(original)
+    expect((await restarted.save(changed.value)).ok).toBe(true)
+    expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
+    expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
+    expect(JSON.parse(await readFile(path, 'utf8')).plan.pdScales).toEqual([
+      { pd: 'D', scale: 100000 },
+    ])
   })
 
   it('хранит ровно пять последних предыдущих версий', async () => {
@@ -88,7 +108,7 @@ describe('файл плана на диске', () => {
   )
 
   it('не перезаписывает файл будущей версии даже без его открытия', async () => {
-    const future = '{"format":{"version":4},"data":"будущие данные"}'
+    const future = '{"format":{"version":5},"data":"будущие данные"}'
     await writeFile(path, future)
     expect(await store.save(plan(2027))).toMatchObject({
       ok: false,

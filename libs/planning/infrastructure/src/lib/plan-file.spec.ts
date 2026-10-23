@@ -56,9 +56,9 @@ function rehash(f: PlanFile): void {
 }
 
 describe('формат плана v1', () => {
-  it('мигрирует v1/v2 в v3 и сохраняет закреплённый образец v2 со снимком и принадлежностью к станции', () => {
+  it('мигрирует v1/v2 в текущий формат и сохраняет закреплённый образец v2 со снимком и принадлежностью к станции', () => {
     const migrated = value(readPlanFile(JSON.stringify(v1Fixture)))
-    expect(migrated.format.version).toBe(3)
+    expect(migrated.format.version).toBe(4)
     expect(migrated.plan.prototype).toBeNull()
     const plan = value(decodePlan(JSON.stringify(v2Fixture)))
     expect(plan.works[0]!.place).toMatchObject({ kind: 'line', station: 'S' })
@@ -91,7 +91,7 @@ describe('формат плана v1', () => {
 
   it('возвращает понятную ошибку для обрезанного файла и будущего формата', () => {
     expect(decodePlan('{')).toMatchObject({ ok: false, error: { kind: 'invalid-file' } })
-    expect(decodePlan('{"format":{"version":4}}')).toMatchObject({
+    expect(decodePlan('{"format":{"version":5}}')).toMatchObject({
       ok: false,
       error: { kind: 'future-version' },
     })

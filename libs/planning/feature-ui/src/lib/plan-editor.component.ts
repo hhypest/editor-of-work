@@ -8,7 +8,11 @@ import {
   output,
   signal,
 } from '@angular/core'
-import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-api'
+import type {
+  PlanPageSelection,
+  PlanPdScaleChange,
+  PlanPreviewContext,
+} from '@eow/planning/sheet-api'
 import { FormsModule } from '@angular/forms'
 import { PlanEditorFacade } from './plan-editor.facade'
 @Component({
@@ -56,9 +60,14 @@ export class PlanEditorComponent {
         hasRecovery: state?.hasRecovery ?? false,
         busy: this.facade.busy(),
         pending: this.facade.pending(),
+        pdScale: state?.view?.pdScale ?? null,
+        planEpoch: this.facade.planEpoch(),
       })
     })
     void this.facade.initialize()
+  }
+  savePdScale(change: PlanPdScaleChange): void {
+    void this.facade.savePdScale(change)
   }
   protected key(event: KeyboardEvent): void {
     if ((!event.ctrlKey && !event.metaKey) || event.altKey) return

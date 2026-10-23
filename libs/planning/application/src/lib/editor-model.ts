@@ -26,6 +26,7 @@ export interface EditorIssue {
   readonly end: number | null
 }
 export type EditorChange =
+  | { readonly kind: 'pdScale'; readonly scale: number }
   | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
   | {
       readonly kind: 'manualRows'
@@ -66,6 +67,7 @@ export type EditorAction =
   | { readonly kind: 'recover'; readonly accept: boolean }
   | { readonly kind: 'checkPlace'; readonly line: string; readonly text: string }
 export interface EditorView {
+  readonly pdScale: 25000 | 50000 | 100000 | null
   readonly indicators: readonly {
     readonly id: string
     readonly name: string

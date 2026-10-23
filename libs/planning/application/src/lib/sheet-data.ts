@@ -1,6 +1,13 @@
 import type { PlanSheetData } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
-import { indicatorsOf, planRows, shareIn, workVolume, type AnnualPlan } from '@eow/planning/domain'
+import {
+  indicatorsOf,
+  pdScaleOf,
+  planRows,
+  shareIn,
+  workVolume,
+  type AnnualPlan,
+} from '@eow/planning/domain'
 
 const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).replace('.', ',')
 
@@ -40,6 +47,7 @@ export function planSheetData(
           id: pd.id,
           name: pd.name,
           pchu: pd.pchu,
+          scale: pdScaleOf(plan, pd.id),
           segments: pd.segments,
           works: [],
           tables: [],
@@ -153,7 +161,15 @@ export function planSheetData(
             row.note,
           ]),
         })
-      return { id: pd.id, name: pd.name, pchu: pd.pchu, segments: pd.segments, works, tables }
+      return {
+        id: pd.id,
+        name: pd.name,
+        pchu: pd.pchu,
+        scale: pdScaleOf(plan, pd.id),
+        segments: pd.segments,
+        works,
+        tables,
+      }
     }),
   })
 }

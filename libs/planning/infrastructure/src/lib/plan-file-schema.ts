@@ -188,7 +188,7 @@ export const planFileV2Schema = planFileV1Schema
   })
   .strict()
 
-export const planFileSchema = planFileV2Schema
+export const planFileV3Schema = planFileV2Schema
   .extend({
     format: z.object({ version: z.literal(3), appVersion: id }).strict(),
     plan: planFileV2Schema.shape.plan
@@ -210,6 +210,24 @@ export const planFileSchema = planFileV2Schema
                     .strict(),
                 )
                 .max(10000),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
+
+export const planFileSchema = planFileV3Schema
+  .extend({
+    format: z.object({ version: z.literal(4), appVersion: id }).strict(),
+    plan: planFileV3Schema.shape.plan
+      .extend({
+        pdScales: z.array(
+          z
+            .object({
+              pd: id,
+              scale: z.union([z.literal(25000), z.literal(50000), z.literal(100000)]),
             })
             .strict(),
         ),

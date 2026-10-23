@@ -25,6 +25,7 @@ export const planSheetDataSchema = z
           id: z.string(),
           name: z.string(),
           pchu: z.string(),
+          scale: z.union([z.literal(25000), z.literal(50000), z.literal(100000)]).optional(),
           segments: z.array(span),
           works: z.array(
             z

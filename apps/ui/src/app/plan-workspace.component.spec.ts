@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { PLAN_EDITOR_CLIENT } from '@eow/planning/feature-ui'
-import { EDITOR_SHEET_CLIENT, SHEET_MEASURER } from '@eow/documents/ui-sheets'
-import { mm, type EditorSheetClient } from '@eow/documents/application'
+import { EDITOR_SHEET_CLIENT, EDITOR_PDF_CLIENT, SHEET_MEASURER } from '@eow/documents/ui-sheets'
+import { mm, type EditorSheetClient, type EditorPdfClient } from '@eow/documents/application'
 import {
   changeEditor,
   editorView,
@@ -10,7 +10,7 @@ import {
   type PlanEditorClient,
 } from '@eow/planning/application'
 import { createAnnualPlan, samplePlanBasis } from '@eow/planning/domain'
-import type { Result } from '@eow/shared/kernel'
+import { ok, type Result } from '@eow/shared/kernel'
 import { PlanWorkspaceComponent } from './plan-workspace.component'
 
 const value = <T>(result: Result<T, unknown>): T => {
@@ -57,9 +57,11 @@ it('composition root обновляет SVG после добавления, и�
       return planSheetData(session.present, pd)
     }),
   }
+  const pdf: EditorPdfClient = { export: vi.fn<EditorPdfClient['export']>(async () => ok('saved')) }
   await TestBed.configureTestingModule({
     imports: [PlanWorkspaceComponent],
     providers: [
+      { provide: EDITOR_PDF_CLIENT, useValue: pdf },
       { provide: PLAN_EDITOR_CLIENT, useValue: editor },
       { provide: EDITOR_SHEET_CLIENT, useValue: sheets },
       {
@@ -241,4 +243,26 @@ it('composition root обновляет SVG после добавления, и�
   expect(element.querySelector<HTMLInputElement>('#pd-table-works')!.checked).toBe(true)
   await input('plan-area', 'pd:ПД-1', 'change')
   expect(element.querySelector<HTMLInputElement>('#pd-table-works')!.checked).toBe(false)
+  const beforePdf = session
+  await input('editor-sheet-zoom', '1.5')
+  await history('KeyP')
+  const exported = vi.mocked(pdf.export).mock.lastCall?.[0]
+  expect(exported).toMatchObject({
+    revision,
+    pd: 'ПД-1',
+    page: { number: 1, width: mm(420), height: mm(297) },
+  })
+  expect(
+    exported?.page.primitives.some((p) => p.kind === 'text' && p.text === '<Учебный показатель>'),
+  ).toBe(true)
+  expect(
+    exported?.page.primitives.some((p) => p.kind === 'text' && p.text === 'Ведомость работ ПД'),
+  ).toBe(false)
+  expect(exported).not.toHaveProperty('zoom')
+  expect(session).toBe(beforePdf)
+  await input('work-note', 'Черновик перед PDF')
+  await history('KeyP')
+  expect(pdf.export).toHaveBeenCalledTimes(1)
+  expect(element.textContent).toContain('примените или отмените')
+  expect(session).toBe(beforePdf)
 })

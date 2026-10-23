@@ -436,7 +436,4 @@ export class PlanEditorFacade {
     const action = this.pendingOpen()
     if (action && (await this.save())) await this.open(action)
   }
-  printUnavailable(): void {
-    this.notice.set('Экспорт PDF пока недоступен. План можно сохранить для дальнейшей работы.')
-  }
 }

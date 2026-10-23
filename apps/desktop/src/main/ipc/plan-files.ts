@@ -7,6 +7,7 @@ import {
   FilePlanStore,
   startPlanAutosave,
 } from '@eow/planning/infrastructure'
+import type { PdfExporter } from '@eow/documents/application'
 import type { AnnualPlan } from '@eow/planning/domain'
 import { importPrototype } from '@eow/import/infrastructure'
 import { planSheetData, buildImportedPlan } from '@eow/planning/application'
@@ -49,6 +50,7 @@ export function registerPlanFileHandlers(
   dialogs: PlanFileDialogs,
   appVersion: string,
   passport?: PassportView,
+  pdf?: PdfExporter,
 ): () => Promise<void> {
   let store: FilePlanStore | undefined
   let current: AnnualPlan | undefined
@@ -259,6 +261,16 @@ export function registerPlanFileHandlers(
 
   async function handle(request: Request, editorArea?: string): Promise<Response> {
     switch (request.action) {
+      case 'exportEditorSheet': {
+        if (request.revision !== revision)
+          return failure('План изменился. Обновите текущий лист перед сохранением PDF.')
+        if (!current || !current.basis.pds.has(request.pd))
+          return failure('Выберите ПД открытого плана.')
+        if (hasRecovery) return failure('Сначала восстановите автокопию или откажитесь от неё.')
+        if (!pdf) return failure('Экспорт PDF недоступен.')
+        const result = await pdf.export(request.page)
+        return result.ok ? { status: 'pdf', result: result.value } : failure(result.error.message)
+      }
       case 'previewEditorSheets': {
         if (request.revision !== revision)
           return failure('План изменился. Обновите редактор для предпросмотра листа.')

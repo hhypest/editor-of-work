@@ -1,5 +1,6 @@
 /** Отдельная тестовая точка входа: production build её не включает. */
 import { app } from 'electron'
+import { checkPdf, registerPdfProbeScheme } from './pdf'
 import assert from 'node:assert/strict'
 import { mkdir, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -15,6 +16,10 @@ function value<T>(result: Result<T, unknown>): T {
   assert.ok(result.ok, 'Операция публичного адаптера паспорта отклонена')
   return result.value
 }
+
+registerPdfProbeScheme()
+// Закрытие единственного скрытого окна не должно завершить probe до проверки PDF и отчёта.
+app.on('window-all-closed', () => undefined)
 
 async function check(): Promise<void> {
   assert.equal(process.type, 'browser', 'Проверка требует настоящий main-процесс Electron')
@@ -121,6 +126,7 @@ async function check(): Promise<void> {
           node: process.versions.node,
           sqlite,
           checks,
+          pdf: await checkPdf(),
         },
         null,
         2,

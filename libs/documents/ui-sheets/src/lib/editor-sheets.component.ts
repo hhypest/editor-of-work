@@ -37,6 +37,9 @@ export class EditorSheetsComponent {
     })
     effect(() => this.pageSelection.emit(this.facade.selection()))
   }
+  exportPdf(): void {
+    void this.facade.exportPdf(this.context())
+  }
   protected scale(event: Event): void {
     if (event.target instanceof HTMLSelectElement) this.facade.setScale(Number(event.target.value))
   }

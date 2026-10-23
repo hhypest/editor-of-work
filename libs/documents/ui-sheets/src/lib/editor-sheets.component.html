@@ -1,5 +1,14 @@
 <section aria-labelledby="editor-sheet-title" [attr.aria-busy]="facade.busy()">
   <h3 id="editor-sheet-title">Текущий лист ПД</h3>
+  <button type="button" [disabled]="!facade.canExport(context())" (click)="exportPdf()">
+    Сохранить текущий лист в PDF
+  </button>
+  @if (facade.pdfStatus(); as status) {
+    <p role="status">{{ status }}</p>
+  }
+  @if (facade.pdfError(); as error) {
+    <p role="alert">{{ error }}</p>
+  }
   @if (context()?.hasRecovery) {
     <p>Сначала восстановите автокопию или откажитесь от неё.</p>
   } @else if (!context()?.hasPlan || !context()?.area?.startsWith('pd:')) {

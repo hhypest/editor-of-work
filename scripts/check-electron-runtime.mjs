@@ -17,6 +17,8 @@ try {
   await cp(join(root, 'dist/apps/desktop/migrations'), join(directory, 'migrations'), {
     recursive: true,
   })
+  await cp(join(root, 'dist/apps/ui/browser'), join(directory, 'ui'), { recursive: true })
+  await cp(join(root, 'dist/apps/desktop/preload.js'), join(directory, 'preload.js'))
   const entry = join(directory, 'main.cjs')
   await build({
     entryPoints: [join(root, 'apps/desktop/src/runtime-check/main.ts')],

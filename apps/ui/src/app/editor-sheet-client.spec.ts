@@ -8,6 +8,7 @@ const source = {
   pds: [],
 }
 const api: EowApi = {
+  printHost: async () => ({ status: 'error', message: 'unused' }),
   appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
   passport: async () => ({ status: 'ok', editions: [] }),
   passportData: async () => ({ status: 'error', message: 'unused' }),

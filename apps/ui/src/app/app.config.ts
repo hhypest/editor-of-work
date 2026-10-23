@@ -4,7 +4,9 @@ import {
   OVERVIEW_CLIENT,
   SHEET_MEASURER,
   EDITOR_SHEET_CLIENT,
+  EDITOR_PDF_CLIENT,
 } from '@eow/documents/ui-sheets'
+import { editorPdfClient } from './editor-pdf-client'
 import { editorSheetClient } from './editor-sheet-client'
 import { prepareSheetMeasurer } from '@eow/documents/infrastructure'
 import { overviewClient } from './overview-client'
@@ -23,6 +25,7 @@ import { planEditorClient } from './plan-editor-client'
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: EDITOR_PDF_CLIENT, useFactory: () => editorPdfClient(window.eow) },
     { provide: EDITOR_SHEET_CLIENT, useFactory: () => editorSheetClient(window.eow) },
     { provide: PD_SHEET_CLIENT, useFactory: () => pdSheetClient(window.eow) },
     { provide: OVERVIEW_CLIENT, useFactory: () => overviewClient(window.eow) },

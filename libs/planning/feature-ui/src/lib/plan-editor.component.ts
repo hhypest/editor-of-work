@@ -25,6 +25,7 @@ import { PlanEditorFacade } from './plan-editor.facade'
 })
 export class PlanEditorComponent {
   readonly previewContext = output<PlanPreviewContext>()
+  readonly printRequested = output<void>()
   readonly pageSelection = input<PlanPageSelection | null>(null)
   protected readonly facade = inject(PlanEditorFacade)
   protected readonly workScope = signal<'area' | 'page'>('area')
@@ -81,7 +82,7 @@ export class PlanEditorComponent {
       void this.facade.save(event.shiftKey)
     } else if (key === 'KeyP') {
       event.preventDefault()
-      this.facade.printUnavailable()
+      this.printRequested.emit()
     } else if (!editable && key === 'KeyZ') {
       event.preventDefault()
       void this.facade.history(event.shiftKey ? 'redo' : 'undo')

@@ -1,13 +1,18 @@
 import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
-import { mm, type EditorSheetClient, type TextMeasurer } from '@eow/documents/application'
+import {
+  mm,
+  type EditorSheetClient,
+  type EditorPdfClient,
+  type TextMeasurer,
+} from '@eow/documents/application'
 import type {
   PlanPageSelection,
   PlanPdScaleChange,
   PlanPreviewContext,
   PlanSheetData,
 } from '@eow/planning/sheet-api'
-import { EDITOR_SHEET_CLIENT, EditorSheetsFacade } from './editor-sheets.facade'
+import { EDITOR_SHEET_CLIENT, EDITOR_PDF_CLIENT, EditorSheetsFacade } from './editor-sheets.facade'
 import { EditorSheetsComponent } from './editor-sheets.component'
 import { SHEET_MEASURER } from './overview.facade'
 
@@ -67,6 +72,55 @@ const longSource: PlanSheetData = {
 }
 
 describe('Лист в редакторе плана', () => {
+  it('экспортирует готовую текущую страницу без zoom, блокирует черновик, гонки и повторный клик', async () => {
+    const pdf: EditorPdfClient = {
+      export: vi.fn<EditorPdfClient['export']>(async () => ok('saved')),
+    }
+    TestBed.configureTestingModule({
+      providers: [
+        EditorSheetsFacade,
+        ...providers(client()),
+        { provide: EDITOR_PDF_CLIENT, useValue: pdf },
+      ],
+    })
+    const f = TestBed.inject(EditorSheetsFacade)
+    expect(f.canExport(context)).toBe(false)
+    await f.sync(context)
+    const page = f.page()
+    f.setZoom(1.5)
+    for (const changed of [
+      null,
+      { ...context, pending: true },
+      { ...context, busy: true },
+      { ...context, hasRecovery: true },
+      { ...context, revision: 2 },
+      { ...context, area: 'pd:b' },
+    ]) {
+      await f.exportPdf(changed)
+      expect(pdf.export).not.toHaveBeenCalled()
+    }
+    const done = deferred<Awaited<ReturnType<EditorPdfClient['export']>>>()
+    vi.mocked(pdf.export).mockImplementationOnce(() => done.promise)
+    const pending = f.exportPdf(context)
+    expect(f.exporting()).toBe(true)
+    await f.exportPdf(context)
+    expect(pdf.export).toHaveBeenCalledExactlyOnceWith({ revision: 1, pd: 'a', page })
+    done.resolve(ok('saved'))
+    await pending
+    expect(f.exporting()).toBe(false)
+    expect(f.pdfStatus()).toContain('сохранён')
+    vi.mocked(pdf.export).mockResolvedValueOnce(ok('cancelled'))
+    await f.exportPdf(context)
+    expect(f.pdfStatus()).toContain('отменено')
+    vi.mocked(pdf.export).mockResolvedValueOnce(err({ message: 'Учебная ошибка' }))
+    await f.exportPdf(context)
+    expect(f.pdfError()).toBe('Учебная ошибка')
+    expect(f.page()).toBe(page)
+    vi.mocked(pdf.export).mockRejectedValueOnce(new Error('IPC'))
+    await f.exportPdf(context)
+    expect(f.pdfError()).toContain('Повторите')
+    expect(f.exporting()).toBe(false)
+  })
   it('восстанавливает сохранённый масштаб, сохраняет временный при правке работ и сбрасывает для другого плана', async () => {
     const { facade: f } = facade()
     await f.sync({ ...context, pdScale: 50000, planEpoch: 0 })

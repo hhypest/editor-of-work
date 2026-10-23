@@ -9,10 +9,12 @@ import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-
   imports: [PlanEditorComponent, EditorSheetsComponent],
   template: `<eow-plan-editor
     #editor
+    (printRequested)="sheets.exportPdf()"
     (previewContext)="context.set($event)"
     [pageSelection]="pageSelection()"
   >
     <eow-editor-sheets
+      #sheets
       planPreview
       [context]="context()"
       (pageSelection)="pageSelection.set($event)"

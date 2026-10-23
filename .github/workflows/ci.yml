@@ -31,7 +31,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - name: SQLite in real Electron
+      - name: SQLite and PDF in real Electron
         if: runner.os == 'Windows'
         run: npm run check:electron
       - name: Electron runtime report

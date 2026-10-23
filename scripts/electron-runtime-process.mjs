@@ -45,5 +45,10 @@ export async function runRuntimeProbe({
     'backup-before-activation',
     'reopen',
   ])
+  assert.equal(report.pdf?.pages, 1)
+  assert.equal(report.pdf?.svgMatches, true)
+  assert.ok(Math.abs(report.pdf?.widthMm - 420) < 0.5)
+  assert.ok(Math.abs(report.pdf?.heightMm - 297) < 0.5)
+  assert.ok(report.pdf?.embeddedFonts >= 4)
   return report
 }

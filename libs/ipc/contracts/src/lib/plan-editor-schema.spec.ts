@@ -1,5 +1,20 @@
 import { channels } from './channels'
 describe('Контракт редактора', () => {
+  it('проверяет строгий пакет состава таблиц', () => {
+    const request = (hidden: unknown) => ({
+      action: 'editor',
+      command: { kind: 'pdTables', hidden },
+      revision: 1,
+      area: 'pd:a',
+    })
+    expect(channels.planFile.request.safeParse(request(['works', 'current'])).success).toBe(true)
+    expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
+    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 7 }, () => 'works')])
+      expect(channels.planFile.request.safeParse(request(hidden)).success).toBe(false)
+    expect(
+      channels.planFile.request.safeParse({ ...request([]), path: '/unexpected' }).success,
+    ).toBe(false)
+  })
   it('принимает только поддерживаемые числовые масштабы и строгую команду', () => {
     const request = (scale: unknown) => ({
       action: 'editor',

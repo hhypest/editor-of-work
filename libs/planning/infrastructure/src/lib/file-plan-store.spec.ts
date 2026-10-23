@@ -6,10 +6,12 @@ import {
   samplePlanBasis,
   setPlanIndicators,
   setPdScale,
+  setPdHiddenTables,
   type AnnualPlan,
 } from '@eow/planning/domain'
 import { v2Fixture } from './testing/v2-fixture'
 import { v3Fixture } from './testing/v3-fixture'
+import { v4Fixture } from './testing/v4-fixture'
 import { FilePlanStore, nodePlanFileIO } from './file-plan-store'
 import { decodePlan } from './plan-file'
 
@@ -31,6 +33,21 @@ describe('файл плана на диске', () => {
   afterEach(async () => {
     await rm(directory, { recursive: true, force: true })
   })
+  it('сохраняет состав таблиц в v5, исходный v4 в .bak и восстанавливает настройку из автокопии', async () => {
+    const original = JSON.stringify(v4Fixture)
+    await writeFile(path, original)
+    const loaded = await store.load()
+    if (!loaded.ok) throw new Error('Учебная ошибка')
+    const changed = setPdHiddenTables(loaded.value, 'D', ['works', 'summary'])
+    if (!changed.ok) throw new Error('Учебная ошибка')
+    expect((await store.autosave(changed.value)).ok).toBe(true)
+    const restarted = new FilePlanStore(path, '0.5.0')
+    expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
+    expect(await readFile(path, 'utf8')).toBe(original)
+    expect((await restarted.save(changed.value)).ok).toBe(true)
+    expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
+    expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
+  })
 
   it('записывает и открывает план с русским именем файла', async () => {
     expect(await store.save(plan(2027))).toEqual({ ok: true, value: undefined })
@@ -51,7 +68,7 @@ describe('файл плана на диске', () => {
     expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
     expect((await restarted.save(changed.value)).ok).toBe(true)
     expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(4)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(5)
     expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
   })
   it('сохраняет масштаб в v4, исходный v3 в .bak и восстанавливает настройку из автокопии', async () => {
@@ -108,7 +125,7 @@ describe('файл плана на диске', () => {
   )
 
   it('не перезаписывает файл будущей версии даже без его открытия', async () => {
-    const future = '{"format":{"version":5},"data":"будущие данные"}'
+    const future = '{"format":{"version":6},"data":"будущие данные"}'
     await writeFile(path, future)
     expect(await store.save(plan(2027))).toMatchObject({
       ok: false,

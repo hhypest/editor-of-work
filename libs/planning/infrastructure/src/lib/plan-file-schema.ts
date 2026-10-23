@@ -218,7 +218,7 @@ export const planFileV3Schema = planFileV2Schema
   })
   .strict()
 
-export const planFileSchema = planFileV3Schema
+export const planFileV4Schema = planFileV3Schema
   .extend({
     format: z.object({ version: z.literal(4), appVersion: id }).strict(),
     plan: planFileV3Schema.shape.plan
@@ -236,6 +236,25 @@ export const planFileSchema = planFileV3Schema
   })
   .strict()
 
+export const planFileSchema = planFileV4Schema
+  .extend({
+    format: z.object({ version: z.literal(5), appVersion: id }).strict(),
+    plan: planFileV4Schema.shape.plan
+      .extend({
+        pdHiddenTables: z.array(
+          z
+            .object({
+              pd: id,
+              hidden: z
+                .array(z.enum(['current', 'capital', 'other', 'summary', 'works', 'indicators']))
+                .max(6),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
 export type PlanFile = z.infer<typeof planFileSchema>
 export type BasisSnapshot = z.infer<typeof snapshotSchema>
 

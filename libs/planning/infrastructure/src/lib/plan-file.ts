@@ -9,6 +9,7 @@ import {
   setManualValue,
   setPlanIndicators,
   setPdScale,
+  setPdHiddenTables,
   workId,
   type AnnualPlan,
   type BasisLine,
@@ -33,12 +34,13 @@ import {
   planFileV1Schema,
   planFileV2Schema,
   planFileV3Schema,
+  planFileV4Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 4
+export const PLAN_FORMAT_VERSION = 5
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -47,6 +49,18 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    4,
+    (file) => {
+      const parsed = planFileV4Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 5 },
+        plan: { ...parsed.data.plan, pdHiddenTables: [] },
+      }
+    },
+  ],
   [
     3,
     (file) => {
@@ -163,6 +177,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       manual,
       indicators,
       pdScales: [...plan.pdScales].map(([pd, scale]) => ({ pd, scale })),
+      pdHiddenTables: [...plan.pdHiddenTables].map(([pd, hidden]) => ({ pd, hidden: [...hidden] })),
     },
   })
   if (!file.success) return err(invalid('план содержит неверные данные'))
@@ -235,6 +250,14 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
   let result = createAnnualPlan(file.plan.year, basis.value, file.plan.approval)
   if (!result.ok) return err(invalid(result.error.map(describePlanError).join('; ')))
   let plan = result.value
+  const configuredPds = new Set<string>()
+  for (const entry of file.plan.pdHiddenTables) {
+    if (configuredPds.has(entry.pd)) return err(invalid('настройка таблиц ПД повторяется'))
+    configuredPds.add(entry.pd)
+    const changed = setPdHiddenTables(plan, entry.pd, entry.hidden)
+    if (!changed.ok) return err(invalid(changed.error.map(describePlanError).join('; ')))
+    plan = changed.value
+  }
   const scaledPds = new Set<string>()
   for (const entry of file.plan.pdScales) {
     if (scaledPds.has(entry.pd)) return err(invalid('настройка масштаба ПД повторяется'))

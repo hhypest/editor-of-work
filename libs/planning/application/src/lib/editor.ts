@@ -20,6 +20,9 @@ import {
   indicatorsOf,
   pdScaleOf,
   setPdScale,
+  setPdHiddenTables,
+  hiddenPdTablesOf,
+  PD_TABLE_KINDS,
   shareIn,
   workId,
   workVolume,
@@ -133,6 +136,14 @@ export function changeEditor(
 ): Result<PlanSession, readonly EditorIssue[]> {
   if (change.kind === 'undo') return ok(undoPlan(session))
   if (change.kind === 'redo') return ok(redoPlan(session))
+  if (change.kind === 'pdTables') {
+    const area = editorArea(areaId)
+    if (area?.kind !== 'pd') return err([issue('Выберите ПД для настройки таблиц.')])
+    const changed = setPdHiddenTables(session.present, area.pd, change.hidden)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'pdScale') {
     const area = editorArea(areaId)
     if (area?.kind !== 'pd') return err([issue('Выберите ПД для настройки масштаба.')])
@@ -240,6 +251,21 @@ export function editorView(
     canRedo: canRedoPlan(session),
     area: key,
     pdScale: area.kind === 'pd' ? pdScaleOf(plan, area.pd) : null,
+    pdTables:
+      area.kind === 'pd'
+        ? PD_TABLE_KINDS.map((key) => ({
+            key,
+            label: {
+              current: 'План текущего содержания',
+              capital: 'Капитальные работы',
+              other: 'Прочие работы',
+              summary: 'Сводные показатели ПД',
+              works: 'Ведомость работ ПД',
+              indicators: 'Ручные показатели ПД',
+            }[key],
+            visible: !hiddenPdTablesOf(plan, area.pd).includes(key),
+          }))
+        : [],
     indicators: indicatorsOf(plan, area).map((row) => ({ ...row })),
     lines: [...plan.basis.lines.values()].map((l) => ({ id: l.id, name: l.name })),
     stations: [...plan.basis.stations.values()].map((s) => ({

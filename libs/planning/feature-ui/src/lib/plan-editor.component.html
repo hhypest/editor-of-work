@@ -412,6 +412,46 @@
       </section>
     </div>
     <ng-content select="[planPreview]" />
+    @if (view.area.startsWith('pd:')) {
+      <section aria-labelledby="pd-tables-title">
+        <h3 id="pd-tables-title">Таблицы на листах выбранного ПД</h3>
+        <p>
+          Настройка меняет вывод на всех страницах ПД. Данные и итоги в редакторе сохраняются.
+          Пустые группы выводятся по прежним правилам.
+        </p>
+        <fieldset [disabled]="facade.busy() || facade.state()?.hasRecovery">
+          <legend>Показывать на листах</legend>
+          @for (table of view.pdTables; track table.key) {
+            <label class="check"
+              ><input
+                type="checkbox"
+                [id]="'pd-table-' + table.key"
+                [ngModel]="facade.pdTableVisible(table.key)"
+                (ngModelChange)="facade.patchPdTable(table.key, $event)"
+              />{{ table.label }}</label
+            >
+          }
+          <p>
+            Если скрыть ведомость, станционные работы не будут показаны на листах ПД; в списке «Весь
+            ПД» они останутся.
+          </p>
+          <button
+            type="button"
+            [disabled]="facade.pdTablesDraft() === null"
+            (click)="facade.applyPdTables()"
+          >
+            Применить состав таблиц
+          </button>
+          <button
+            type="button"
+            [disabled]="facade.pdTablesDraft() === null"
+            (click)="facade.cancelPdTables()"
+          >
+            Отменить ввод состава таблиц
+          </button>
+        </fieldset>
+      </section>
+    }
     <section aria-labelledby="tables-title">
       <h3 id="tables-title">План и потребность выбранной области</h3>
       <p>

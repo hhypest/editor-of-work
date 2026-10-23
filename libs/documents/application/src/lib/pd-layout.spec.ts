@@ -58,6 +58,44 @@ function built(data = source, scale: 25000 | 50000 | 100000 = 50000) {
 }
 
 describe('Листы ПД', () => {
+  it('скрытая ведомость не показывает станционную работу и не обещает её на листе', () => {
+    const data = {
+      ...source,
+      pds: source.pds.map((p) =>
+        p.id !== 'pd'
+          ? p
+          : {
+              ...p,
+              tables: [],
+              works: [
+                ...p.works,
+                {
+                  ...p.works[0]!,
+                  id: 'station',
+                  name: 'Учебная станционная работа',
+                  lineId: null,
+                  items: [],
+                  callout: false,
+                },
+              ],
+            },
+      ),
+    }
+    const document = built(data)
+    expect(document.workIdsByPage).toEqual([['w']])
+    expect(document.warnings).toEqual([
+      'Ведомость работ не выведена. Станционные работы не показаны на листах ПД.',
+    ])
+    expect(document.pages.flatMap((p) => texts(p.primitives))).not.toContain('Учебные показатели')
+    expect(document).toMatchSnapshot()
+    const noBounds = {
+      ...data,
+      pds: data.pds.map((p) => (p.id !== 'pd' ? p : { ...p, segments: [] })),
+    }
+    const messages = built(noBounds).pages.flatMap((p) => texts(p.primitives))
+    expect(messages).toContain('У ПД нет границ на главных путях.')
+    expect(messages.some((text) => text.includes('Станционные работы — в ведомости'))).toBe(false)
+  })
   it('подписывает соседние ПД на неполных рядах, считает нестандартный км и не соединяет разрывы', () => {
     const document = built(),
       page = document.pages[0]!

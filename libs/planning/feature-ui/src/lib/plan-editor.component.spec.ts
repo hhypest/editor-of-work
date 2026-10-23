@@ -62,6 +62,105 @@ async function setup(port = client()) {
   }
 }
 describe('Редактор плана', () => {
+  it('фильтрует только список по странице той же ревизии; чужой и устаревший выбор скрывает', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: {
+        ...state,
+        view: {
+          ...state.view!,
+          area: 'pd:a',
+          works: [
+            {
+              id: 'a',
+              name: 'Учебная первая',
+              place: 'Учебное место',
+              volume: 1,
+              unit: 'км',
+              draft: {
+                kind: 'work',
+                mode: 'line',
+                line: 'l',
+                text: '10+0',
+                station: '',
+                objectKind: 'none',
+                objectNumber: '',
+                volume: '1',
+                note: '',
+                callout: false,
+              },
+            },
+            {
+              id: 'b',
+              name: 'Учебная вторая',
+              place: 'Другое учебное место',
+              volume: 2,
+              unit: 'км',
+              draft: {
+                kind: 'work',
+                mode: 'line',
+                line: 'l',
+                text: '11+0',
+                station: '',
+                objectKind: 'none',
+                objectNumber: '',
+                volume: '2',
+                note: '',
+                callout: true,
+              },
+            },
+          ],
+        },
+      },
+    })
+    const { fixture, element, facade } = await setup(port)
+    const scope = element.querySelector<HTMLSelectElement>('#work-list-scope')!
+    const list = () => element.querySelector('[aria-labelledby="works-title"]')!.textContent!
+    const selectScope = async (value: string) => {
+      scope.value = value
+      scope.dispatchEvent(new Event('change'))
+      await fixture.whenStable()
+      fixture.detectChanges()
+    }
+    const selectPage = async (revision: number, area: string, workIds: readonly string[]) => {
+      fixture.componentRef.setInput('pageSelection', { revision, area, page: 2, workIds })
+      await fixture.whenStable()
+      fixture.detectChanges()
+    }
+    expect(list()).toContain('Учебная первая')
+    await selectPage(1, 'pd:a', ['a', 'нет'])
+    await selectScope('page')
+    expect(list()).toContain('Учебная первая')
+    expect(list()).not.toContain('Учебная вторая')
+    expect(list()).toContain('1 из 2')
+    facade.busy.set(true)
+    fixture.detectChanges()
+    expect(list()).not.toContain('Учебная первая')
+    facade.busy.set(false)
+    const current = facade.state()!
+    facade.state.set({ ...current, hasRecovery: true })
+    fixture.detectChanges()
+    expect(list()).not.toContain('Учебная первая')
+    facade.state.set(current)
+    facade.resetForm('a')
+    facade.patch({ note: 'Не потерять черновик' })
+    await selectPage(1, 'pd:a', ['b'])
+    expect(list()).toContain('Учебная вторая')
+    expect(facade.form().note).toBe('Не потерять черновик')
+    expect(facade.selected()).toBe('a')
+    await selectPage(0, 'pd:a', ['a'])
+    expect(list()).not.toContain('Учебная первая')
+    expect(list()).toContain('недоступен')
+    await selectPage(1, 'pd:b', ['a'])
+    expect(list()).not.toContain('Учебная первая')
+    await selectPage(1, 'pd:a', [])
+    expect(list()).toContain('На текущем листе нет работ')
+    await selectScope('area')
+    expect(list()).toContain('Учебная первая')
+    expect(list()).toContain('Учебная вторая')
+    expect(port.send).toHaveBeenCalledTimes(1)
+  })
   it('показывает ошибку разбора прямо у поля, безопасный текст и не сохраняет ошибочную форму', async () => {
     const port = client()
     vi.mocked(port.send).mockImplementation(async (command) =>

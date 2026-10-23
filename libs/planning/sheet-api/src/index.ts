@@ -10,6 +10,14 @@ export interface PlanPreviewContext {
   readonly pending: boolean
 }
 
+/** Работы, размещённые на готовой странице той же ревизии плана. */
+export interface PlanPageSelection {
+  readonly revision: number
+  readonly area: string
+  readonly page: number
+  readonly workIds: readonly string[]
+}
+
 /** Опубликованный срез для Документов: доменные объекты и расчёты остаются в Планировании. */
 export interface PlanSheetData {
   readonly year: number
@@ -41,6 +49,8 @@ export interface PlanSheetData {
       readonly title: string
       readonly columns: readonly { readonly title: string; readonly width: number }[]
       readonly rows: readonly (readonly string[])[]
+      /** ID работы для каждой строки ведомости; у сводных таблиц отсутствует. */
+      readonly workIds?: readonly string[] | undefined
     }[]
   }[]
 }

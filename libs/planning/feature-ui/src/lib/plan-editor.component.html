@@ -335,6 +335,30 @@
       </section>
       <section aria-labelledby="works-title">
         <h3 id="works-title">Работы выбранной области</h3>
+        @if (view.area.startsWith('pd:')) {
+          <label for="work-list-scope">Показывать работы</label>
+          <select
+            id="work-list-scope"
+            [ngModel]="workScope()"
+            (ngModelChange)="workScope.set($event)"
+            [disabled]="facade.busy()"
+          >
+            <option value="area">Весь ПД</option>
+            <option value="page">Текущий лист</option>
+          </select>
+          @if (pageFilter()) {
+            @if (currentPage(); as page) {
+              <p role="status">
+                Работы на листе {{ page.page }}: {{ visibleWorks().length }} из
+                {{ view.works.length }} в ПД. Итоги таблиц — по всему ПД.
+              </p>
+            } @else {
+              <p role="status">
+                Список текущего листа недоступен. Подготовьте лист или выберите «Весь ПД».
+              </p>
+            }
+          }
+        }
         <div class="table-scroll">
           <table>
             <thead>
@@ -345,7 +369,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (work of view.works; track work.id) {
+              @for (work of visibleWorks(); track work.id) {
                 <tr>
                   <td>
                     <strong>{{ work.name }}</strong>
@@ -371,7 +395,15 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="3">В выбранной области нет работ.</td>
+                  <td colspan="3">
+                    {{
+                      pageFilter()
+                        ? currentPage()
+                          ? 'На текущем листе нет работ на схеме или в ведомости.'
+                          : 'Список работ текущего листа недоступен.'
+                        : 'В выбранной области нет работ.'
+                    }}
+                  </td>
                 </tr>
               }
             </tbody>

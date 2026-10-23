@@ -85,6 +85,12 @@ describe('Срез плана для листов', () => {
     expect(source.pds[1]?.tables.find((t) => t.title === 'Ведомость работ ПД')?.rows[0]).toContain(
       '2 компл',
     )
+    expect(source.pds[1]?.tables.find((t) => t.workIds)?.workIds).toEqual(['s'])
+    expect(
+      source.pds[1]?.tables
+        .filter((t) => !t.workIds)
+        .every((t) => t.title !== 'Ведомость работ ПД'),
+    ).toBe(true)
   })
   it('отклоняет чрезмерный план до расчёта таблиц, сохраняя исходный снимок', () => {
     const plan = value(createAnnualPlan(2027, samplePlanBasis()))

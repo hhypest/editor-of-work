@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, effect, inject, output, signal } from '@angular/core'
-import type { PlanPreviewContext } from '@eow/planning/sheet-api'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core'
+import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-api'
 import { FormsModule } from '@angular/forms'
 import { PlanEditorFacade } from './plan-editor.facade'
 @Component({
@@ -12,7 +21,29 @@ import { PlanEditorFacade } from './plan-editor.facade'
 })
 export class PlanEditorComponent {
   readonly previewContext = output<PlanPreviewContext>()
+  readonly pageSelection = input<PlanPageSelection | null>(null)
   protected readonly facade = inject(PlanEditorFacade)
+  protected readonly workScope = signal<'area' | 'page'>('area')
+  protected readonly pageFilter = computed(
+    () => this.workScope() === 'page' && this.facade.view()?.area.startsWith('pd:'),
+  )
+  protected readonly currentPage = computed(() => {
+    const selected = this.pageSelection(),
+      state = this.facade.state()
+    return selected &&
+      selected.revision === state?.revision &&
+      selected.area === state.view?.area &&
+      !this.facade.busy() &&
+      !state.hasRecovery
+      ? selected
+      : null
+  })
+  protected readonly visibleWorks = computed(() => {
+    const works = this.facade.view()?.works ?? []
+    if (!this.pageFilter()) return works
+    const ids = new Set(this.currentPage()?.workIds ?? [])
+    return works.filter((w) => ids.has(w.id))
+  })
   protected readonly editionNumber = signal('')
   protected readonly editionDate = signal('')
   constructor() {

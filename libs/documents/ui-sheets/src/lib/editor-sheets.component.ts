@@ -1,5 +1,13 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, untracked } from '@angular/core'
-import type { PlanPreviewContext } from '@eow/planning/sheet-api'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  output,
+  untracked,
+} from '@angular/core'
+import type { PlanPageSelection, PlanPreviewContext } from '@eow/planning/sheet-api'
 import { SheetA3Component } from './sheet-a3.component'
 import { EditorSheetsFacade } from './editor-sheets.facade'
 
@@ -13,6 +21,7 @@ import { EditorSheetsFacade } from './editor-sheets.facade'
 })
 export class EditorSheetsComponent {
   readonly context = input<PlanPreviewContext | null>(null)
+  readonly pageSelection = output<PlanPageSelection | null>()
   protected readonly facade = inject(EditorSheetsFacade)
   constructor() {
     effect(() => {
@@ -21,6 +30,7 @@ export class EditorSheetsComponent {
         void this.facade.sync(context)
       })
     })
+    effect(() => this.pageSelection.emit(this.facade.selection()))
   }
   protected scale(event: Event): void {
     if (event.target instanceof HTMLSelectElement) this.facade.setScale(Number(event.target.value))

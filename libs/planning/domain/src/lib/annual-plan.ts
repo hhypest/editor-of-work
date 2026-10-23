@@ -4,6 +4,7 @@ import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
 import type { PlanIndicator } from './indicators'
 import type { PdScale } from './pd-scale'
+import type { PdTableKind } from './pd-tables'
 import {
   ownWork,
   sameWorkInput,
@@ -38,6 +39,7 @@ export interface AnnualPlan {
   readonly manual: ReadonlyMap<string, AreaManual>
   readonly indicators: ReadonlyMap<string, readonly PlanIndicator[]>
   readonly pdScales: ReadonlyMap<string, PdScale>
+  readonly pdHiddenTables: ReadonlyMap<string, readonly PdTableKind[]>
 }
 
 export interface PrototypeArchive {
@@ -95,6 +97,7 @@ export function createAnnualPlan(
     manual: new Map(),
     indicators: new Map(),
     pdScales: new Map(),
+    pdHiddenTables: new Map(),
   })
 }
 

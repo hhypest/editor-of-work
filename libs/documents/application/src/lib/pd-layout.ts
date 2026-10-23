@@ -200,8 +200,11 @@ export function buildPdSheets(
     workIdsByPage: string[][] = [],
     pageWorks = new Set<string>(),
     warnings: string[] = []
-  if (pd.works.some((w) => w.lineId === null && w.callout))
+  const hasStatement = pd.tables.some((table) => table.workIds !== undefined)
+  if (hasStatement && pd.works.some((w) => w.lineId === null && w.callout))
     warnings.push('Станционные работы показаны в ведомости: в срезе плана нет координат их осей.')
+  if (!hasStatement && pd.works.some((w) => w.lineId === null))
+    warnings.push('Ведомость работ не выведена. Станционные работы не показаны на листах ПД.')
   let shapes: SheetPrimitive[] = [],
     y = TOP
   const flush = (): Result<null, SheetError> => {
@@ -395,7 +398,13 @@ export function buildPdSheets(
   }
   if (!prepared.value.length) {
     shapes.push(
-      text('У ПД нет границ на главных путях. Станционные работы — в ведомости.', 15, y + 4),
+      text(
+        hasStatement
+          ? 'У ПД нет границ на главных путях. Станционные работы — в ведомости.'
+          : 'У ПД нет границ на главных путях.',
+        15,
+        y + 4,
+      ),
     )
     y += 12
   }

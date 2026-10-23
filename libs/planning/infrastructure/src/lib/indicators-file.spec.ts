@@ -20,7 +20,7 @@ describe('Ручные показатели и совместимость фор
     (old) => {
       const before = JSON.stringify(old)
       const file = value(readPlanFile(before))
-      expect(file.format.version).toBe(4)
+      expect(file.format.version).toBe(5)
       expect(file.plan.indicators).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

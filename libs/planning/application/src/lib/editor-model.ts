@@ -26,6 +26,7 @@ export interface EditorIssue {
   readonly end: number | null
 }
 export type EditorChange =
+  | { readonly kind: 'pdTables'; readonly hidden: readonly string[] }
   | { readonly kind: 'pdScale'; readonly scale: number }
   | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
   | {
@@ -67,6 +68,11 @@ export type EditorAction =
   | { readonly kind: 'recover'; readonly accept: boolean }
   | { readonly kind: 'checkPlace'; readonly line: string; readonly text: string }
 export interface EditorView {
+  readonly pdTables: readonly {
+    readonly key: string
+    readonly label: string
+    readonly visible: boolean
+  }[]
   readonly pdScale: 25000 | 50000 | 100000 | null
   readonly indicators: readonly {
     readonly id: string

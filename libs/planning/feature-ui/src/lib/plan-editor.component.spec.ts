@@ -25,6 +25,7 @@ const state: EditorState = {
     works: [],
     indicators: [],
     pdScale: null,
+    pdTables: [],
     tables: [
       {
         title: 'Текущее содержание',
@@ -63,6 +64,62 @@ async function setup(port = client()) {
   }
 }
 describe('Редактор плана', () => {
+  it('хранит черновик состава таблиц при ошибке, защищает переход и применяет его перед Ctrl+S', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: {
+        ...state,
+        view: {
+          ...state.view!,
+          area: 'pd:a',
+          pdScale: 50000,
+          pdTables: [{ key: 'works', label: 'Ведомость работ ПД', visible: true }],
+        },
+      },
+    })
+    const { facade, fixture, element } = await setup(port)
+    const field = element.querySelector<HTMLInputElement>('#pd-table-works')!
+    field.checked = false
+    field.dispatchEvent(new Event('change'))
+    await fixture.whenStable()
+    expect(facade.pdTablesDraft()).toEqual(['works'])
+    await facade.filter('district')
+    await facade.history('undo')
+    expect(port.send).toHaveBeenCalledTimes(1)
+    const close = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(close)
+    expect(close.defaultPrevented).toBe(true)
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'invalid',
+      issues: [{ field: 'form', message: 'Учебная ошибка настройки', start: null, end: null }],
+    })
+    expect(await facade.save()).toBe(false)
+    expect(facade.pdTablesDraft()).toEqual(['works'])
+    expect(vi.mocked(port.send).mock.calls.some(([command]) => command.kind === 'save')).toBe(false)
+    facade.cancelPdTables()
+    expect(facade.pdTableVisible('works')).toBe(true)
+    facade.patchPdTable('works', false)
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await fixture.whenStable()
+    expect(
+      vi
+        .mocked(port.send)
+        .mock.calls.slice(-2)
+        .map(([command]) => command),
+    ).toEqual([
+      { kind: 'pdTables', hidden: ['works'] },
+      { kind: 'save', saveAs: false },
+    ])
+    expect(facade.pending()).toBe(false)
+  })
   it('не закрепляет масштаб для чужой ревизии, области или черновика и меняет эпоху только после открытия', async () => {
     const port = client()
     const pdState: EditorState = {

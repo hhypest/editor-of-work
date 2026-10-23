@@ -45,6 +45,7 @@ export class PlanEditorFacade {
   readonly hint = signal<PlaceHint | null>(null)
   readonly cells = signal<Readonly<Record<string, CellDraft>>>({})
   readonly indicatorDraft = signal<readonly EditorIndicatorDraft[] | null>(null)
+  readonly pdTablesDraft = signal<readonly string[] | null>(null)
   readonly indicatorRows = computed<readonly EditorIndicatorDraft[]>(
     () =>
       this.indicatorDraft() ??
@@ -64,7 +65,11 @@ export class PlanEditorFacade {
   readonly hasCells = computed(() => Object.keys(this.cells()).length > 0)
   readonly pending = computed(
     () =>
-      this.formDirty() || this.hasCells() || this.approvalDirty() || this.indicatorDraft() !== null,
+      this.formDirty() ||
+      this.hasCells() ||
+      this.approvalDirty() ||
+      this.indicatorDraft() !== null ||
+      this.pdTablesDraft() !== null,
   )
   readonly placeIssues = computed(() => [
     ...this.issues().filter((e) => e.field === 'place'),
@@ -187,6 +192,7 @@ export class PlanEditorFacade {
     ++this.hintGeneration
   }
   private resetAll(): void {
+    this.pdTablesDraft.set(null)
     this.indicatorDraft.set(null)
     this.resetForm()
     this.cells.set({})
@@ -353,6 +359,41 @@ export class PlanEditorFacade {
     this.indicatorDraft.set(null)
     return true
   }
+  pdTableVisible(key: string): boolean {
+    const draft = this.pdTablesDraft()
+    return draft === null
+      ? (this.view()?.pdTables.find((row) => row.key === key)?.visible ?? false)
+      : !draft.includes(key)
+  }
+  patchPdTable(key: string, visible: boolean): void {
+    if (
+      this.busy() ||
+      this.state()?.hasRecovery ||
+      !this.view()?.pdTables.some((row) => row.key === key)
+    )
+      return
+    const hidden =
+      this.pdTablesDraft() ??
+      this.view()
+        ?.pdTables.filter((row) => !row.visible)
+        .map((row) => row.key) ??
+      []
+    this.pdTablesDraft.set(
+      visible
+        ? hidden.filter((entry) => entry !== key)
+        : [...hidden.filter((entry) => entry !== key), key],
+    )
+  }
+  cancelPdTables(): void {
+    this.pdTablesDraft.set(null)
+  }
+  async applyPdTables(): Promise<boolean> {
+    const hidden = this.pdTablesDraft()
+    if (hidden === null) return true
+    if (!(await this.run({ kind: 'pdTables', hidden }))) return false
+    this.pdTablesDraft.set(null)
+    return true
+  }
   cancelApproval(): void {
     this.approvalDirty.set(false)
     const approval = this.view()?.approval
@@ -364,6 +405,7 @@ export class PlanEditorFacade {
     if (
       !(await this.applyCells()) ||
       !(await this.applyIndicators()) ||
+      !(await this.applyPdTables()) ||
       !(await this.applyApproval())
     )
       return false

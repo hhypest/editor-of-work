@@ -469,6 +469,54 @@ describe('планы в main', () => {
         area,
       }),
     )
+  it('применяет состав таблиц одним шагом, сохраняет работы и открывает настройки после записи', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    await edit({ kind: 'add', draft }, 'pd:ПД-2')
+    const before = await edit({ kind: 'state' }, 'pd:ПД-2')
+    expect(await edit({ kind: 'pdTables', hidden: ['works', 'works'] }, 'pd:ПД-2')).toMatchObject({
+      status: 'invalid',
+    })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toEqual(before)
+    const applied = await edit({ kind: 'pdTables', hidden: ['works', 'summary'] }, 'pd:ПД-2')
+    expect(applied).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { works: [{ draft: { note: 'Учебная' } }] } },
+    })
+    if (applied.status !== 'editor') throw new Error('Нет учебного состояния')
+    const source = await invoke({
+      action: 'previewEditorSheets',
+      revision: applied.state.revision,
+      pd: 'ПД-2',
+    })
+    if (source.status !== 'editorSheets') throw new Error('Нет учебного листа')
+    expect(source.source.pds[1]?.tables.some((table) => table.title === 'Ведомость работ ПД')).toBe(
+      false,
+    )
+    expect(source.source.pds[1]?.works).toHaveLength(1)
+    expect(await edit({ kind: 'undo' }, 'pd:ПД-2')).toMatchObject({
+      state: {
+        view: {
+          pdTables: expect.arrayContaining([
+            { key: 'works', label: 'Ведомость работ ПД', visible: true },
+          ]),
+        },
+      },
+    })
+    await edit({ kind: 'redo' }, 'pd:ПД-2')
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    await edit({ kind: 'open' })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
+      state: {
+        dirty: false,
+        view: {
+          pdTables: expect.arrayContaining([
+            { key: 'works', label: 'Ведомость работ ПД', visible: false },
+          ]),
+          works: [{ draft: { note: 'Учебная' } }],
+        },
+      },
+    })
+  })
   it('закрепляет масштаб по ПД, отменяет, сохраняет и открывает; устаревшая команда не меняет настройку', async () => {
     await invoke({ action: 'update', document: document(2027) })
     const before = await editorState()
@@ -554,7 +602,7 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(4)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(5)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },

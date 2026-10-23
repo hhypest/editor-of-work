@@ -2,6 +2,8 @@ import type { PlanSheetData } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
 import {
   indicatorsOf,
+  hiddenPdTablesOf,
+  type PdTableKind,
   pdScaleOf,
   planRows,
   shareIn,
@@ -9,6 +11,7 @@ import {
   type AnnualPlan,
 } from '@eow/planning/domain'
 
+type PdSheetTable = PlanSheetData['pds'][number]['tables'][number]
 const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).replace('.', ',')
 
 export function planSheetData(
@@ -81,7 +84,11 @@ export function planSheetData(
             callout: w.callout,
           }
         })
-      const tables: PlanSheetData['pds'][number]['tables'][number][] = []
+      const tables: PdSheetTable[] = []
+      const hidden = hiddenPdTablesOf(plan, pd.id)
+      const append = (kind: PdTableKind, table: PdSheetTable): void => {
+        if (!hidden.includes(kind)) tables.push(table)
+      }
       for (const [group, title] of [
         ['current', 'План текущего содержания'],
         ['capital', 'Капитальные работы'],
@@ -89,7 +96,7 @@ export function planSheetData(
       ] as const) {
         const rows = planRows(plan, area, group)
         if (rows.length)
-          tables.push({
+          append(group, {
             title,
             columns: [
               { title: 'Вид работ', width: 200 },
@@ -107,7 +114,7 @@ export function planSheetData(
             ]),
           })
       }
-      tables.push({
+      append('summary', {
         title: 'Показатели ПД',
         columns: [
           { title: 'Показатель', width: 280 },
@@ -126,7 +133,7 @@ export function planSheetData(
           ['Работ в ПД', String(works.length)],
         ],
       })
-      tables.push({
+      append('works', {
         title: 'Ведомость работ ПД',
         workIds: works.map((w) => w.id),
         columns: [
@@ -146,7 +153,7 @@ export function planSheetData(
       })
       const indicators = indicatorsOf(plan, area)
       if (indicators.length)
-        tables.push({
+        append('indicators', {
           title: 'Ручные показатели ПД',
           columns: [
             { title: 'Показатель', width: 160 },

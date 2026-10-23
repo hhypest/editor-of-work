@@ -33,6 +33,7 @@ export type PlanError =
   | { readonly kind: 'invalid-manual-value'; readonly value: number }
   | { readonly kind: 'invalid-indicator'; readonly reason: 'id' | 'name' | 'value' | 'limit' }
   | { readonly kind: 'invalid-pd-scale' }
+  | { readonly kind: 'invalid-pd-tables'; readonly reason: 'key' | 'duplicate' }
 
 export type BasisPart = 'line' | 'station' | 'pd' | 'work-kind'
 
@@ -52,6 +53,10 @@ const BASIS_PART: Record<BasisPart, string> = {
 /** Текст ошибки для пользователя. */
 export function describePlanError(e: PlanError): string {
   switch (e.kind) {
+    case 'invalid-pd-tables':
+      return e.reason === 'key'
+        ? 'Выберите таблицы из поддерживаемого набора ПД'
+        : 'Таблица ПД указана в настройке дважды'
     case 'invalid-pd-scale':
       return 'Выберите масштаб схемы ПД 1:25 000, 1:50 000 или 1:100 000'
     case 'invalid-indicator':

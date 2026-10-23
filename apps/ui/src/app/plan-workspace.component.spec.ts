@@ -214,4 +214,31 @@ it('composition root обновляет SVG после добавления, и�
     ['ПД-1', 100000],
     ['ПД-2', 25000],
   ])
+  const beforeTables = session
+  const toggleTable = async (key: string, checked: boolean) => {
+    const field = element.querySelector<HTMLInputElement>(`#pd-table-${key}`)!
+    field.checked = checked
+    field.dispatchEvent(new Event('change'))
+    await settle()
+  }
+  await toggleTable('current', false)
+  await toggleTable('summary', false)
+  await toggleTable('works', false)
+  expect(session).toBe(beforeTables)
+  expect(element.textContent).toContain('Есть незавершённый ввод')
+  await click('Применить состав таблиц')
+  expect(session.present.pdHiddenTables.get('ПД-1')).toEqual(['current', 'summary', 'works'])
+  expect(session.present.works).toBe(beforeTables.present.works)
+  expect(svg()).not.toContain('План текущего содержания')
+  expect(svg()).not.toContain('Ведомость работ ПД')
+  expect(svg()).toContain('<Учебный показатель>')
+  await history('KeyZ')
+  expect(svg()).toContain('План текущего содержания')
+  expect(element.querySelector<HTMLInputElement>('#pd-table-works')!.checked).toBe(true)
+  await history('KeyY')
+  expect(svg()).not.toContain('Ведомость работ ПД')
+  await input('plan-area', 'pd:ПД-2', 'change')
+  expect(element.querySelector<HTMLInputElement>('#pd-table-works')!.checked).toBe(true)
+  await input('plan-area', 'pd:ПД-1', 'change')
+  expect(element.querySelector<HTMLInputElement>('#pd-table-works')!.checked).toBe(false)
 })

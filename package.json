@@ -21,6 +21,7 @@
     "check": "npm run check:public && npm run check:licenses && npm run test:scripts && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "check:public": "node scripts/check-public-files.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
+    "check:electron": "node scripts/check-electron-runtime.mjs",
     "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\"",
     "fixtures": "node scripts/fixtures.mjs"
   },

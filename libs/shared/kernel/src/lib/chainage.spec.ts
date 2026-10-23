@@ -208,9 +208,14 @@ describe('свойства километража', () => {
     fc.assert(
       fc.property(arbCase, ([l, a, b, c]) => {
         expect(distance(a, b, l) + distance(b, c, l)).toBe(distance(a, c, l))
-        expect(distance(a, b, l)).toBe(-distance(b, a, l))
+        // Числовая антисимметрия: Object.is различает 0 и -0 для совпадающих точек.
+        expect(distance(a, b, l) + distance(b, a, l)).toBe(0)
         expect(Math.sign(distance(a, b, l))).toBe(Math.sign(compareChainage(b, a)))
       }),
+      {
+        // Контрпример Windows CI: совпадающие точки должны проверяться в каждом прогоне.
+        examples: [[[lengths([[0, 1127]]), { km: 2, m: 3 }, { km: 2, m: 3 }, { km: 0, m: 0 }]]],
+      },
     )
   })
 

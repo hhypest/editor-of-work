@@ -31,3 +31,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: SQLite in real Electron
+        if: runner.os == 'Windows'
+        run: npm run check:electron
+      - name: Electron runtime report
+        if: runner.os == 'Windows' && success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: electron-runtime-windows
+          path: test-results/electron-runtime/report.json
+          if-no-files-found: error
+          retention-days: 14

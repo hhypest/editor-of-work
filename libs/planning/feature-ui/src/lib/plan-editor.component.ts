@@ -72,7 +72,7 @@ export class PlanEditorComponent {
   }
   protected key(event: KeyboardEvent): void {
     if ((!event.ctrlKey && !event.metaKey) || event.altKey) return
-    const key = event.code,
+    const key = shortcutCode(event),
       target = event.target,
       editable =
         target instanceof HTMLElement &&
@@ -96,5 +96,26 @@ export class PlanEditorComponent {
       kind: 'import',
       edition: { number: this.editionNumber(), date: this.editionDate() },
     })
+  }
+}
+
+/** При вводе через службы Windows физический code бывает пустым; key зависит от раскладки. */
+function shortcutCode(event: KeyboardEvent): string {
+  if (event.code && event.code !== 'Unidentified') return event.code
+  switch (event.key.toLowerCase()) {
+    case 's':
+    case 'ы':
+      return 'KeyS'
+    case 'p':
+    case 'з':
+      return 'KeyP'
+    case 'z':
+    case 'я':
+      return 'KeyZ'
+    case 'y':
+    case 'н':
+      return 'KeyY'
+    default:
+      return ''
   }
 }

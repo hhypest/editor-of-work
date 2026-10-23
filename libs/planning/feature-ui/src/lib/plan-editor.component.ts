@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core'
+import { ChangeDetectionStrategy, Component, effect, inject, output, signal } from '@angular/core'
+import type { PlanPreviewContext } from '@eow/planning/sheet-api'
 import { FormsModule } from '@angular/forms'
 import { PlanEditorFacade } from './plan-editor.facade'
 @Component({
@@ -10,10 +11,22 @@ import { PlanEditorFacade } from './plan-editor.facade'
   host: { '(document:keydown)': 'key($event)' },
 })
 export class PlanEditorComponent {
+  readonly previewContext = output<PlanPreviewContext>()
   protected readonly facade = inject(PlanEditorFacade)
   protected readonly editionNumber = signal('')
   protected readonly editionDate = signal('')
   constructor() {
+    effect(() => {
+      const state = this.facade.state()
+      this.previewContext.emit({
+        revision: state?.revision ?? 0,
+        area: this.facade.area(),
+        hasPlan: state?.view !== null && state?.view !== undefined,
+        hasRecovery: state?.hasRecovery ?? false,
+        busy: this.facade.busy(),
+        pending: this.facade.pending(),
+      })
+    })
     void this.facade.initialize()
   }
   protected key(event: KeyboardEvent): void {

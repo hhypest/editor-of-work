@@ -1,6 +1,12 @@
 import { channels } from './channels'
 
 describe('контракт IPC', () => {
+  it('лист редактора требует целую ревизию и ПД; пути и лишние поля не принимаются', () => {
+    const request = { action: 'previewEditorSheets', revision: 2, pd: 'ПД-1' }
+    expect(channels.planFile.request.safeParse(request).success).toBe(true)
+    for (const patch of [{ revision: -1 }, { revision: 1.5 }, { pd: '' }, { path: 'C:/private' }])
+      expect(channels.planFile.request.safeParse({ ...request, ...patch }).success).toBe(false)
+  })
   it('имена каналов уникальны и имеют вид «контекст:действие»', () => {
     const names = Object.values(channels).map((c) => c.name)
     expect(new Set(names).size).toBe(names.length)

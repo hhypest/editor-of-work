@@ -1,5 +1,15 @@
 import type { Chainage, PlaceItem, TrackSpan } from '@eow/shared/kernel'
 
+/** Контекст применённого плана; незавершённые формы в срез не входят. */
+export interface PlanPreviewContext {
+  readonly revision: number
+  readonly area: string
+  readonly hasPlan: boolean
+  readonly hasRecovery: boolean
+  readonly busy: boolean
+  readonly pending: boolean
+}
+
 /** Опубликованный срез для Документов: доменные объекты и расчёты остаются в Планировании. */
 export interface PlanSheetData {
   readonly year: number

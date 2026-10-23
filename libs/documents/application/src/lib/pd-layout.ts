@@ -36,6 +36,9 @@ import { measureTable } from './sheet-table'
 export interface PdSheetClient {
   load(open: boolean): Promise<Result<PlanSheetData | null | 'cancelled', SheetError>>
 }
+export interface EditorSheetClient {
+  source(revision: number, pd: string): Promise<Result<PlanSheetData, SheetError>>
+}
 const TOP = 53,
   BOTTOM = 245
 interface Row {

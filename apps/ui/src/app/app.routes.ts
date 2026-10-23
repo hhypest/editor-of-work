@@ -3,7 +3,7 @@ import { ExportWizardComponent, ManualTemplateComponent } from '@eow/import/feat
 import { type Route } from '@angular/router'
 import { PassportComponent, RepairReportComponent } from '@eow/passport/feature-ui'
 
-import { PlanEditorComponent } from '@eow/planning/feature-ui'
+import { PlanWorkspaceComponent } from './plan-workspace.component'
 
 export const appRoutes: Route[] = [
   { path: 'pd-sheets', component: PdSheetsComponent },
@@ -12,5 +12,5 @@ export const appRoutes: Route[] = [
   { path: 'manual', component: ManualTemplateComponent },
   { path: 'sheets', component: OverviewComponent },
   { path: 'repairs', component: RepairReportComponent },
-  { path: 'plan', component: PlanEditorComponent },
+  { path: 'plan', component: PlanWorkspaceComponent },
 ]

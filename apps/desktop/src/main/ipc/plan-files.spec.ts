@@ -1,7 +1,7 @@
-import { mkdtemp, readFile, rm, writeFile, open } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile, open } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { channels, type RequestOf } from '@eow/ipc/contracts'
+import { channels, pdfSheetSchema, type RequestOf } from '@eow/ipc/contracts'
 import { addWork, createAnnualPlan, planBasis, samplePlanBasis, workId } from '@eow/planning/domain'
 import {
   decodePlan,
@@ -10,6 +10,7 @@ import {
   FilePlanStore,
   MAX_PLAN_FILE_BYTES,
 } from '@eow/planning/infrastructure'
+import { mm, type PdfExporter } from '@eow/documents/application'
 import { registerPlanFileHandlers } from './plan-files'
 import type { EditorAction, EditorDraft, PassportView } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
@@ -45,6 +46,10 @@ describe('планы в main', () => {
       value: passportInput(),
     })),
   }
+  const pdf: PdfExporter = {
+    export: vi.fn<PdfExporter['export']>(async () => ({ ok: true, value: 'saved' })),
+  }
+  const page = pdfSheetSchema.parse({ width: mm(420), height: mm(297), number: 1, primitives: [] })
   let directory: string
   let path: string
   let stop: () => Promise<void>
@@ -69,7 +74,8 @@ describe('планы в main', () => {
       },
     }
     vi.mocked(passport.basis).mockReset().mockResolvedValue({ ok: true, value: passportInput() })
-    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0', passport)
+    vi.mocked(pdf.export).mockReset().mockResolvedValue({ ok: true, value: 'saved' })
+    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0', passport, pdf)
   })
   afterEach(async () => {
     await stop()
@@ -78,6 +84,73 @@ describe('планы в main', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
+  it('экспорт текущего листа проверяет план, ПД, ревизию и не меняет состояние и историю', async () => {
+    const request = { action: 'exportEditorSheet' as const, revision: 0, pd: 'ПД-1', page }
+    expect(await invoke(request)).toMatchObject({ status: 'error' })
+    await invoke({ action: 'update', document: document(2027) })
+    const before = await editorState()
+    expect(await invoke({ ...request, revision: before.revision - 1 })).toMatchObject({
+      status: 'error',
+    })
+    expect(await invoke({ ...request, revision: before.revision, pd: 'нет' })).toMatchObject({
+      status: 'error',
+    })
+    expect(pdf.export).not.toHaveBeenCalled()
+    for (const result of [
+      { ok: true as const, value: 'saved' as const },
+      { ok: true as const, value: 'cancelled' as const },
+      { ok: false as const, error: { message: 'Учебная ошибка PDF' } },
+    ]) {
+      vi.mocked(pdf.export).mockResolvedValueOnce(result)
+      const response = await invoke({ ...request, revision: before.revision })
+      expect(response).toEqual(
+        result.ok
+          ? { status: 'pdf', result: result.value }
+          : { status: 'error', message: result.error.message },
+      )
+      expect(await editorState()).toEqual(before)
+    }
+    expect(pdf.export).toHaveBeenCalledTimes(3)
+    expect(await readdir(directory)).toEqual([])
+  })
+  it('PDF занимает очередь плана: правка не обгоняет снимок и следующий устаревший экспорт отклоняется', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const before = await editorState()
+    let finish!: (result: Awaited<ReturnType<PdfExporter['export']>>) => void
+    vi.mocked(pdf.export).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve
+        }),
+    )
+    const request = {
+      action: 'exportEditorSheet' as const,
+      revision: before.revision,
+      pd: 'ПД-1',
+      page,
+    }
+    const pending = invoke(request)
+    await Promise.resolve()
+    await Promise.resolve()
+    const changed = edit({ kind: 'approval', title: 'Учебный гриф', name: '', year: 2027 })
+    finish({ ok: true, value: 'saved' })
+    expect(await pending).toEqual({ status: 'pdf', result: 'saved' })
+    await changed
+    expect(await invoke(request)).toMatchObject({ status: 'error' })
+    expect(pdf.export).toHaveBeenCalledTimes(1)
+  })
+  it('найденная автокопия блокирует PDF до явного решения', async () => {
+    await writeFile(path, document(2027))
+    await writeFile(`${path}.autosave`, document(2028))
+    await edit({ kind: 'open' })
+    const state = await editorState()
+    expect(state.hasRecovery).toBe(true)
+    expect(
+      await invoke({ action: 'exportEditorSheet', revision: state.revision, pd: 'ПД-1', page }),
+    ).toMatchObject({ status: 'error' })
+    expect(pdf.export).not.toHaveBeenCalled()
+    expect(await readFile(`${path}.autosave`, 'utf8')).toBe(document(2028))
+  })
   it('просматривает другой файл без замены текущего плана, пути и содержимого файлов', async () => {
     await invoke({ action: 'update', document: document(2027) })
     const original = document(2028)

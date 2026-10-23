@@ -11,6 +11,7 @@ describe('Порт отчёта через preload', () => {
     const api: EowApi = {
       manualTemplate: async () => ({ status: 'cancelled' }),
       exportWizard: async () => ({ status: 'cancelled' }),
+      printHost: async () => ({ status: 'error', message: 'unused' }),
       appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
       planFile: async () => ({ status: 'cancelled' }),
       passport: vi.fn<EowApi['passport']>(async () => ({ status: 'ok', editions: [] })),

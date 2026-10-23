@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { pdfSheetSchema } from './pdf-sheet-schema'
 import { planSheetDataSchema } from './plan-sheet-schema'
 import { defineChannel } from './channel'
 import {
@@ -21,6 +22,14 @@ export const planFile = defineChannel(
         action: z.literal('importPrototype'),
         edition: z.object({ number: z.string().min(1), date: z.iso.date() }).strict(),
         catalog: z.array(z.json()).optional(),
+      })
+      .strict(),
+    z
+      .object({
+        action: z.literal('exportEditorSheet'),
+        revision: z.number().int().nonnegative(),
+        pd: z.string().min(1).max(1000),
+        page: pdfSheetSchema,
       })
       .strict(),
     z.object({ action: z.literal('open') }).strict(),
@@ -67,6 +76,7 @@ export const planFile = defineChannel(
         source: planSheetDataSchema,
       })
       .strict(),
+    z.object({ status: z.literal('pdf'), result: z.enum(['saved', 'cancelled']) }).strict(),
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
     z.object({ status: z.literal('editor'), state: editorStateSchema }).strict(),

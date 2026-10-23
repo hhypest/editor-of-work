@@ -7,3 +7,16 @@ body {
   margin: 0;
   font-family: system-ui, sans-serif;
 }
+
+/* Только изолированное окно печати. В редакторе браузерная печать не используется. */
+body.print-host {
+  width: 420mm;
+  height: 297mm;
+}
+body.print-host eow-sheet-a3 svg {
+  box-shadow: none;
+}
+@page {
+  size: A3 landscape;
+  margin: 0;
+}

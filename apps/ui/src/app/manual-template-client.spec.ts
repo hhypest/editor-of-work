@@ -3,6 +3,7 @@ import { manualTemplateClient } from './manual-template-client'
 
 const api = (): EowApi => ({
   exportWizard: async () => ({ status: 'cancelled' }),
+  printHost: async () => ({ status: 'error', message: 'unused' }),
   appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
   planFile: async () => ({ status: 'cancelled' }),
   passport: vi.fn<EowApi['passport']>(async () => ({ status: 'ok' as const, editions: [] })),

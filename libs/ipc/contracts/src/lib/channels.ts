@@ -5,6 +5,7 @@ import { passport } from './passport-channel'
 import { passportData } from './passport-data-channel'
 import { exportWizard } from './export-wizard-channel'
 import { manualTemplate } from './manual-template-channel'
+import { printHost } from './pdf-sheet-schema'
 import { repairs } from './repair-report-channel'
 
 /** Сведения о программе: имя и версия. Первый канал, на котором проверяется контракт. */
@@ -22,6 +23,7 @@ export const appInfo = defineChannel(
 /** Все каналы контракта. Новый канал добавляется сюда — тогда его увидят main, preload и renderer. */
 export const channels = {
   appInfo,
+  printHost,
   planFile,
   passport,
   passportData,

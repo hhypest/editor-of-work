@@ -15,20 +15,20 @@
 
 ## Команды
 
-| Команда                  | Что делает                                                                                               |
-| ------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `npm start`              | программа в режиме разработки (Electron + Angular с перезагрузкой)                                       |
-| `npm test`               | Vitest во всех проектах (`nx run-many -t test`)                                                          |
-| `npm run test:e2e`       | Playwright для Electron: сценарии и эталонные снимки листов                                              |
-| `npm run lint`           | ESLint (angular-eslint, границы модулей Nx) и oxlint; только проверка                                    |
-| `npm run lint:fix`       | то же с исправлением                                                                                     |
-| `npm run format`         | Prettier                                                                                                 |
-| `npm run check:public`   | в индексе Git нет xls, xlsx, sqlite, файлов планов, pdf, архивов                                         |
-| `npm run check:electron` | SQLite и резервные копии в настоящем Electron; после build, [инструкция](docs/electron-runtime-check.md) |
-| `npm run check:licenses` | лицензии зависимостей, попадающих в exe, — только разрешительные                                         |
-| `npm run check`          | `check:public`, `check:licenses`, формат, lint, typecheck, тесты, сборка — то же, что в CI               |
-| `npm run fixtures`       | сгенерировать вымышленные выгрузки для тестов импорта                                                    |
-| `npm run build:exe`      | portable exe (electron-builder); запускается вручную                                                     |
+| Команда                  | Что делает                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| `npm start`              | программа в режиме разработки (Electron + Angular с перезагрузкой)                                               |
+| `npm test`               | Vitest во всех проектах (`nx run-many -t test`)                                                                  |
+| `npm run test:e2e`       | Playwright для Electron: сценарии и эталонные снимки листов                                                      |
+| `npm run lint`           | ESLint (angular-eslint, границы модулей Nx) и oxlint; только проверка                                            |
+| `npm run lint:fix`       | то же с исправлением                                                                                             |
+| `npm run format`         | Prettier                                                                                                         |
+| `npm run check:public`   | в индексе Git нет xls, xlsx, sqlite, файлов планов, pdf, архивов                                                 |
+| `npm run check:electron` | SQLite, резервные копии и PDF А3 в настоящем Electron; после build, [инструкция](docs/electron-runtime-check.md) |
+| `npm run check:licenses` | лицензии зависимостей, попадающих в exe, — только разрешительные                                                 |
+| `npm run check`          | `check:public`, `check:licenses`, формат, lint, typecheck, тесты, сборка — то же, что в CI                       |
+| `npm run fixtures`       | сгенерировать вымышленные выгрузки для тестов импорта                                                            |
+| `npm run build:exe`      | portable exe (electron-builder); запускается вручную                                                             |
 
 ## Архитектура и границы модулей
 
@@ -72,6 +72,7 @@
 | Объём                                    | `Volume`                |
 | Гриф утверждения                         | `Approval`              |
 | История отмены                           | `History`               |
+| Экспорт текущего листа PDF               | `PdfExporter`           |
 | Семейство таблиц ПД                      | `PdTableKind`           |
 | Масштаб схемы ПД                         | `PdScale`               |
 | Выбор страницы и её работ                | `PlanPageSelection`     |

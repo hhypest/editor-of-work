@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from
 import {
   buildPdSheets,
   type EditorSheetClient,
+  type EditorPdfClient,
   type PdDocument,
   type OverviewScale,
   type TextMeasurer,
@@ -9,9 +10,11 @@ import {
 import type { PlanPageSelection, PlanPreviewContext, PlanSheetData } from '@eow/planning/sheet-api'
 import { SHEET_MEASURER } from './overview.facade'
 
+export const EDITOR_PDF_CLIENT = new InjectionToken<EditorPdfClient>('PDF листа редактора')
 export const EDITOR_SHEET_CLIENT = new InjectionToken<EditorSheetClient>('Листы редактора плана')
 @Injectable()
 export class EditorSheetsFacade {
+  private readonly pdf = inject(EDITOR_PDF_CLIENT, { optional: true })
   private readonly client = inject(EDITOR_SHEET_CLIENT)
   private readonly prepare = inject(SHEET_MEASURER)
   private generation = 0
@@ -23,6 +26,9 @@ export class EditorSheetsFacade {
   readonly scale = signal<OverviewScale>(50000)
   readonly savedScale = signal<OverviewScale>(50000)
   readonly zoom = signal(0.5)
+  readonly exporting = signal(false)
+  readonly pdfStatus = signal<string | null>(null)
+  readonly pdfError = signal<string | null>(null)
   readonly busy = signal(false)
   readonly error = signal<string | null>(null)
   private readonly readyContext = signal<{
@@ -98,6 +104,54 @@ export class EditorSheetsFacade {
         this.error.set('Не удалось подготовить лист или встроенные шрифты. Повторите попытку.')
     } finally {
       if (generation === this.generation) this.busy.set(false)
+    }
+  }
+  canExport(context: PlanPreviewContext | null): boolean {
+    const ready = this.selection()
+    return (
+      !!context?.hasPlan &&
+      !context.busy &&
+      !context.pending &&
+      !context.hasRecovery &&
+      !this.exporting() &&
+      !!ready &&
+      ready.revision === context.revision &&
+      ready.area === context.area
+    )
+  }
+  async exportPdf(context: PlanPreviewContext | null): Promise<void> {
+    if (!this.canExport(context)) {
+      if (!this.exporting())
+        this.pdfError.set('Выберите готовый лист ПД и примените или отмените незавершённый ввод.')
+      return
+    }
+    const selected = this.selection(),
+      page = this.page()
+    if (!selected || !page) return
+    this.exporting.set(true)
+    this.pdfError.set(null)
+    this.pdfStatus.set('Подготовка и сохранение PDF…')
+    try {
+      if (!this.pdf) throw new Error('PDF недоступен')
+      const result = await this.pdf.export({
+        revision: selected.revision,
+        pd: selected.area.slice(3),
+        page,
+      })
+      if (!result.ok) {
+        this.pdfError.set(result.error.message)
+        this.pdfStatus.set(null)
+      } else
+        this.pdfStatus.set(
+          result.value === 'saved'
+            ? `PDF листа ${page.number} сохранён.`
+            : 'Сохранение PDF отменено.',
+        )
+    } catch {
+      this.pdfError.set('Не удалось сохранить PDF. Повторите попытку.')
+      this.pdfStatus.set(null)
+    } finally {
+      this.exporting.set(false)
     }
   }
   async retry(context: PlanPreviewContext | null): Promise<void> {

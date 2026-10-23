@@ -1,6 +1,6 @@
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, session } from 'electron'
-import { dirname, join, resolve, sep } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { app, BrowserWindow, dialog, ipcMain, protocol, session } from 'electron'
+import { dirname, join, resolve } from 'node:path'
+import { registerUiProtocol } from './ui-protocol'
 import { registerIpcHandlers } from './ipc/handlers'
 import { registerPlanFileHandlers } from './ipc/plan-files'
 import { passportPlanView } from '@eow/planning/infrastructure'
@@ -12,13 +12,14 @@ import { XlsxManualDataTemplate } from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
+import { pdfExporter } from './pdf-exporter'
+import { electronPdfRenderer } from './electron-pdf'
 import { choosePassportLocation } from './passport-location-dialog'
 import {
   APP_ORIGIN,
   APP_SCHEME,
   contentSecurityPolicy,
   isAllowedNavigation,
-  resolveAppFile,
   secureWebPreferences,
 } from './security'
 
@@ -34,21 +35,6 @@ function uiRoot(): string {
 protocol.registerSchemesAsPrivileged([
   { scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } },
 ])
-
-function registerAppProtocol(): void {
-  const root = uiRoot()
-  const csp = contentSecurityPolicy()
-  protocol.handle(APP_SCHEME, async (request) => {
-    const file = resolveAppFile(request.url, root, join, sep)
-    if (!file) return new Response('Not found', { status: 404 })
-    const response = await net.fetch(pathToFileURL(file).toString())
-    // Заголовок CSP ставится здесь: webRequest не обрабатывает ответы собственных схем.
-    const headers = new Headers(response.headers)
-    headers.set('Content-Security-Policy', csp)
-    headers.set('X-Content-Type-Options', 'nosniff')
-    return new Response(response.body, { status: response.status, headers })
-  })
-}
 
 function applySecurity(): void {
   const csp = contentSecurityPolicy(devOrigin)
@@ -121,7 +107,7 @@ if (!app.requestSingleInstanceLock()) {
           choosePassportLocation(locations, (options) => dialog.showMessageBox(options)),
       })
       applySecurity()
-      registerAppProtocol()
+      registerUiProtocol(uiRoot())
       registerIpcHandlers(ipcMain, app)
       registerPassportHandlers(ipcMain, passport)
       registerPassportDataHandlers(ipcMain, passport)
@@ -185,6 +171,17 @@ if (!app.requestSingleInstanceLock()) {
         },
         app.getVersion(),
         passportPlanView(passport),
+        pdfExporter(
+          async (page) => {
+            const chosen = await dialog.showSaveDialog({
+              title: 'Сохранить текущий лист ПД в PDF',
+              filters: [{ name: 'Лист PDF', extensions: ['pdf'] }],
+              defaultPath: `ПД_лист_${page.number}.pdf`,
+            })
+            return chosen.canceled ? undefined : chosen.filePath
+          },
+          electronPdfRenderer(ipcMain, join(__dirname, 'preload.js'), startUrl),
+        ),
       )
       let closing = false
       let canQuit = false

@@ -8,6 +8,7 @@ export interface IpcMainLike {
 
 export type Handler<C extends AnyChannel> = (
   request: z.output<C['request']>,
+  event: unknown,
 ) => Promise<ResponseOf<C>> | ResponseOf<C>
 
 /** Ошибка проверки запроса или ответа канала. Текст не раскрывает данные запроса. */
@@ -42,7 +43,7 @@ export function registerHandler<C extends AnyChannel>(
     const request = channel.request.safeParse(args[0])
     if (!request.success)
       throw new IpcValidationError(channel.name, 'запрос', describeIssues(request.error))
-    const result = await handler(request.data)
+    const result = await handler(request.data, _event)
     const response = channel.response.safeParse(result)
     if (!response.success)
       throw new IpcValidationError(channel.name, 'ответ', describeIssues(response.error))

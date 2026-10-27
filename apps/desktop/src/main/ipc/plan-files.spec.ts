@@ -10,7 +10,7 @@ import {
   FilePlanStore,
   MAX_PLAN_FILE_BYTES,
 } from '@eow/planning/infrastructure'
-import { mm, type PdfExporter } from '@eow/documents/application'
+import { mm, type PdfBatchWriter, type PdfExporter } from '@eow/documents/application'
 import { registerPlanFileHandlers } from './plan-files'
 import type { EditorAction, EditorDraft, PassportView } from '@eow/planning/application'
 import type { IpcMainLike } from './register'
@@ -50,6 +50,13 @@ describe('планы в main', () => {
     export: vi.fn<PdfExporter['export']>(async () => ({ ok: true, value: 'saved' })),
   }
   const page = pdfSheetSchema.parse({ width: mm(420), height: mm(297), number: 1, primitives: [] })
+  const batchWriter: PdfBatchWriter = {
+    chooseFile: vi.fn<PdfBatchWriter['chooseFile']>(),
+    chooseFolder: vi.fn<PdfBatchWriter['chooseFolder']>(),
+    existing: vi.fn<PdfBatchWriter['existing']>(),
+    write: vi.fn<PdfBatchWriter['write']>(),
+    join: (folder, name) => join(folder, name),
+  }
   let directory: string
   let path: string
   let stop: () => Promise<void>
@@ -75,7 +82,13 @@ describe('планы в main', () => {
     }
     vi.mocked(passport.basis).mockReset().mockResolvedValue({ ok: true, value: passportInput() })
     vi.mocked(pdf.export).mockReset().mockResolvedValue({ ok: true, value: 'saved' })
-    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0', passport, pdf)
+    vi.mocked(batchWriter.chooseFile)
+      .mockReset()
+      .mockImplementation(async (name) => join(directory, name))
+    vi.mocked(batchWriter.chooseFolder).mockReset().mockResolvedValue(directory)
+    vi.mocked(batchWriter.existing).mockReset().mockResolvedValue([])
+    vi.mocked(batchWriter.write).mockReset().mockResolvedValue({ ok: true, value: undefined })
+    stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0', passport, pdf, batchWriter)
   })
   afterEach(async () => {
     await stop()
@@ -112,6 +125,69 @@ describe('планы в main', () => {
     }
     expect(pdf.export).toHaveBeenCalledTimes(3)
     expect(await readdir(directory)).toEqual([])
+  })
+  it('пакетный PDF собирает листы всех ПД одной ревизии в один файл', async () => {
+    await createPlan()
+    const { revision } = await editorState()
+    const started = await invoke({
+      action: 'pdfBatchStart',
+      revision,
+      mode: 'file',
+      pds: ['ПД-1', 'ПД-2'],
+    })
+    if (started.status !== 'pdfBatch') throw new Error('Нет задания PDF')
+    expect(started).toMatchObject({ total: 2, done: 0 })
+    expect(batchWriter.chooseFile).toHaveBeenCalledExactlyOnceWith('ПД 2027.pdf')
+    const second = { ...page, number: 2 }
+    for (const [pd, pages] of [
+      ['ПД-1', [page]],
+      ['ПД-2', [page, second]],
+    ] as const)
+      expect(
+        await invoke({ action: 'pdfBatchAdd', job: started.job, revision, pd, pages: [...pages] }),
+      ).toMatchObject({ status: 'pdfBatch' })
+    expect(await invoke({ action: 'pdfBatchFinish', job: started.job, revision })).toEqual({
+      status: 'pdf',
+      result: 'saved',
+    })
+    expect(batchWriter.write).toHaveBeenCalledExactlyOnceWith(
+      join(directory, 'ПД 2027.pdf'),
+      [page, page, second],
+      { replace: true },
+    )
+    expect(await editorState()).toMatchObject({ revision, dirty: true })
+  })
+  it('правка плана между листами пакета отменяет задание без записи', async () => {
+    await createPlan()
+    const { revision } = await editorState()
+    const started = await invoke({ action: 'pdfBatchStart', revision, mode: 'file', pds: ['ПД-1'] })
+    if (started.status !== 'pdfBatch') throw new Error('Нет задания PDF')
+    await edit({ kind: 'approval', title: 'Учебный гриф', name: '', year: 2026 })
+    expect(
+      await invoke({
+        action: 'pdfBatchAdd',
+        job: started.job,
+        revision,
+        pd: 'ПД-1',
+        pages: [page],
+      }),
+    ).toMatchObject({ status: 'error', message: expect.stringContaining('План изменился') })
+    expect(
+      await invoke({ action: 'pdfBatchFinish', job: started.job, revision: revision + 1 }),
+    ).toMatchObject({ status: 'error' })
+    expect(batchWriter.write).not.toHaveBeenCalled()
+    expect(
+      await invoke({ action: 'pdfBatchStart', revision, mode: 'file', pds: ['ПД-1'] }),
+    ).toMatchObject({ status: 'error' })
+    expect(
+      await invoke({
+        action: 'pdfBatchStart',
+        revision: revision + 1,
+        mode: 'folder',
+        pds: ['нет'],
+      }),
+    ).toMatchObject({ status: 'error', message: 'Выберите ПД открытого плана.' })
+    expect(batchWriter.chooseFolder).not.toHaveBeenCalled()
   })
   it('PDF занимает очередь плана: правка не обгоняет снимок и следующий устаревший экспорт отклоняется', async () => {
     await createPlan()

@@ -6,7 +6,8 @@ import {
   FilePlanStore,
   startPlanAutosave,
 } from '@eow/planning/infrastructure'
-import type { PdfExporter } from '@eow/documents/application'
+import type { PdfBatchWriter, PdfExporter } from '@eow/documents/application'
+import { pdfBatchJobs } from './pdf-batch-job'
 import type { AnnualPlan } from '@eow/planning/domain'
 import { importPrototype } from '@eow/import/infrastructure'
 import { planSheetData, buildImportedPlan } from '@eow/planning/application'
@@ -50,7 +51,9 @@ export function registerPlanFileHandlers(
   appVersion: string,
   passport?: PassportView,
   pdf?: PdfExporter,
+  batchWriter?: PdfBatchWriter,
 ): () => Promise<void> {
+  const batch = batchWriter ? pdfBatchJobs(batchWriter) : undefined
   let store: FilePlanStore | undefined
   let current: AnnualPlan | undefined
   let history: PlanSession | undefined
@@ -137,6 +140,7 @@ export function registerPlanFileHandlers(
     current = plan
     history = candidate
     revision++
+    batch?.reset()
     if (!changed) savedPlan = plan
     else if (selected !== store) savedPlan = undefined
     hasRecovery = checked.recovery
@@ -309,6 +313,56 @@ export function registerPlanFileHandlers(
         const result = await pdf.export(request.page)
         return result.ok ? { status: 'pdf', result: result.value } : failure(result.error.message)
       }
+      case 'pdfBatchStart': {
+        if (request.revision !== revision)
+          return failure('План изменился. Обновите листы перед сохранением PDF.')
+        if (!current) return failure('Сначала откройте или создайте план.')
+        if (hasRecovery) return failure('Сначала восстановите автокопию или откажитесь от неё.')
+        if (!batch) return failure('Экспорт PDF недоступен.')
+        const plan = current
+        const names: string[] = []
+        for (const id of request.pds) {
+          const pd = plan.basis.pds.get(id)
+          if (!pd) return failure('Выберите ПД открытого плана.')
+          names.push(pd.name)
+        }
+        const started = await batch.start(
+          revision,
+          request.mode,
+          request.pds,
+          names,
+          names.length === 1 ? `${names[0]}.pdf` : `ПД ${plan.year}.pdf`,
+        )
+        if (!started.ok) return failure(started.error.message)
+        return started.value === 'cancelled'
+          ? { status: 'cancelled' }
+          : { status: 'pdfBatch', ...started.value }
+      }
+      case 'pdfBatchAdd': {
+        if (!batch) return failure('Экспорт PDF недоступен.')
+        if (request.revision !== revision) {
+          batch.cancel(request.job)
+          return failure('План изменился во время сохранения PDF. Повторите сохранение.')
+        }
+        if (hasRecovery) {
+          batch.cancel(request.job)
+          return failure('Сначала восстановите автокопию или откажитесь от неё.')
+        }
+        const added = await batch.add(request.job, request.revision, request.pd, request.pages)
+        return added.ok ? { status: 'pdfBatch', ...added.value } : failure(added.error.message)
+      }
+      case 'pdfBatchFinish': {
+        if (!batch) return failure('Экспорт PDF недоступен.')
+        if (request.revision !== revision) {
+          batch.cancel(request.job)
+          return failure('План изменился во время сохранения PDF. Повторите сохранение.')
+        }
+        const finished = await batch.finish(request.job, request.revision)
+        return finished.ok ? { status: 'pdf', result: 'saved' } : failure(finished.error.message)
+      }
+      case 'pdfBatchCancel':
+        batch?.cancel(request.job)
+        return { status: 'cancelled' }
       case 'previewEditorSheets': {
         if (request.revision !== revision)
           return failure('План изменился. Обновите редактор для предпросмотра листа.')

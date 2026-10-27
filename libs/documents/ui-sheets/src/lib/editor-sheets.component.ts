@@ -13,7 +13,7 @@ import type {
   PlanPreviewContext,
 } from '@eow/planning/sheet-api'
 import { SheetA3Component } from './sheet-a3.component'
-import { EditorSheetsFacade } from './editor-sheets.facade'
+import { EditorSheetsFacade, type PdfBatchKind } from './editor-sheets.facade'
 
 @Component({
   selector: 'eow-editor-sheets',
@@ -39,6 +39,9 @@ export class EditorSheetsComponent {
   }
   exportPdf(): void {
     void this.facade.exportPdf(this.context())
+  }
+  protected exportBatch(kind: PdfBatchKind): void {
+    void this.facade.exportBatch(kind, this.context())
   }
   protected scale(event: Event): void {
     if (event.target instanceof HTMLSelectElement) this.facade.setScale(Number(event.target.value))

@@ -1,8 +1,40 @@
 <section aria-labelledby="editor-sheet-title" [attr.aria-busy]="facade.busy()">
   <h3 id="editor-sheet-title">Текущий лист ПД</h3>
-  <button type="button" [disabled]="!facade.canExport(context())" (click)="exportPdf()">
-    Сохранить текущий лист в PDF
-  </button>
+  <div class="controls">
+    <button type="button" [disabled]="!facade.canExport(context())" (click)="exportPdf()">
+      Сохранить текущий лист в PDF
+    </button>
+    <button
+      type="button"
+      [disabled]="!facade.canExportBatch(context())"
+      (click)="exportBatch('pd')"
+    >
+      Все листы этого ПД в PDF
+    </button>
+    <button
+      type="button"
+      [disabled]="!facade.canExportBatch(context())"
+      (click)="exportBatch('all')"
+    >
+      Все ПД в один PDF
+    </button>
+    <button
+      type="button"
+      [disabled]="!facade.canExportBatch(context())"
+      (click)="exportBatch('folder')"
+    >
+      Все ПД в PDF по файлам
+    </button>
+    @if (facade.batchRunning()) {
+      <button type="button" [disabled]="!facade.batchStoppable()" (click)="facade.stopBatch()">
+        Остановить сохранение PDF
+      </button>
+    }
+  </div>
+  <p>
+    Пакет печатает листы в масштабе, сохранённом в плане у каждого ПД. По файлам — один PDF на ПД в
+    выбранной папке; существующие файлы не перезаписываются.
+  </p>
   @if (facade.pdfStatus(); as status) {
     <p role="status">{{ status }}</p>
   }

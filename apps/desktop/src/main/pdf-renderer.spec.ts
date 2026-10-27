@@ -35,10 +35,10 @@ function setup(timeout = 60000) {
 afterEach(() => vi.useRealTimers())
 it('ждёт готовности нужного окна, печатает А3 и освобождает модель после завершения', async () => {
   const { win, render, invoke } = setup()
-  const pending = render(page)
+  const pending = render([page])
   expect(await invoke('load', 999)).toMatchObject({ status: 'error' })
   expect(await invoke('ready')).toMatchObject({ status: 'error' })
-  expect(await invoke('load')).toEqual({ status: 'page', page })
+  expect(await invoke('load')).toEqual({ status: 'pages', pages: [page] })
   expect(await invoke('load')).toMatchObject({ status: 'error' })
   expect(win.webContents.printToPDF).not.toHaveBeenCalled()
   await invoke('ready')
@@ -55,7 +55,7 @@ it.each(['fonts', 'close', 'load', 'print'] as const)(
     if (failure === 'load') vi.mocked(win.loadURL).mockRejectedValueOnce(new Error('load'))
     if (failure === 'print')
       vi.mocked(win.webContents.printToPDF).mockRejectedValueOnce(new Error('print'))
-    const pending = render(page)
+    const pending = render([page])
     const rejected = pending.catch((error: unknown) => error)
     if (failure === 'fonts') await invoke('failed')
     if (failure === 'close') close()
@@ -74,7 +74,7 @@ it.each(['ready', 'print'] as const)(
     vi.useFakeTimers()
     const { win, render, invoke } = setup(100)
     vi.mocked(win.webContents.printToPDF).mockImplementation(() => new Promise(() => undefined))
-    const pending = render(page)
+    const pending = render([page])
     const rejected = pending.catch((error: unknown) => error)
     if (phase === 'print') {
       await invoke('load')
@@ -86,3 +86,13 @@ it.each(['ready', 'print'] as const)(
     expect(await invoke('load')).toMatchObject({ status: 'error' })
   },
 )
+it('печатает несколько листов одним вызовом и отклоняет пустой набор', async () => {
+  const { win, render, invoke } = setup()
+  await expect(render([])).rejects.toThrow('Нет листов')
+  const second = { ...page, number: 8 }
+  const pending = render([page, second])
+  expect(await invoke('load')).toEqual({ status: 'pages', pages: [page, second] })
+  await invoke('ready')
+  await expect(pending).resolves.toEqual(new Uint8Array([1]))
+  expect(win.webContents.printToPDF).toHaveBeenCalledTimes(1)
+})

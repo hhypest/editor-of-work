@@ -4,6 +4,7 @@ import {
   mm,
   type EditorSheetClient,
   type EditorPdfClient,
+  type PdfBatchClient,
   type TextMeasurer,
 } from '@eow/documents/application'
 import type {
@@ -12,7 +13,12 @@ import type {
   PlanPreviewContext,
   PlanSheetData,
 } from '@eow/planning/sheet-api'
-import { EDITOR_SHEET_CLIENT, EDITOR_PDF_CLIENT, EditorSheetsFacade } from './editor-sheets.facade'
+import {
+  EDITOR_SHEET_CLIENT,
+  EDITOR_PDF_CLIENT,
+  EDITOR_PDF_BATCH_CLIENT,
+  EditorSheetsFacade,
+} from './editor-sheets.facade'
 import { EditorSheetsComponent } from './editor-sheets.component'
 import { SHEET_MEASURER } from './overview.facade'
 
@@ -70,6 +76,79 @@ const longSource: PlanSheetData = {
     ],
   })),
 }
+
+function batchClient(): PdfBatchClient {
+  return {
+    start: vi.fn<PdfBatchClient['start']>(async (_r, _m, pds) =>
+      ok({ job: 'j', total: pds.length }),
+    ),
+    add: vi.fn<PdfBatchClient['add']>(async () => ok(undefined)),
+    finish: vi.fn<PdfBatchClient['finish']>(async () => ok(undefined)),
+    cancel: vi.fn<PdfBatchClient['cancel']>(async () => undefined),
+  }
+}
+function batchSetup(batch = batchClient(), port = client()) {
+  TestBed.configureTestingModule({
+    providers: [
+      EditorSheetsFacade,
+      ...providers(port),
+      { provide: EDITOR_PDF_BATCH_CLIENT, useValue: batch },
+    ],
+  })
+  return { facade: TestBed.inject(EditorSheetsFacade), batch, port }
+}
+
+describe('Пакетный PDF в редакторе плана', () => {
+  it.each([
+    ['pd', 'file', ['a']],
+    ['all', 'file', ['a', 'b']],
+    ['folder', 'folder', ['a', 'b']],
+  ] as const)('режим %s передаёт ПД и ревизию готового листа', async (kind, mode, pds) => {
+    const { facade, batch } = batchSetup()
+    expect(facade.canExportBatch(context)).toBe(false)
+    await facade.sync(context)
+    expect(facade.canExportBatch(context)).toBe(true)
+    expect(facade.canExportBatch({ ...context, pending: true })).toBe(false)
+    expect(facade.canExportBatch({ ...context, revision: 2 })).toBe(false)
+    await facade.exportBatch(kind, context)
+    expect(batch.start).toHaveBeenCalledExactlyOnceWith(1, mode, pds)
+    expect(vi.mocked(batch.add).mock.calls.map(([, revision, pd]) => [revision, pd])).toEqual(
+      pds.map((pd) => [1, pd]),
+    )
+    expect(batch.finish).toHaveBeenCalledExactlyOnceWith('j', 1)
+    expect(facade.pdfStatus()).toBe(
+      mode === 'folder'
+        ? 'PDF сохранены: файлов 2, листов 2.'
+        : `PDF сохранён: листов ${pds.length}.`,
+    )
+    expect(facade.exporting()).toBe(false)
+  })
+  it('остановка между ПД отменяет задание и сообщает о сохранённых файлах', async () => {
+    const { facade, batch } = batchSetup()
+    await facade.sync(context)
+    vi.mocked(batch.add).mockImplementationOnce(async () => {
+      expect(facade.batchRunning()).toBe(true)
+      facade.stopBatch()
+      return ok(undefined)
+    })
+    await facade.exportBatch('folder', context)
+    expect(batch.cancel).toHaveBeenCalledExactlyOnceWith('j')
+    expect(batch.finish).not.toHaveBeenCalled()
+    expect(facade.pdfStatus()).toBe('Сохранение PDF остановлено. Сохранено файлов: 1.')
+    expect(facade.batchRunning()).toBe(false)
+  })
+  it('ошибка задания показывает сообщение один раз, без повторного счёта файлов', async () => {
+    const batch = batchClient()
+    vi.mocked(batch.add)
+      .mockResolvedValueOnce(ok(undefined))
+      .mockResolvedValueOnce(err({ message: 'Учебный отказ. Сохранено файлов: 1.' }))
+    const { facade } = batchSetup(batch)
+    await facade.sync(context)
+    await facade.exportBatch('folder', context)
+    expect(facade.pdfError()).toBe('Учебный отказ. Сохранено файлов: 1.')
+    expect(facade.pdfStatus()).toBeNull()
+  })
+})
 
 describe('Лист в редакторе плана', () => {
   it('экспортирует готовую текущую страницу без zoom, блокирует черновик, гонки и повторный клик', async () => {

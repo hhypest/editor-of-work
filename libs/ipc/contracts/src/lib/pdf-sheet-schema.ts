@@ -45,6 +45,18 @@ export const pdfSheetSchema = z
   .strict()
   .refine((page) => JSON.stringify(page).length <= 4 * 1024 * 1024, 'Лист превышает 4 МиБ')
 
+/** Предел одного файла PDF: листы печатаются одним вызовом printToPDF (ADR-0039). */
+export const MAX_PDF_PAGES = 300
+export const MAX_PDF_BYTES = 64 * 1024 * 1024
+export const pdfPagesSchema = z
+  .array(pdfSheetSchema)
+  .min(1)
+  .max(MAX_PDF_PAGES)
+  .refine(
+    (pages) => JSON.stringify(pages).length <= MAX_PDF_BYTES,
+    'Листы одного PDF превышают 64 МиБ',
+  )
+
 /** Данные выдаются только конкретному скрытому окну; main проверяет отправителя. */
 export const printHost = defineChannel(
   'pdf:host',
@@ -54,7 +66,7 @@ export const printHost = defineChannel(
     z.object({ action: z.literal('failed') }).strict(),
   ]),
   z.discriminatedUnion('status', [
-    z.object({ status: z.literal('page'), page: pdfSheetSchema }).strict(),
+    z.object({ status: z.literal('pages'), pages: pdfPagesSchema }).strict(),
     z.object({ status: z.literal('ok') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
   ]),

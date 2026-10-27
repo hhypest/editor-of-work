@@ -7,13 +7,25 @@ const count = z.number().int().nonnegative()
 export const manualTemplate = defineChannel(
   'import:manualTemplate',
   z.discriminatedUnion('action', [
-    z.object({ action: z.literal('export'), editionId }).strict(),
+    z
+      .object({
+        action: z.literal('export'),
+        editionId,
+        /** Дописать в книгу недостающие виды работ типового перечня (ADR-0032). */
+        typicalWorkKinds: z.boolean().optional(),
+      })
+      .strict(),
     z.object({ action: z.literal('prepare'), editionId }).strict(),
     z.object({ action: z.literal('apply'), editionId, token }).strict(),
     z.object({ action: z.literal('discard'), editionId, token }).strict(),
   ]),
   z.discriminatedUnion('status', [
-    z.object({ status: z.literal('exported') }).strict(),
+    z
+      .object({
+        status: z.literal('exported'),
+        typical: z.object({ added: count, existing: count }).strict().optional(),
+      })
+      .strict(),
     z.object({ status: z.literal('applied') }).strict(),
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('discarded') }).strict(),

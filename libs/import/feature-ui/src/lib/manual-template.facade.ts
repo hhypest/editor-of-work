@@ -17,6 +17,9 @@ export const MANUAL_TEMPLATE_TEXT = {
   noEditions: 'Нет редакций. Создайте черновик в разделе «Паспорт».',
   immutable: 'Правка доступна только в черновике. Создайте новую редакцию в разделе «Паспорт».',
   export: 'Выдать шаблон',
+  typical: 'Дописать в книгу типовой перечень видов работ текущего содержания',
+  typicalHint:
+    'Добавляются только виды с кодами, которых ещё нет в редакции; существующие строки не меняются. В паспорт перечень попадёт после загрузки книги и подтверждения.',
   prepare: 'Загрузить заполненную книгу',
   review: 'Проверка перед записью',
   sheet: 'Лист',
@@ -44,6 +47,7 @@ export class ManualTemplateFacade {
   readonly error = signal<string | null>(null)
   readonly message = signal<string | null>(null)
   readonly review = signal<ManualTemplateReview | null>(null)
+  readonly typical = signal(false)
   readonly canEdit = computed(
     () => this.editions().find((e) => e.id === this.selected())?.status === 'draft',
   )
@@ -90,7 +94,9 @@ export class ManualTemplateFacade {
     const request: ManualTemplateAction =
       action === 'apply' || action === 'discard'
         ? { action, editionId, token: review?.token ?? '' }
-        : { action, editionId }
+        : action === 'export' && this.typical()
+          ? { action, editionId, typicalWorkKinds: true }
+          : { action, editionId }
     this.busy.set(true)
     this.error.set(null)
     this.message.set(null)
@@ -102,7 +108,11 @@ export class ManualTemplateFacade {
       } else if (result.status === 'preview') {
         this.review.set(result.review)
       } else if (result.status === 'exported') {
-        this.message.set(MANUAL_TEMPLATE_TEXT.exported)
+        this.message.set(
+          result.typical
+            ? `${MANUAL_TEMPLATE_TEXT.exported} Из типового перечня добавлено видов работ: ${result.typical.added}; уже были в редакции: ${result.typical.existing}.`
+            : MANUAL_TEMPLATE_TEXT.exported,
+        )
       } else if (result.status === 'applied') {
         this.review.set(null)
         this.message.set(MANUAL_TEMPLATE_TEXT.applied)

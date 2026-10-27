@@ -57,6 +57,36 @@ describe('Ручные данные: выдача, предпросмотр и �
     expect(port.run).toHaveBeenCalledWith({ action: 'export', editionId: 2 })
     expect(facade.message()).toBe(text.exported)
   })
+  it('флажок типового перечня передаётся только в выдачу и показывает итог добавления', async () => {
+    const port = client()
+    vi.mocked(port.run).mockResolvedValueOnce({
+      status: 'exported',
+      typical: { added: 120, existing: 2 },
+    })
+    const { facade, fixture, element } = await setup(port)
+    const box = element.querySelector<HTMLInputElement>('#manual-typical')!
+    expect(box.checked).toBe(false)
+    expect(element.querySelector('label[for="manual-typical"]')?.textContent?.trim()).toBe(
+      text.typical,
+    )
+    box.checked = true
+    box.dispatchEvent(new Event('change'))
+    await fixture.whenStable()
+    expect(facade.typical()).toBe(true)
+    await facade.run('export')
+    expect(port.run).toHaveBeenLastCalledWith({
+      action: 'export',
+      editionId: 2,
+      typicalWorkKinds: true,
+    })
+    expect(facade.message()).toBe(
+      `${text.exported} Из типового перечня добавлено видов работ: 120; уже были в редакции: 2.`,
+    )
+    await facade.run('prepare')
+    expect(port.run).toHaveBeenLastCalledWith({ action: 'prepare', editionId: 2 })
+    fixture.detectChanges()
+    expect(element.querySelector<HTMLInputElement>('#manual-typical')!.disabled).toBe(true)
+  })
   it('показывает итоги и отправляет запись только по подтверждению', async () => {
     const { fixture, facade, port, element } = await setup()
     button(element, text.prepare).click()

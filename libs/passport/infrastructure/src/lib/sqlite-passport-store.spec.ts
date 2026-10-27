@@ -65,7 +65,7 @@ describe('SQLite паспорта', () => {
     const database = inspect()
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({ journal_mode: 'wal' })
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 6,
+      n: 7,
     })
     for (const table of editionTables)
       expect(database.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toMatchObject({ n: 0 })
@@ -633,13 +633,42 @@ describe('SQLite паспорта', () => {
     const before = old.prepare('SELECT * FROM work_kind').get()
     await open()
     const current = inspect()
-    expect(current.prepare('SELECT * FROM work_kind').get()).toEqual({ ...before, symbol: null })
+    expect(current.prepare('SELECT * FROM work_kind').get()).toEqual({
+      ...before,
+      symbol: null,
+      sort_order: null,
+    })
     expect(() => current.exec("UPDATE work_kind SET symbol='X' WHERE edition_id=1")).toThrow(
       'immutable',
     )
     expect(current.prepare('PRAGMA foreign_key_check').all()).toEqual([])
     const saved = inspect((await backups())[0])
     expect(saved.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toEqual({ n: 5 })
+    expect(saved.prepare('SELECT * FROM work_kind').get()).toEqual(before)
+  })
+
+  it('миграция 007 сохраняет виды работ 006 без порядка и защищает его в действующей редакции', async () => {
+    const chain = await loadPassportMigrations(migrations)
+    const old = inspect()
+    await migratePassport(old, chain.slice(0, 6), async () => undefined)
+    old.exec(
+      "INSERT INTO edition(id,number,date,label,status) VALUES (1,1,'2027-01-01','Учебная','draft')",
+    )
+    seedPassport(old, 1)
+    old.exec("UPDATE edition SET status='active' WHERE id=1")
+    const before = old.prepare('SELECT * FROM work_kind').get()
+    await open()
+    const current = inspect()
+    expect(current.prepare('SELECT * FROM work_kind').get()).toEqual({
+      ...before,
+      sort_order: null,
+    })
+    expect(() => current.exec('UPDATE work_kind SET sort_order=0 WHERE edition_id=1')).toThrow(
+      'immutable',
+    )
+    expect(current.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    const saved = inspect((await backups())[0])
+    expect(saved.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toEqual({ n: 6 })
     expect(saved.prepare('SELECT * FROM work_kind').get()).toEqual(before)
   })
 

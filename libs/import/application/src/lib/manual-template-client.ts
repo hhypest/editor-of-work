@@ -19,10 +19,20 @@ export interface ManualTemplateReview {
   }[]
 }
 export type ManualTemplateAction =
-  | { readonly action: 'export' | 'prepare'; readonly editionId: number }
+  | {
+      readonly action: 'export'
+      readonly editionId: number
+      readonly typicalWorkKinds?: boolean | undefined
+    }
+  | { readonly action: 'prepare'; readonly editionId: number }
   | { readonly action: 'apply' | 'discard'; readonly editionId: number; readonly token: string }
 export type ManualTemplateOutcome =
-  | { readonly status: 'exported' | 'applied' | 'cancelled' | 'discarded' }
+  | {
+      readonly status: 'exported'
+      /** Итог дописывания типового перечня; нет — перечень не запрашивался. */
+      readonly typical?: { readonly added: number; readonly existing: number } | undefined
+    }
+  | { readonly status: 'applied' | 'cancelled' | 'discarded' }
   | { readonly status: 'preview'; readonly review: ManualTemplateReview }
   | { readonly status: 'error'; readonly message: string }
 export interface ManualTemplateClient {

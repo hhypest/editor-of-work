@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import type { Kysely } from 'kysely'
+import { sql, type Kysely } from 'kysely'
 import { err, ok, chainage, KmLengths, type Result } from '@eow/shared/kernel'
 import {
   validateManualData,
@@ -31,6 +31,9 @@ export async function readManualBasis(
     .selectFrom('work_kind')
     .selectAll()
     .where('edition_id', '=', editionId)
+    // Порядок листа «Виды работ»; строки до миграции 007 — по идентификатору, как раньше.
+    .orderBy(sql`sort_order IS NULL`)
+    .orderBy('sort_order')
     .orderBy('id')
     .execute()
   const codes = new Map(kinds.map((r) => [r.id, r.code]))
@@ -126,12 +129,15 @@ export async function readManualBasis(
   }
   return { ...content, token: createHash('sha256').update(JSON.stringify(content)).digest('hex') }
 }
+/** Порядок значим только у видов работ: в нём строки выводятся в таблицах плана. */
 function canonical(data: ManualData): string {
   return JSON.stringify(
     Object.fromEntries(
       Object.entries(data).map(([key, rows]) => [
         key,
-        rows.toSorted((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)),
+        key === 'workKinds'
+          ? rows
+          : rows.toSorted((a: { id: string }, b: { id: string }) => a.id.localeCompare(b.id)),
       ]),
     ),
   )
@@ -250,11 +256,12 @@ export async function writeManualData(
     valid_from: r.validFrom,
     valid_to: r.validTo,
   })
-  for (const r of input.data.workKinds)
+  for (const [index, r] of input.data.workKinds.entries())
     await db
       .insertInto('work_kind')
       .values({
         ...provenance(r),
+        sort_order: index,
         code: r.code,
         name: r.name,
         unit: r.unit,

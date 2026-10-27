@@ -31,3 +31,8 @@ it('срез листа принимает необязательные ID ст�
   ])
     expect(planSheetDataSchema.safeParse(source(invalid)).success).toBe(false)
 })
+it('срез листа принимает необязательный столбец группы только как неотрицательное целое', () => {
+  expect(planSheetDataSchema.safeParse(source({ ...table, groupColumn: 0 })).success).toBe(true)
+  for (const groupColumn of [-1, 0.5, '0', null])
+    expect(planSheetDataSchema.safeParse(source({ ...table, groupColumn })).success).toBe(false)
+})

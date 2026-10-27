@@ -141,9 +141,10 @@ describe('Ожидаемые показатели в сценариях реда
     const data = value(planSheetData(session.present, 'ПД-1'))
     const table = data.pds[0]?.tables.find((t) => t.title.startsWith('Ожидаемые'))
     expect(table?.title).toBe('Ожидаемые показатели на 01.01.2028')
+    expect(table?.groupColumn).toBe(0)
     expect(table?.rows).toEqual([
       ['Учебная протяжённость', '', 'км', ''],
-      ['', 'учебная часть', 'км', '1,25'],
+      ['Учебная протяжённость', 'учебная часть', 'км', '1,25'],
       ['Учебный итог', '', 'шт', '1e+200'],
     ])
     expect(

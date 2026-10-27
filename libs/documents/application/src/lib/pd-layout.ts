@@ -425,14 +425,17 @@ export function buildPdSheets(
     }
     let h = heading()
     if (!h.ok) return h
-    for (const [index, r] of m.rows.entries()) {
-      if (TOP + 8 + m.header.height + r.height > BOTTOM)
+    for (const [index, full] of m.rows.entries()) {
+      if (TOP + 8 + m.header.height + full.height > BOTTOM)
         return err({ message: `Строка таблицы «${m.title}» не помещается на листе с заголовком.` })
+      // Внутри страницы повтор подписи группы скрыт; продолжение начинается с полной строки.
+      let r = m.continued[index] ?? full
       if (y + r.height > BOTTOM) {
         const saved = flush()
         if (!saved.ok) return saved
         h = heading()
         if (!h.ok) return h
+        r = full
       }
       shapes.push(...moveShapes(r.primitives, y))
       const workId = table.workIds?.[index]

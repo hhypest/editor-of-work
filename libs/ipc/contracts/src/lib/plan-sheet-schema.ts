@@ -56,6 +56,7 @@ export const planSheetDataSchema = z
                 ),
                 rows: z.array(z.array(z.string())),
                 workIds: z.array(z.string().min(1)).optional(),
+                groupColumn: z.number().int().nonnegative().optional(),
               })
               .strict(),
           ),

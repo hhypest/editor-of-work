@@ -190,10 +190,11 @@ describe('Листы ПД', () => {
                     { title: 'Ед.', width: 40 },
                     { title: 'Значение', width: 60 },
                   ],
+                  groupColumn: 0,
                   rows: [
                     ['Учебная протяжённость главных путей', '', 'км', ''],
-                    ['', 'учебная часть первая', 'км', '12,5'],
-                    ['', 'учебная часть вторая', 'км', '0'],
+                    ['Учебная протяжённость главных путей', 'учебная часть первая', 'км', '12,5'],
+                    ['Учебная протяжённость главных путей', 'учебная часть вторая', 'км', '0'],
                     ['Учебное число', '', 'шт.', '-3'],
                   ],
                 },
@@ -208,6 +209,52 @@ describe('Листы ПД', () => {
     expect(all).toContain('-3')
     expect(all.filter((t) => t.includes('Учебная протяжённость')).length).toBe(1)
     expect(document).toMatchSnapshot()
+  })
+  it('повторяет подпись группы в начале каждой страницы продолжения', () => {
+    const label = 'Учебная группа показателей'
+    const table = {
+      title: 'Учебная группированная таблица',
+      columns: [
+        { title: 'Показатель', width: 150 },
+        { title: 'В т.ч.', width: 140 },
+        { title: 'Ед.', width: 40 },
+        { title: 'Значение', width: 60 },
+      ],
+      groupColumn: 0,
+      rows: Array.from({ length: 40 }, (_, i) => [
+        label,
+        `учебная часть ${i + 1}`,
+        'км',
+        String(i),
+      ]),
+    }
+    const data = {
+      ...source,
+      pds: source.pds.map((p) => (p.id !== 'pd' ? p : { ...p, tables: [table] })),
+    }
+    const pages = built(data).pages.filter((p) =>
+      texts(p.primitives).some((t) => t.startsWith('учебная часть')),
+    )
+    expect(pages.length).toBeGreaterThan(1)
+    for (const page of pages) {
+      const all = texts(page.primitives)
+      expect(all.filter((t) => t === label)).toHaveLength(1)
+      const first = all.findIndex((t) => t.startsWith('учебная часть'))
+      expect(all.lastIndexOf(label)).toBeLessThan(first)
+    }
+    const parts = pages.flatMap((p) =>
+      texts(p.primitives).filter((t) => t.startsWith('учебная часть')),
+    )
+    expect(parts).toEqual(table.rows.map((r) => r[1]))
+  })
+  it.each([-1, 4, 1.5])('отклоняет неверный столбец группы %s', (groupColumn) => {
+    const data = {
+      ...source,
+      pds: source.pds.map((p) =>
+        p.id !== 'pd' ? p : { ...p, tables: p.tables.map((t) => ({ ...t, groupColumn })) },
+      ),
+    }
+    expect(buildPdSheets(data, 'pd', 50000, tableMeasurer).ok).toBe(false)
   })
   it('переносит большие таблицы, повторяя заголовки и сохраняя каждую ячейку', () => {
     const rows = Array.from({ length: 100 }, (_, i) => [

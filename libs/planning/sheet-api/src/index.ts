@@ -59,6 +59,11 @@ export interface PlanSheetData {
       readonly rows: readonly (readonly string[])[]
       /** ID работы для каждой строки ведомости; у сводных таблиц отсутствует. */
       readonly workIds?: readonly string[] | undefined
+      /**
+       * Столбец подписи группы: строки несут полную подпись, повтор у подряд идущих строк
+       * скрывается в пределах страницы и печатается в начале каждого продолжения.
+       */
+      readonly groupColumn?: number | undefined
     }[]
   }[]
 }

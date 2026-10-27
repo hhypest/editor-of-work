@@ -144,9 +144,11 @@ export function planSheetData(
             { title: 'Ед.', width: 40 },
             { title: 'Значение', width: 60 },
           ],
-          // Показатель печатается один раз на подряд идущие строки группы, как в прототипе.
-          rows: expected.map((row, i) => [
-            i > 0 && expected[i - 1]?.group === row.group ? '' : row.group,
+          // Показатель печатается один раз на подряд идущие строки группы, как в прототипе;
+          // Документы повторяют его в начале каждой страницы продолжения.
+          groupColumn: 0,
+          rows: expected.map((row) => [
+            row.group,
             row.name,
             row.unit,
             row.value === null ? '' : String(row.value).replace('.', ','),

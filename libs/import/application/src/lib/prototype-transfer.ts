@@ -74,6 +74,18 @@ export interface PrototypeTransfer {
       readonly value: number | null
     }[]
   }[]
+  /** Перечни `tables[область].contract|isso|zp` прототипа: только дистанция и ПД. */
+  readonly items: readonly {
+    readonly area: { readonly kind: 'district' } | { readonly kind: 'pd'; readonly pd: string }
+    readonly table: 'contract' | 'isso' | 'zp'
+    readonly rows: readonly {
+      readonly id: string
+      readonly name: string
+      readonly unit: string
+      readonly quantity: number
+      readonly cost: number
+    }[]
+  }[]
   readonly prototype: { readonly source: string; readonly report: readonly TransferProblem[] }
 }
 

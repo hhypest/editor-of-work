@@ -27,6 +27,29 @@ export interface PrototypeImportOptions {
 }
 
 const lengths = KmLengths.standard()
+const ITEM_TABLES = ['contract', 'isso', 'zp'] as const
+const ITEM_FIELDS = ['name', 'unit', 'qty', 'cost']
+
+/** Текст или число; пусто — только null/отсутствие. Иное значение не угадывается. */
+function label(v: unknown): string | undefined {
+  return typeof v === 'string'
+    ? v.trim()
+    : typeof v === 'number' && Number.isFinite(v)
+      ? String(v)
+      : v === null || v === undefined
+        ? ''
+        : undefined
+}
+
+/** Число прототипа: число или строка с запятой/точкой; null — пусто, NaN — не число. */
+function amount(v: unknown): number | null {
+  if (v === null || v === undefined) return null
+  if (typeof v === 'number') return Number.isFinite(v) ? v : Number.NaN
+  if (typeof v !== 'string') return Number.NaN
+  const text = v.replace(/\s/gu, '').replace(',', '.')
+  if (!text) return null
+  return /^[+-]?\d+(?:\.\d+)?$/u.test(text) ? Number(text) : Number.NaN
+}
 const groups = { cur: 'current', cap: 'capital', other: 'other' } as const
 
 /** Отдельный адаптер старого формата. Исходник не исполняется и не нормализуется кодом прототипа. */
@@ -76,15 +99,6 @@ export function importPrototype(
       errors.push({ path, message: 'Более 10 000 строк ожидаемых показателей в одной области' })
       return rows
     }
-    /** Текст или число; пусто — только null/отсутствие. Иное значение не угадывается. */
-    const label = (v: unknown): string | undefined =>
-      typeof v === 'string'
-        ? v.trim()
-        : typeof v === 'number' && Number.isFinite(v)
-          ? String(v)
-          : v === null || v === undefined
-            ? ''
-            : undefined
     for (const [i, entry] of source.entries()) {
       const at = `${path}.${i}`
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
@@ -133,6 +147,81 @@ export function importPrototype(
         continue
       }
       rows.push({ id: options.ids.next(), group, name, unit, value })
+    }
+    return rows
+  }
+
+  /**
+   * Строки перечня «наименование / единица / объём / стоимость». Пустой объём или
+   * стоимость — ноль, как в листе прототипа; отрицательное и нечисловое не переносится.
+   */
+  function itemRows(source: readonly unknown[], path: string) {
+    const rows: PrototypeTransfer['items'][number]['rows'][number][] = []
+    if (source.length > 10000) {
+      errors.push({ path, message: 'Более 10 000 строк перечня в одной области' })
+      return rows
+    }
+    for (const [i, entry] of source.entries()) {
+      const at = `${path}.${i}`
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        warn(at, 'Строка перечня не распознана; сохранена в снимке прототипа')
+        continue
+      }
+      const row = entry as Record<string, unknown>
+      for (const field of Object.keys(row))
+        if (!ITEM_FIELDS.includes(field)) warn(`${at}.${field}`, 'Сохранено в снимке прототипа')
+      const name = label(row['name']),
+        unit = label(row['unit'])
+      if (name === undefined || unit === undefined) {
+        warn(
+          `${at}.${name === undefined ? 'name' : 'unit'}`,
+          'Поле перечня не является текстом; строка не перенесена и сохранена в снимке прототипа',
+        )
+        continue
+      }
+      const qty = amount(row['qty']),
+        cost = amount(row['cost'])
+      const bad =
+        qty !== null && !Number.isFinite(qty)
+          ? 'qty'
+          : cost !== null && !Number.isFinite(cost)
+            ? 'cost'
+            : undefined
+      if (bad) {
+        warn(
+          `${at}.${bad}`,
+          `${bad === 'qty' ? 'Объём' : 'Стоимость'} не является числом; строка сохранена в снимке прототипа`,
+        )
+        continue
+      }
+      if ((qty ?? 0) < 0 || (cost ?? 0) < 0) {
+        warn(
+          at,
+          'Отрицательный объём или стоимость; строка не перенесена и сохранена в снимке прототипа',
+        )
+        continue
+      }
+      if (!name) {
+        warn(
+          at,
+          unit || qty || cost
+            ? 'Строка без наименования не перенесена; она сохранена в снимке прототипа'
+            : 'Пустая строка перечня пропущена',
+        )
+        continue
+      }
+      if ((qty === null && cost) || (cost === null && qty))
+        warn(
+          `${at}.${qty === null ? 'qty' : 'cost'}`,
+          `${qty === null ? 'Пустой объём перенесён' : 'Пустая стоимость перенесена'} нулём, как на листе прототипа`,
+        )
+      rows.push({
+        id: options.ids.next(),
+        name,
+        unit,
+        quantity: qty ?? 0,
+        cost: cost ?? 0,
+      })
     }
     return rows
   }
@@ -418,6 +507,7 @@ export function importPrototype(
   }
   const manual: PrototypeTransfer['manual'][number][] = []
   const expected: PrototypeTransfer['expected'][number][] = []
+  const items: PrototypeTransfer['items'][number][] = []
   for (const [key, table] of Object.entries(p.tables)) {
     const area =
       key === 'dist'
@@ -431,21 +521,36 @@ export function importPrototype(
     ] as const)
       for (const [code, value] of Object.entries(table[sourceField]))
         if (value !== null) manual.push({ area, field, code, value })
+    const handled = new Set(['override', 'need'])
     const rawExpected: unknown = table['expected']
-    let expectedDone = false
     if (rawExpected !== undefined && area.kind !== 'station' && Array.isArray(rawExpected)) {
       const rows = expectedRows(rawExpected, `tables.${key}.expected`)
       if (rows.length) expected.push({ area, rows })
-      expectedDone = true
+      handled.add('expected')
     } else if (rawExpected !== undefined && area.kind === 'station') {
       warn(
         `tables.${key}.expected`,
         'Ожидаемые показатели ведутся только для дистанции и ПД; таблица сохранена в снимке прототипа',
       )
-      expectedDone = true
+      handled.add('expected')
+    }
+    for (const name of ITEM_TABLES) {
+      const raw: unknown = table[name]
+      if (!Array.isArray(raw)) continue
+      handled.add(name)
+      if (area.kind === 'station') {
+        if (raw.length)
+          warn(
+            `tables.${key}.${name}`,
+            'Перечни работ ведутся только для дистанции и ПД; таблица сохранена в снимке прототипа',
+          )
+        continue
+      }
+      const rows = itemRows(raw, `tables.${key}.${name}`)
+      if (rows.length) items.push({ area, table: name, rows })
     }
     for (const field of Object.keys(table))
-      if (!['override', 'need'].includes(field) && !(field === 'expected' && expectedDone))
+      if (!handled.has(field))
         warn(
           `tables.${key}.${field}`,
           'Сохранено в снимке прототипа; таблица пока не редактируется новой моделью',
@@ -469,6 +574,7 @@ export function importPrototype(
     works,
     manual,
     expected,
+    items,
     prototype: { source, report },
   })
 }

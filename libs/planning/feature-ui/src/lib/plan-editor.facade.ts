@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from
 import type {
   EditorAction,
   EditorDraft,
+  EditorDatedDraft,
   EditorExpectedDraft,
   EditorIndicatorDraft,
   EditorItemDraft,
@@ -50,6 +51,8 @@ export class PlanEditorFacade {
   readonly indicatorDraft = signal<readonly EditorIndicatorDraft[] | null>(null)
   readonly pdTablesDraft = signal<readonly string[] | null>(null)
   readonly expectedDraft = signal<readonly EditorExpectedDraft[] | null>(null)
+  /** Черновик таблицы «Показатели» на 01.01; null — нет незавершённого ввода. */
+  readonly datedDraft = signal<readonly EditorDatedDraft[] | null>(null)
   /** Черновики перечней подрядных работ, ИССО и ЗП; null — нет незавершённого ввода. */
   readonly itemDrafts = signal<
     Readonly<Record<EditorItemTable, readonly EditorItemDraft[] | null>>
@@ -60,6 +63,17 @@ export class PlanEditorFacade {
       this.view()?.expected?.map((row) => ({
         ...row,
         value: row.value === null ? '' : String(row.value).replace('.', ','),
+      })) ??
+      [],
+  )
+  readonly datedRows = computed<readonly EditorDatedDraft[]>(
+    () =>
+      this.datedDraft() ??
+      this.view()?.dated?.map((row) => ({
+        id: row.id,
+        name: row.name,
+        previous: row.previous === null ? '' : String(row.previous).replace('.', ','),
+        current: row.current === null ? '' : String(row.current).replace('.', ','),
       })) ??
       [],
   )
@@ -87,6 +101,7 @@ export class PlanEditorFacade {
       this.approvalDirty() ||
       this.indicatorDraft() !== null ||
       this.expectedDraft() !== null ||
+      this.datedDraft() !== null ||
       Object.values(this.itemDrafts()).some((rows) => rows !== null) ||
       this.pdTablesDraft() !== null,
   )
@@ -214,6 +229,7 @@ export class PlanEditorFacade {
     this.pdTablesDraft.set(null)
     this.indicatorDraft.set(null)
     this.expectedDraft.set(null)
+    this.datedDraft.set(null)
     this.itemDrafts.set({ contract: null, isso: null, zp: null })
     this.resetForm()
     this.cells.set({})
@@ -432,6 +448,43 @@ export class PlanEditorFacade {
     this.setItems(table, null)
     return true
   }
+  addDated(): void {
+    if (
+      this.busy() ||
+      this.state()?.hasRecovery ||
+      !this.view()?.dated ||
+      this.datedRows().length >= 10000
+    )
+      return
+    this.datedDraft.set([...this.datedRows(), { id: null, name: '', previous: '', current: '' }])
+  }
+  patchDated(index: number, patch: Partial<EditorDatedDraft>): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.datedRows(),
+      row = rows[index]
+    if (row) this.datedDraft.set(rows.with(index, { ...row, ...patch }))
+  }
+  moveDated(index: number, step: -1 | 1): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.datedRows(),
+      row = rows[index],
+      other = rows[index + step]
+    if (row && other) this.datedDraft.set(rows.with(index, other).with(index + step, row))
+  }
+  removeDated(index: number): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    this.datedDraft.set(this.datedRows().filter((_row, i) => i !== index))
+  }
+  cancelDated(): void {
+    this.datedDraft.set(null)
+  }
+  async applyDated(): Promise<boolean> {
+    const rows = this.datedDraft()
+    if (rows === null) return true
+    if (!(await this.run({ kind: 'datedRows', rows }))) return false
+    this.datedDraft.set(null)
+    return true
+  }
   addExpected(): void {
     if (
       this.busy() ||
@@ -520,6 +573,7 @@ export class PlanEditorFacade {
     if (
       !(await this.applyCells()) ||
       !(await this.applyIndicators()) ||
+      !(await this.applyDated()) ||
       !(await this.applyExpected()) ||
       !(await this.applyItems('contract')) ||
       !(await this.applyItems('isso')) ||

@@ -36,7 +36,7 @@ describe('Настройка таблиц в редакторе', () => {
   it('применяет пакет одним шагом и меняет только вывод выбранного ПД', () => {
     const initial = fresh(),
       before = value(editorView(initial, 'pd:ПД-2'))
-    expect(before.pdTables).toHaveLength(10)
+    expect(before.pdTables).toHaveLength(11)
     expect(before.pdTables.every((t) => t.visible)).toBe(true)
     const next = value(
       changeEditor(initial, { kind: 'pdTables', hidden: ['summary', 'works'] }, 'pd:ПД-2', ids),

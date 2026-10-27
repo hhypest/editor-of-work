@@ -26,7 +26,7 @@ describe('Перечни работ и формат v7', () => {
     (old) => {
       const original = JSON.stringify(old),
         file = value(readPlanFile(original))
-      expect(file.format.version).toBe(7)
+      expect(file.format.version).toBe(8)
       expect(file.plan.itemTables).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

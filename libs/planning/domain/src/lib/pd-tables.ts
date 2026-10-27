@@ -2,6 +2,7 @@ import { err, ok, type Result } from '@eow/shared/kernel'
 import type { AnnualPlan } from './annual-plan'
 import type { PlanError } from './plan-error'
 export const PD_TABLE_KINDS = Object.freeze([
+  'dated',
   'current',
   'capital',
   'other',

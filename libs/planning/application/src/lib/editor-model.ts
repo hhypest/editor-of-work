@@ -14,6 +14,13 @@ export interface EditorExpectedDraft {
   readonly unit: string
   readonly value: string
 }
+/** Строка таблицы «Показатели» в форме: значения на 01.01 — текст, пустое поле — «не задано». */
+export interface EditorDatedDraft {
+  readonly id: string | null
+  readonly name: string
+  readonly previous: string
+  readonly current: string
+}
 /** Строка перечня работ в форме: объём и стоимость — текст до применения. */
 export interface EditorItemDraft {
   readonly id: string | null
@@ -47,6 +54,7 @@ export type EditorChange =
   | { readonly kind: 'pdScale'; readonly scale: number }
   | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
   | { readonly kind: 'expectedRows'; readonly rows: readonly EditorExpectedDraft[] }
+  | { readonly kind: 'datedRows'; readonly rows: readonly EditorDatedDraft[] }
   | {
       readonly kind: 'itemRows'
       readonly table: EditorItemTable
@@ -104,6 +112,15 @@ export interface EditorView {
     readonly value: number
     readonly note: string
   }[]
+  /** Таблица «Показатели» на 01.01; null — область без неё (станция). */
+  readonly dated:
+    | readonly {
+        readonly id: string
+        readonly name: string
+        readonly previous: number | null
+        readonly current: number | null
+      }[]
+    | null
   /** null — область без ожидаемых показателей (станция). */
   readonly expected:
     | readonly {

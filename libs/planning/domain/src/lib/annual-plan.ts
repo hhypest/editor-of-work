@@ -2,6 +2,7 @@ import { err, ok, type Result } from '@eow/shared/kernel'
 import { areaExists, areaKey, areaLabel, type PlanArea } from './distribution'
 import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
+import type { DatedIndicator } from './dated-indicators'
 import type { ExpectedIndicator } from './expected-indicators'
 import type { PlanIndicator } from './indicators'
 import type { PlanItem } from './item-tables'
@@ -40,6 +41,8 @@ export interface AnnualPlan {
   /** Значения, введённые вручную, по ключу области ({@link areaKey}). */
   readonly manual: ReadonlyMap<string, AreaManual>
   readonly indicators: ReadonlyMap<string, readonly PlanIndicator[]>
+  /** Таблица «Показатели» на 01.01 прошлого и текущего года плана: дистанция и ПД. */
+  readonly datedIndicators: ReadonlyMap<string, readonly DatedIndicator[]>
   /** Ожидаемые показатели на 01.01 следующего года: дистанция и ПД. */
   readonly expectedIndicators: ReadonlyMap<string, readonly ExpectedIndicator[]>
   /** Перечни подрядных работ, ИССО и ЗП по ключу {@link itemTableKey}. */
@@ -102,6 +105,7 @@ export function createAnnualPlan(
     works: [],
     manual: new Map(),
     indicators: new Map(),
+    datedIndicators: new Map(),
     expectedIndicators: new Map(),
     itemTables: new Map(),
     pdScales: new Map(),

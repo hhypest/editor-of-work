@@ -400,7 +400,7 @@ describe('планы в main', () => {
       ['contract|district', [['Учебная подрядная', 'м3', 3, 1.5]]],
       ['zp|district', [['Учебная ЗП', 'км', 0, 0]]],
     ])
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(7)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(8)
     expect(reopened.value.basis.stations.get('S')?.legacyLayout).toMatchObject({
       tracks: [{ id: 't', number: 'I', row: 2, x1: 4, x2: 40, fullMeters: 900 }],
       objects: [{ id: 'o', type: 'здание', x: 20, y: -1, width: 3, height: 1 }],
@@ -772,7 +772,7 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(7)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(8)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },
@@ -831,7 +831,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(7)
+    expect(saved.format.version).toBe(8)
     expect(saved.plan.expectedIndicators).toEqual([
       { area: { kind: 'pd', pd: 'ПД-2' }, rows: expected },
     ])
@@ -840,6 +840,51 @@ describe('планы в main', () => {
       state: { dirty: false, view: { expected, canUndo: false } },
     })
     expect((await editorState()).view?.expected).toEqual([])
+  })
+  it('применяет таблицу «Показатели» ПД пакетом, выводит её первой на лист, сохраняет v8 и открывает', async () => {
+    await createPlan()
+    const rows = [
+      { id: null, name: 'Учебная протяжённость, км', previous: '10', current: '12,5' },
+      { id: null, name: 'Учебный без прошлого', previous: '', current: '0' },
+    ]
+    const before = await editorState()
+    expect(
+      await edit(
+        { kind: 'datedRows', rows: [...rows, { ...rows[0]!, current: 'много' }] },
+        'pd:ПД-2',
+      ),
+    ).toMatchObject({ status: 'invalid' })
+    expect(await editorState()).toEqual(before)
+    const applied = await edit({ kind: 'datedRows', rows }, 'pd:ПД-2')
+    if (applied.status !== 'editor') throw new Error('Нет состояния редактора')
+    const dated = applied.state.view!.dated!
+    expect(dated.map((r) => [r.name, r.previous, r.current])).toEqual([
+      ['Учебная протяжённость, км', 10, 12.5],
+      ['Учебный без прошлого', null, 0],
+    ])
+    const preview = await invoke({
+      action: 'previewEditorSheets',
+      revision: applied.state.revision,
+      pd: 'ПД-2',
+    })
+    if (preview.status !== 'editorSheets') throw new Error('Нет среза листа')
+    expect(preview.source.pds[0]?.tables).toEqual([])
+    expect(preview.source.pds[1]?.tables[0]).toMatchObject({
+      title: 'Показатели',
+      rows: [
+        ['Учебная протяжённость, км', '10', '12,5', '+2,5', '25'],
+        ['Учебный без прошлого', '', '0', '', '—'],
+      ],
+    })
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    const saved = JSON.parse(await readFile(path, 'utf8'))
+    expect(saved.format.version).toBe(8)
+    expect(saved.plan.datedIndicators).toEqual([{ area: { kind: 'pd', pd: 'ПД-2' }, rows: dated }])
+    await edit({ kind: 'open' })
+    const reopened = await edit({ kind: 'state' }, 'pd:ПД-2')
+    if (reopened.status !== 'editor') throw new Error('Нет состояния редактора')
+    expect(reopened.state.view!.dated).toEqual(dated)
+    expect((await editorState()).view?.dated).toEqual([])
   })
   it('применяет перечень ИССО ПД пакетом, выводит его на лист, сохраняет v7 и открывает', async () => {
     await createPlan()
@@ -883,7 +928,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(7)
+    expect(saved.format.version).toBe(8)
     expect(saved.plan.itemTables).toEqual([
       { area: { kind: 'pd', pd: 'ПД-2' }, kind: 'isso', rows: isso },
     ])

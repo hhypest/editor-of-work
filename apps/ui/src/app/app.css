@@ -13,6 +13,10 @@
   color: #5b6472;
 }
 
+.app-version {
+  font-size: 12px;
+}
+
 .app-header nav {
   margin-top: 8px;
   display: flex;

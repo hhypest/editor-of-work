@@ -2,7 +2,7 @@ import type { EowApi } from '@eow/ipc/contracts'
 import { pdSheetClient } from './pd-sheet-client'
 const api: EowApi = {
   printHost: async () => ({ status: 'error', message: 'unused' }),
-  appInfo: async () => ({ name: 'editor-of-work', version: '0' }),
+  appInfo: async () => ({ name: 'editor-of-work', version: '0', planFormat: 7 }),
   passport: async () => ({ status: 'ok', editions: [] }),
   passportData: async () => ({ status: 'error', message: 'unused' }),
   repairs: async () => ({ status: 'error', message: 'unused' }),

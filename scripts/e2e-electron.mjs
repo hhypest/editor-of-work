@@ -78,10 +78,39 @@ const ACTIVE_UNITS = ['ПЧУ-1', 'ПЧУ-2', 'ПД-1', 'ПД-2', 'ПД-3', 'П�
 const steps = []
 /** Текущее окно программы: для снимка при ошибке шага. */
 let current
+// Шаг, который завис (например, на модальном окне), прерывается со снимком, а не держит CI.
+const STEP_LIMIT = 180_000
+
+/** Аварийное завершение всего дерева процессов Electron; закрытие соединения ограничено по времени. */
+async function crash(application) {
+  const child = application.process()
+  try {
+    // На Windows SIGKILL завершает только главный процесс; taskkill /T — всё дерево.
+    if (process.platform === 'win32')
+      execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    else child.kill('SIGKILL')
+  } catch {
+    // Процесс уже завершён.
+  }
+  await Promise.race([
+    application.close().catch(() => undefined),
+    new Promise((done) => setTimeout(done, 10_000)),
+  ])
+}
+
 async function step(name, action) {
   const started = Date.now()
+  let timer
   try {
-    await action()
+    await Promise.race([
+      action(),
+      new Promise((_, fail) => {
+        timer = setTimeout(
+          () => fail(new Error(`Шаг дольше ${STEP_LIMIT / 1000} с: ${name}`)),
+          STEP_LIMIT,
+        )
+      }),
+    ])
     steps.push({ name, ms: Date.now() - started })
     console.log(`✓ ${name} (${Date.now() - started} мс)`)
   } catch (error) {
@@ -97,6 +126,8 @@ async function step(name, action) {
       .catch(() => [])
     if (alerts?.length) console.error(`Сообщения: ${alerts.join(' | ')}`)
     throw error
+  } finally {
+    clearTimeout(timer)
   }
 }
 
@@ -347,8 +378,7 @@ try {
       assert.ok(Date.now() < deadline, 'Автокопия не появилась за 90 с')
       await new Promise((done) => setTimeout(done, 1000))
     }
-    app.process().kill('SIGKILL')
-    await app.close().catch(() => undefined)
+    await crash(app)
     ;({ app, page } = await launch())
     await nav('Годовой план').click()
     await open(app, [planPath])
@@ -371,13 +401,7 @@ try {
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))
 } finally {
-  if (app) {
-    try {
-      app.process().kill('SIGKILL')
-    } catch {
-      // Процесс уже завершён.
-    }
-  }
+  if (app) await crash(app)
   // EOW_E2E_KEEP=1 оставляет временную папку с базой и книгами для разбора падения.
   if (process.env['EOW_E2E_KEEP'] === '1') console.log(`Рабочая папка сохранена: ${work}`)
   else await rm(work, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })

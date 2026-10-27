@@ -44,6 +44,7 @@ jobs:
           retention-days: 14
       - name: End-to-end scenario in production Electron build
         if: runner.os == 'Windows'
+        timeout-minutes: 15
         run: npm run test:e2e
       - name: End-to-end report
         if: runner.os == 'Windows' && !cancelled()

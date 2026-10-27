@@ -5,8 +5,11 @@ import {
   planBasis,
   setExpectedIndicators,
   setManualValue,
+  setPlanItems,
   workId,
   type ExpectedIndicator,
+  type ItemTableKind,
+  type PlanItem,
   type AnnualPlan,
   type Approval,
   type PlanArea,
@@ -31,6 +34,11 @@ export interface ImportedPlanDraft {
   readonly expected: readonly {
     readonly area: PlanArea
     readonly rows: readonly ExpectedIndicator[]
+  }[]
+  readonly items: readonly {
+    readonly area: PlanArea
+    readonly table: ItemTableKind
+    readonly rows: readonly PlanItem[]
   }[]
   readonly prototype: PrototypeArchive
 }
@@ -71,6 +79,12 @@ export function buildImportedPlan(
       errors.push(
         ...next.error.map((e) => ({ path: `expected.${i}`, message: describePlanError(e) })),
       )
+    else plan = next.value
+  }
+  for (const [i, entry] of input.items.entries()) {
+    const next = setPlanItems(plan, entry.area, entry.table, entry.rows)
+    if (!next.ok)
+      errors.push(...next.error.map((e) => ({ path: `items.${i}`, message: describePlanError(e) })))
     else plan = next.value
   }
   if (errors.length) return err(errors)

@@ -1,6 +1,12 @@
 <header class="app-header">
   <h1>{{ title }}</h1>
-  <p>Паспорт дистанции и схемы ППР</p>
+  <p>
+    Паспорт дистанции и схемы ППР @if (info(); as info) {
+    <span class="app-version"
+      >· версия {{ info.version }} · формат плана v{{ info.planFormat }}</span
+    >
+    }
+  </p>
   <nav aria-label="Разделы">
     <a routerLink="/" routerLinkActive="current" [routerLinkActiveOptions]="{ exact: true }">
       Паспорт

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core'
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router'
+import { APP_INFO, type AppInfo } from './app-info'
 
 @Component({
   selector: 'eow-root',
@@ -10,4 +11,10 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router'
 })
 export class App {
   protected readonly title = 'editor-of-work'
+  protected readonly info = signal<AppInfo | null>(null)
+
+  constructor() {
+    const source = inject(APP_INFO, { optional: true })
+    if (source) void source().then((info) => this.info.set(info))
+  }
 }

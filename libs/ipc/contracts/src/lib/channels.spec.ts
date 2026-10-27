@@ -18,7 +18,18 @@ describe('контракт IPC', () => {
     expect(channels.appInfo.request.safeParse({ path: 'C:\\' }).success).toBe(false)
   })
 
-  it('app:info отклоняет ответ без версии', () => {
+  it('app:info отклоняет ответ без версии продукта или формата плана', () => {
     expect(channels.appInfo.response.safeParse({ name: 'editor-of-work' }).success).toBe(false)
+    expect(
+      channels.appInfo.response.safeParse({ name: 'editor-of-work', version: '0.5.0-alpha.1' })
+        .success,
+    ).toBe(false)
+    expect(
+      channels.appInfo.response.safeParse({
+        name: 'editor-of-work',
+        version: '0.5.0-alpha.1',
+        planFormat: 7,
+      }).success,
+    ).toBe(true)
   })
 })

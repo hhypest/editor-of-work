@@ -8,7 +8,10 @@ import { manualTemplate } from './manual-template-channel'
 import { printHost } from './pdf-sheet-schema'
 import { repairs } from './repair-report-channel'
 
-/** Сведения о программе: имя и версия. Первый канал, на котором проверяется контракт. */
+/**
+ * Сведения о программе для диагностики: имя, версия продукта из package.json
+ * и версия формата файла плана, который программа записывает.
+ */
 export const appInfo = defineChannel(
   'app:info',
   z.object({}).strict(),
@@ -16,6 +19,7 @@ export const appInfo = defineChannel(
     .object({
       name: z.string().min(1),
       version: z.string().min(1),
+      planFormat: z.number().int().positive(),
     })
     .strict(),
 )

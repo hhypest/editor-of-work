@@ -21,10 +21,12 @@ import { manualTemplateClient } from './manual-template-client'
 import { passportClient } from './passport-client'
 import { PLAN_EDITOR_CLIENT } from '@eow/planning/feature-ui'
 import { planEditorClient } from './plan-editor-client'
+import { APP_INFO, appInfoSource } from './app-info'
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
+    { provide: APP_INFO, useFactory: () => appInfoSource(window.eow) },
     { provide: EDITOR_PDF_CLIENT, useFactory: () => editorPdfClient(window.eow) },
     { provide: EDITOR_SHEET_CLIENT, useFactory: () => editorSheetClient(window.eow) },
     { provide: PD_SHEET_CLIENT, useFactory: () => pdSheetClient(window.eow) },

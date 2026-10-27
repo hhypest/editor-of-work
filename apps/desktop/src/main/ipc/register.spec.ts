@@ -15,18 +15,24 @@ function fakeIpc() {
 describe('registerHandler', () => {
   it('вызывает обработчик для правильного запроса', async () => {
     const { ipc, invoke } = fakeIpc()
-    registerHandler(ipc, channels.appInfo, () => ({ name: 'editor-of-work', version: '0.0.0' }))
+    registerHandler(ipc, channels.appInfo, () => ({
+      name: 'editor-of-work',
+      version: '0.5.0-alpha.1',
+      planFormat: 7,
+    }))
     await expect(invoke('app:info', {})).resolves.toEqual({
       name: 'editor-of-work',
-      version: '0.0.0',
+      version: '0.5.0-alpha.1',
+      planFormat: 7,
     })
   })
 
   it('отклоняет запрос, не прошедший схему, и не вызывает обработчик', async () => {
     const { ipc, invoke } = fakeIpc()
-    const handler = vi.fn<() => { name: string; version: string }>(() => ({
+    const handler = vi.fn<() => { name: string; version: string; planFormat: number }>(() => ({
       name: 'x',
       version: '1',
+      planFormat: 1,
     }))
     registerHandler(ipc, channels.appInfo, handler)
     await expect(invoke('app:info', { path: '/etc' })).rejects.toBeInstanceOf(IpcValidationError)
@@ -35,13 +41,13 @@ describe('registerHandler', () => {
 
   it('отклоняет лишние аргументы', async () => {
     const { ipc, invoke } = fakeIpc()
-    registerHandler(ipc, channels.appInfo, () => ({ name: 'x', version: '1' }))
+    registerHandler(ipc, channels.appInfo, () => ({ name: 'x', version: '1', planFormat: 1 }))
     await expect(invoke('app:info', {}, {})).rejects.toThrow('ожидался один аргумент')
   })
 
   it('не пропускает ответ, не прошедший схему', async () => {
     const { ipc, invoke } = fakeIpc()
-    registerHandler(ipc, channels.appInfo, () => ({ name: 'x' }) as never)
+    registerHandler(ipc, channels.appInfo, () => ({ name: 'x', version: '1' }) as never)
     await expect(invoke('app:info', {})).rejects.toThrow('неверный ответ')
   })
 })

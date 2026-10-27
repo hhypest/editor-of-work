@@ -16,7 +16,7 @@ import {
 import { registerRepairHandlers } from './ipc/repairs'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
-import { pdfExporter } from './pdf-exporter'
+import { pdfBatchWriter, pdfExporter } from './pdf-exporter'
 import { electronPdfRenderer } from './electron-pdf'
 import { choosePassportLocation } from './passport-location-dialog'
 import {
@@ -152,6 +152,8 @@ if (!app.requestSingleInstanceLock()) {
       )
       registerRepairHandlers(ipcMain, repairReports(passport))
       const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
+      // Один обработчик окна печати на процесс: его делят текущий лист и пакеты.
+      const renderPdf = electronPdfRenderer(ipcMain, join(__dirname, 'preload.js'), startUrl)
       const stopPlanFiles = registerPlanFileHandlers(
         ipcMain,
         {
@@ -182,16 +184,33 @@ if (!app.requestSingleInstanceLock()) {
         },
         app.getVersion(),
         passportPlanView(passport),
-        pdfExporter(
-          async (page) => {
-            const chosen = await dialog.showSaveDialog({
-              title: 'Сохранить текущий лист ПД в PDF',
-              filters: [{ name: 'Лист PDF', extensions: ['pdf'] }],
-              defaultPath: `ПД_лист_${page.number}.pdf`,
-            })
-            return chosen.canceled ? undefined : chosen.filePath
+        pdfExporter(async (page) => {
+          const chosen = await dialog.showSaveDialog({
+            title: 'Сохранить текущий лист ПД в PDF',
+            filters: [{ name: 'Лист PDF', extensions: ['pdf'] }],
+            defaultPath: `ПД_лист_${page.number}.pdf`,
+          })
+          return chosen.canceled ? undefined : chosen.filePath
+        }, renderPdf),
+        pdfBatchWriter(
+          {
+            async chooseFile(defaultName) {
+              const chosen = await dialog.showSaveDialog({
+                title: 'Сохранить листы ПД в один PDF',
+                filters: [{ name: 'Листы PDF', extensions: ['pdf'] }],
+                defaultPath: defaultName,
+              })
+              return chosen.canceled ? undefined : chosen.filePath
+            },
+            async chooseFolder() {
+              const chosen = await dialog.showOpenDialog({
+                title: 'Выберите папку для PDF по каждому ПД',
+                properties: ['openDirectory', 'createDirectory'],
+              })
+              return chosen.canceled ? undefined : chosen.filePaths[0]
+            },
           },
-          electronPdfRenderer(ipcMain, join(__dirname, 'preload.js'), startUrl),
+          renderPdf,
         ),
       )
       let closing = false

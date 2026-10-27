@@ -15,6 +15,8 @@ export const planDocumentSchema = z
   .string()
   .min(1)
   .max(20 * 1024 * 1024)
+const revision = z.number().int().nonnegative(),
+  job = z.uuid()
 /**
  * Открытый план принадлежит main (ADR-0035): renderer меняет его только командами
  * `editor` с ожидаемой ревизией и не передаёт документ целиком.
@@ -30,6 +32,33 @@ export const planFile = defineChannel(
         page: pdfSheetSchema,
       })
       .strict(),
+    z
+      .object({
+        action: z.literal('pdfBatchStart'),
+        revision,
+        mode: z.enum(['file', 'folder']),
+        pds: z.array(z.string().min(1).max(1000)).min(1).max(2000),
+      })
+      .strict(),
+    z
+      .object({
+        action: z.literal('pdfBatchAdd'),
+        job,
+        revision,
+        pd: z.string().min(1).max(1000),
+        // Предел общего файла проверяет main; запрос ограничен листами одного ПД.
+        pages: z
+          .array(pdfSheetSchema)
+          .min(1)
+          .max(200)
+          .refine(
+            (pages) => JSON.stringify(pages).length <= 32 * 1024 * 1024,
+            'Листы одного ПД превышают 32 МиБ',
+          ),
+      })
+      .strict(),
+    z.object({ action: z.literal('pdfBatchFinish'), job, revision }).strict(),
+    z.object({ action: z.literal('pdfBatchCancel'), job }).strict(),
     z.object({ action: z.literal('previewSheets'), open: z.boolean() }).strict(),
     z
       .object({
@@ -60,6 +89,14 @@ export const planFile = defineChannel(
       })
       .strict(),
     z.object({ status: z.literal('pdf'), result: z.enum(['saved', 'cancelled']) }).strict(),
+    z
+      .object({
+        status: z.literal('pdfBatch'),
+        job,
+        total: z.number().int().positive(),
+        done: z.number().int().nonnegative(),
+      })
+      .strict(),
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
     z.object({ status: z.literal('editor'), state: editorStateSchema }).strict(),

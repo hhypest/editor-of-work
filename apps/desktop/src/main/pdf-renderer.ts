@@ -24,7 +24,7 @@ export interface PrintWindow {
   destroy(): void
 }
 interface PrintJob {
-  readonly page: SheetPage
+  readonly pages: readonly SheetPage[]
   loaded: boolean
   ready: boolean
   readonly complete: () => void
@@ -41,7 +41,10 @@ function senderId(event: unknown): number | undefined {
     : undefined
 }
 
-/** Отдельное окно на лист. Модель доступна только его webContents. */
+/**
+ * Отдельное окно на файл: все его листы печатаются одним printToPDF, каждый на своей
+ * странице А3. Модель доступна только webContents этого окна.
+ */
 export function createPdfRenderer(
   ipc: IpcMainLike,
   createWindow: () => PrintWindow,
@@ -58,7 +61,7 @@ export function createPdfRenderer(
       if (!job) return { status: 'error', message: 'Окно печати не зарегистрировано.' }
       if (request.action === 'load' && !job.loaded) {
         job.loaded = true
-        return channels.printHost.response.parse({ status: 'page', page: job.page })
+        return channels.printHost.response.parse({ status: 'pages', pages: job.pages })
       }
       if (request.action === 'ready' && job.loaded && !job.ready) {
         job.ready = true
@@ -70,7 +73,8 @@ export function createPdfRenderer(
       return { status: 'error', message: 'Неверная последовательность подготовки PDF.' }
     },
   )
-  return async (page: SheetPage): Promise<Uint8Array> => {
+  return async (pages: readonly SheetPage[]): Promise<Uint8Array> => {
+    if (!pages.length) throw new PdfRenderError('Нет листов для PDF.')
     const win = createWindow()
     const id = win.webContents.id
     let complete: () => void = () => undefined
@@ -85,7 +89,7 @@ export function createPdfRenderer(
       () => fail(new PdfRenderError('Превышено время подготовки PDF. Повторите сохранение.')),
       timeoutMs,
     )
-    jobs.set(id, { page, loaded: false, ready: false, complete, fail })
+    jobs.set(id, { pages, loaded: false, ready: false, complete, fail })
     win.once('closed', () =>
       fail(new PdfRenderError('Окно подготовки PDF закрыто. Повторите сохранение.')),
     )

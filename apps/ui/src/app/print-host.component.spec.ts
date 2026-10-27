@@ -21,7 +21,9 @@ it.each([false, true])(
     }
     const api = {
       printHost: vi.fn<EowApi['printHost']>(async (request) =>
-        request.action === 'load' ? { status: 'page', page } : { status: 'ok' },
+        request.action === 'load'
+          ? { status: 'pages', pages: [page, { ...page, number: 5 }] }
+          : { status: 'ok' },
       ),
     }
     const prepare = async () => {
@@ -45,6 +47,8 @@ it.each([false, true])(
     const root = fixture.nativeElement as HTMLElement
     expect(root.querySelector('nav')).toBeNull()
     expect(root.querySelector('svg script')).toBeNull()
+    expect(root.querySelectorAll('svg')).toHaveLength(2)
+    expect(root.querySelectorAll('.sheet')).toHaveLength(2)
     expect(root.querySelector('svg')?.getAttribute('width')).toBe('420mm')
     expect(root.textContent).toContain('<script>Учебный лист</script>')
   },

@@ -1,6 +1,12 @@
 import type { Generated, Kysely } from 'kysely'
 import type { PassportEdition } from '@eow/passport/application'
-import type { OrgData, OrgImport, OrgImportError, OrgImportRow } from '@eow/passport/import-api'
+import type {
+  OrgData,
+  OrgImport,
+  OrgImportBoundary,
+  OrgImportError,
+  OrgImportRow,
+} from '@eow/passport/import-api'
 import { orgDataSchema } from './org-import-schema'
 import { err, ok, type Result } from '@eow/shared/kernel'
 import type { SegmentTables } from './segment-tables'
@@ -192,6 +198,40 @@ export async function trackId(
   return id
 }
 
+type Point = OrgImportBoundary['from']
+const before = (a: Point, b: Point): boolean => a.km < b.km || (a.km === b.km && a.m < b.m)
+
+/**
+ * Протяжение направления в дистанции — объединение границ отмеченных ПД: участки,
+ * которые касаются или перекрываются, сливаются, разрыв между ними остаётся (ADR-0041).
+ * Границы ПЧУ, ЗП и других подразделений не участвуют: они могут перекрывать разрыв.
+ * Источник части протяжения — файл первой границы этой части.
+ */
+export function lineExtents(input: Pick<OrgImport, 'subdivisions' | 'boundaries'>): readonly {
+  readonly line: string
+  readonly from: Point
+  readonly to: Point
+  readonly importFileId: string
+}[] {
+  const pd = new Set(input.subdivisions.filter((s) => s.active && s.type === 'ПД').map((s) => s.id))
+  const byLine = new Map<string, OrgImportBoundary[]>()
+  for (const b of input.boundaries)
+    if (pd.has(b.subdivisionId)) byLine.set(b.line, [...(byLine.get(b.line) ?? []), b])
+  return [...byLine].flatMap(([line, boundaries]) => {
+    const sorted = boundaries.toSorted((a, b) =>
+      before(a.from, b.from) ? -1 : before(b.from, a.from) ? 1 : 0,
+    )
+    const parts: { line: string; from: Point; to: Point; importFileId: string }[] = []
+    for (const b of sorted) {
+      const last = parts.at(-1)
+      if (last && !before(last.to, b.from)) {
+        if (before(last.to, b.to)) last.to = b.to
+      } else parts.push({ line, from: b.from, to: b.to, importFileId: b.importFileId })
+    }
+    return parts
+  })
+}
+
 /** Вызывается только внутри транзакции. Удаляются строки прежнего пакета, не чужие разделы. */
 export async function writeOrgImport(
   db: Kysely<PassportSchema>,
@@ -209,6 +249,7 @@ export async function writeOrgImport(
   const ids = old.map((f) => f.id)
   if (ids.length) {
     for (const table of [
+      'line_extent',
       'station_track_pd',
       'station_pd',
       'subdivision_segment',
@@ -273,6 +314,23 @@ export async function writeOrgImport(
         start_m: b.from.m,
         end_km: b.to.km,
         end_m: b.to.m,
+      })
+      .execute()
+  }
+  for (const extent of lineExtents(input)) {
+    await db
+      .insertInto('line_extent')
+      .values({
+        edition_id: editionId,
+        id: referenceId('line-extent', extent.line, `${extent.from.km}+${extent.from.m}`),
+        import_file_id: extent.importFileId,
+        valid_from: null,
+        valid_to: null,
+        line_id: await lineId(db, editionId, extent.line),
+        start_km: extent.from.km,
+        start_m: extent.from.m,
+        end_km: extent.to.km,
+        end_m: extent.to.m,
       })
       .execute()
   }

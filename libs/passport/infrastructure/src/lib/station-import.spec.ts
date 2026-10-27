@@ -42,7 +42,7 @@ describe('Станционные данные в SQLite', () => {
   afterEach(async () => {
     db.close()
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   const input = async () => stationFixture(value(await store.stationBasis(id)).token)
   const snapshot = () =>

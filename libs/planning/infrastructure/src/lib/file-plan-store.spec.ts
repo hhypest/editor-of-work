@@ -31,7 +31,7 @@ describe('файл плана на диске', () => {
     store = new FilePlanStore(path, '0.1.0')
   })
   afterEach(async () => {
-    await rm(directory, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   it('сохраняет состав таблиц в v5, исходный v4 в .bak и восстанавливает настройку из автокопии', async () => {
     const original = JSON.stringify(v4Fixture)

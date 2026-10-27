@@ -32,7 +32,7 @@ describe('недоступная локальная база', () => {
         expect(choose).not.toHaveBeenCalled()
         expect(await readdir(root)).toEqual([])
       } finally {
-        await rm(root, { recursive: true, force: true })
+        await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
       }
     },
   )

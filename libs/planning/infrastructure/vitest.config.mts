@@ -12,6 +12,10 @@ export default defineConfig(() => ({
     passWithNoTests: true,
     globals: true,
     environment: 'node',
+    // Тесты создают и мигрируют настоящие базы и файлы: на Windows-раннере CI отдельный
+    // тест идёт до 7 с при пределе Vitest 5 с. Запас по времени, а не отключение проверок.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {

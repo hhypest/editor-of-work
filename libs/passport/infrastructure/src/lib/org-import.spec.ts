@@ -116,7 +116,7 @@ describe('Запись оргструктуры в черновик паспор
   afterEach(async () => {
     db.close()
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   const rows = (table: string) => db.prepare(`SELECT * FROM ${table} ORDER BY edition_id, id`).all()
   const snapshot = () =>

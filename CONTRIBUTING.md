@@ -15,20 +15,21 @@
 
 ## Команды
 
-| Команда                  | Что делает                                                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
-| `npm start`              | программа в режиме разработки (Electron + Angular с перезагрузкой)                                               |
-| `npm test`               | Vitest во всех проектах (`nx run-many -t test`)                                                                  |
-| `npm run test:e2e`       | сквозной сценарий Playwright в production-сборке Electron; после build, [инструкция](docs/e2e-electron.md)       |
-| `npm run lint`           | ESLint (angular-eslint, границы модулей Nx) и oxlint; только проверка                                            |
-| `npm run lint:fix`       | то же с исправлением                                                                                             |
-| `npm run format`         | Prettier                                                                                                         |
-| `npm run check:public`   | в индексе Git нет xls, xlsx, sqlite, файлов планов, pdf, архивов                                                 |
-| `npm run check:electron` | SQLite, резервные копии и PDF А3 в настоящем Electron; после build, [инструкция](docs/electron-runtime-check.md) |
-| `npm run check:licenses` | лицензии зависимостей, попадающих в exe, — только разрешительные                                                 |
-| `npm run check`          | `check:public`, `check:licenses`, формат, lint, typecheck, тесты, сборка — то же, что в CI                       |
-| `npm run fixtures`       | сгенерировать вымышленные выгрузки для тестов импорта                                                            |
-| `npm run build:exe`      | portable exe (electron-builder); запускается вручную                                                             |
+| Команда                    | Что делает                                                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm start`                | программа в режиме разработки (Electron + Angular с перезагрузкой)                                               |
+| `npm test`                 | Vitest во всех проектах (`nx run-many -t test`)                                                                  |
+| `npm run test:e2e`         | сквозной сценарий Playwright в production-сборке Electron; после build, [инструкция](docs/e2e-electron.md)       |
+| `npm run lint`             | ESLint (angular-eslint, границы модулей Nx) и oxlint; только проверка                                            |
+| `npm run lint:fix`         | то же с исправлением                                                                                             |
+| `npm run format`           | Prettier                                                                                                         |
+| `npm run check:public`     | в индексе Git нет xls, xlsx, sqlite, файлов планов, pdf, архивов                                                 |
+| `npm run check:electron`   | SQLite, резервные копии и PDF А3 в настоящем Electron; после build, [инструкция](docs/electron-runtime-check.md) |
+| `npm run package:portable` | переносной exe и SHA-256 в `dist/release`; только вручную, [инструкция](docs/portable-build.md)                  |
+| `npm run check:licenses`   | лицензии зависимостей, попадающих в exe, — только разрешительные                                                 |
+| `npm run check`            | `check:public`, `check:licenses`, формат, lint, typecheck, тесты, сборка — то же, что в CI                       |
+| `npm run fixtures`         | сгенерировать вымышленные выгрузки для тестов импорта                                                            |
+| `npm run build:exe`        | portable exe (electron-builder); запускается вручную                                                             |
 
 ## Архитектура и границы модулей
 

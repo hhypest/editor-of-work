@@ -24,7 +24,8 @@
     "check:electron": "node scripts/check-electron-runtime.mjs",
     "test:e2e": "node scripts/e2e-electron.mjs",
     "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\"",
-    "fixtures": "node scripts/fixtures.mjs"
+    "fixtures": "node scripts/fixtures.mjs",
+    "package:portable": "node scripts/package-portable.mjs"
   },
   "engines": {
     "node": "^22.22.3 || ^24.15.0 || >=26.0.0"
@@ -56,6 +57,7 @@
     "@vitest/ui": "^4.0.0",
     "angular-eslint": "^22.6.0",
     "electron": "44.9.0",
+    "electron-builder": "26.17.0",
     "esbuild": "0.28.2",
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",

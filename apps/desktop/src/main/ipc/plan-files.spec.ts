@@ -288,6 +288,7 @@ describe('планы в main', () => {
             { group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: 2.5 },
           ],
           contract: [{ name: 'Учебная подрядная', unit: 'м3', qty: 3, cost: '1,5' }],
+          indicators: [{ name: 'Учебная протяжённость', a: 10, b: '12,5' }],
           zp: [{ name: 'Учебная ЗП', unit: 'км', qty: 0, cost: 0 }],
         },
       },
@@ -324,6 +325,9 @@ describe('планы в main', () => {
       ['contract|district', [['Учебная подрядная', 'м3', 3, 1.5]]],
       ['zp|district', [['Учебная ЗП', 'км', 0, 0]]],
     ])
+    expect(
+      reopened.value.datedIndicators.get('district')?.map((r) => [r.name, r.previous, r.current]),
+    ).toEqual([['Учебная протяжённость', 10, 12.5]])
     expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(8)
     expect(reopened.value.basis.stations.get('S')?.legacyLayout).toMatchObject({
       tracks: [{ id: 't', number: 'I', row: 2, x1: 4, x2: 40, fullMeters: 900 }],

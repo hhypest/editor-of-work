@@ -116,7 +116,7 @@ export function prototypeFixture() {
       },
     ],
     tables: {
-      dist: { override: { A: 7 }, need: { A: 0 }, indicators: [{ name: 'Тест', value: 10 }] },
+      dist: { override: { A: 7 }, need: { A: 0 }, indicators: [{ name: 'Тест', a: 9, b: 10 }] },
       D1: { override: { A: 1.5 }, need: {} },
     },
     opts: { dist: { callouts: false } },

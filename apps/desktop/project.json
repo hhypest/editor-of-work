@@ -10,7 +10,7 @@
       "executor": "nx:run-commands",
       "cache": true,
       "dependsOn": [{ "projects": ["ui"], "target": "build" }],
-      "inputs": ["production", "^production"],
+      "inputs": ["production", "^production", "{workspaceRoot}/package.json"],
       "outputs": ["{workspaceRoot}/dist/apps/desktop"],
       "options": { "command": "node apps/desktop/build.mjs" }
     },

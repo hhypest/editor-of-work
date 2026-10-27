@@ -157,7 +157,7 @@ describe('Ручные данные: SQLite → xlsx → SQLite', () => {
     for (const populated of [false, true]) {
       if (populated) value(await store.applyManualData(id, await input()))
       const before = snapshot()
-      const bytes = value(await exportManualTemplate(store, adapter, id))
+      const { bytes } = value(await exportManualTemplate(store, adapter, id))
       const preview = value(
         await importManualTemplate(store, adapter, {
           editionId: id,
@@ -203,7 +203,7 @@ describe('Ручные данные: SQLite → xlsx → SQLite', () => {
   it('неполный лист и ошибка заполнения не меняют паспорт', async () => {
     value(await store.applyManualData(id, await input()))
     const before = snapshot(),
-      bytes = value(await exportManualTemplate(store, adapter, id))
+      { bytes } = value(await exportManualTemplate(store, adapter, id))
     for (const change of [
       (wb: ExcelJS.Workbook) => {
         wb.removeWorksheet('Допуски')

@@ -36,6 +36,11 @@ cpSync(resolve(root, 'libs/passport/infrastructure/migrations'), resolve(outdir,
   recursive: true,
 })
 
+// Типовой перечень видов работ — данные, а не код: main читает и проверяет его при выдаче шаблона (ADR-0032).
+cpSync(resolve(root, 'libs/import/infrastructure/catalogs'), resolve(outdir, 'catalogs'), {
+  recursive: true,
+})
+
 // package.json рядом с main.js: из него Electron берёт имя и версию программы (app.getName/getVersion).
 const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'))
 writeFileSync(

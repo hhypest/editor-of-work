@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto'
 import { basename } from 'node:path'
 import { open, readFile, rename, rm } from 'node:fs/promises'
 import { channels, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
-import type { ManualDataTemplate, ManualTemplatePreview } from '@eow/import/application'
+import type {
+  ManualDataTemplate,
+  ManualTemplatePreview,
+  TypicalWorkKindCatalog,
+} from '@eow/import/application'
 import { exportManualTemplate, prepareManualTemplate } from '@eow/import/infrastructure'
 import type { PassportStore } from '@eow/passport/application'
 import type { PassportManualData } from '@eow/passport/import-api'
@@ -39,6 +43,7 @@ export function registerManualTemplateHandlers(
   template: ManualDataTemplate,
   dialogs: ManualTemplateDialogs,
   now: () => Date = () => new Date(),
+  typical?: TypicalWorkKindCatalog,
 ): void {
   let pending:
     | {
@@ -77,10 +82,21 @@ export function registerManualTemplateHandlers(
     if (request.action === 'export') {
       const path = await dialogs.save()
       if (!path) return { status: 'cancelled' }
-      const result = await exportManualTemplate(store, template, request.editionId)
+      if (request.typicalWorkKinds && !typical)
+        return failure('Типовой перечень видов работ недоступен в этой сборке.')
+      const result = await exportManualTemplate(
+        store,
+        template,
+        request.editionId,
+        request.typicalWorkKinds && typical
+          ? { catalog: typical, ids: { next: () => randomUUID() } }
+          : undefined,
+      )
       if (!result.ok) return failure(result.error.message)
-      await saveTemplate(path, result.value)
-      return { status: 'exported' }
+      await saveTemplate(path, result.value.bytes)
+      return result.value.typical
+        ? { status: 'exported', typical: { ...result.value.typical } }
+        : { status: 'exported' }
     }
     pending = undefined
     const error = await draftError(request.editionId)

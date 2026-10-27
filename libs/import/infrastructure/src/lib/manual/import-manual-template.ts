@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { err, ok, type Result } from '@eow/shared/kernel'
+import { err, ok, type IdGenerator, type Result } from '@eow/shared/kernel'
 import {
   MANUAL_SHEETS,
   validateManualData,
@@ -7,18 +7,43 @@ import {
   type OrgImportError,
   type PassportManualData,
 } from '@eow/passport/import-api'
-import type { ManualDataTemplate, ManualTemplatePreview } from '@eow/import/application'
+import {
+  addTypicalWorkKinds,
+  type ManualDataTemplate,
+  type ManualTemplatePreview,
+  type TypicalWorkKindCatalog,
+  type TypicalWorkKindsSummary,
+} from '@eow/import/application'
 import { MANUAL_KEYS } from './manual-layout'
+/**
+ * Выдаёт книгу с текущими данными редакции. С типовым перечнем недостающие виды работ
+ * дописываются только в книгу: паспорт меняется лишь после загрузки и подтверждения.
+ */
 export async function exportManualTemplate(
   store: PassportManualData,
   template: ManualDataTemplate,
   editionId: number,
-): Promise<Result<Uint8Array, OrgImportError>> {
+  typical?: { readonly catalog: TypicalWorkKindCatalog; readonly ids: IdGenerator },
+): Promise<
+  Result<
+    { readonly bytes: Uint8Array; readonly typical: TypicalWorkKindsSummary | null },
+    OrgImportError
+  >
+> {
   const basis = await store.manualBasis(editionId)
   if (!basis.ok) return basis
-  const bytes = await template.write(basis.value)
+  let data = basis.value.data,
+    summary: TypicalWorkKindsSummary | null = null
+  if (typical) {
+    const kinds = await typical.catalog.load()
+    if (!kinds.ok) return err({ kind: 'invalid-import', message: kinds.error.message })
+    const merged = addTypicalWorkKinds(data, kinds.value, typical.ids)
+    data = merged.data
+    summary = merged.summary
+  }
+  const bytes = await template.write({ ...basis.value, data })
   return bytes.ok
-    ? bytes
+    ? ok({ bytes: bytes.value, typical: summary })
     : err({ kind: 'invalid-import', message: bytes.error.map((e) => e.message).join('\n') })
 }
 export async function prepareManualTemplate(

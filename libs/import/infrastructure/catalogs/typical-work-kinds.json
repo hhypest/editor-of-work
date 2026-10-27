@@ -1,0 +1,861 @@
+{
+  "format": 1,
+  "title": "Типовой перечень видов работ текущего содержания пути",
+  "source": "Наименования и единицы из формы «Анализ выполнения работ на текущем содержании пути»; объёмы, планы и нормативы не включены",
+  "kinds": [
+    {
+      "code": "ТС-001",
+      "name": "Планово-предупредительная выправка пути комплексами машин (В)",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-002",
+      "name": "в т.ч. с применением технологии \"ВПИ-Навигатор\"",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-001"
+    },
+    {
+      "code": "ТС-003",
+      "name": "в т.ч. с применением технологии КСПДиЖТ",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-001"
+    },
+    {
+      "code": "ТС-004",
+      "name": "Выправка пути одиночными машинами",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-005",
+      "name": "Послеосадочная выправка пути",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-006",
+      "name": "приведение кривых к проектным решениям и БПД",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-007",
+      "name": "Планово-предупредительная выправка стрелочных переводов",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-008",
+      "name": "в т.ч. с применением технологии КСПДиЖТ",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-007"
+    },
+    {
+      "code": "ТС-009",
+      "name": "Усиление переводных кривых",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-010",
+      "name": "Усиление закрестовинных кривых",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-011",
+      "name": "Усиление кривых малого радиуса на деревянном полрельсовом основании (главные)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-012",
+      "name": "в т.ч. R-350",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-011"
+    },
+    {
+      "code": "ТС-013",
+      "name": "Усиление кривых малого радиуса на деревянном полрельсовом основании (станционные)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-014",
+      "name": "в т.ч. R-350",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-013"
+    },
+    {
+      "code": "ТС-015",
+      "name": "Усиление кривых малого радиуса на железобетонном подрельсовом основании",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-016",
+      "name": "в т.ч. R-350",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-015"
+    },
+    {
+      "code": "ТС-017",
+      "name": "Закрепление пути ПМГ",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-018",
+      "name": "Закрепление моторными гайковертами (КШГ)",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-019",
+      "name": "Снижение дефектности рельсов (всего), в т.ч.:",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-020",
+      "name": "при выполнении кап.работ (Р,Кн,Крс, РС, Р,РП,)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-021",
+      "name": "наплавка рельсов. концов (подрядчик)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-022",
+      "name": "наплавка рельсов. концов (хоз.способ)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-023",
+      "name": "при наплавке рельсовых концов",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-024",
+      "name": "при наплавке 46 рис.",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-025",
+      "name": "при одиночной смене деф.рельсов",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-026",
+      "name": "переукладка рельсов",
+      "unit": "км нити",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-027",
+      "name": "в т.ч. со сменой раб.канта",
+      "unit": "км нити",
+      "group": "current",
+      "includedIn": "ТС-026"
+    },
+    {
+      "code": "ТС-028",
+      "name": "при переукладке рельсов",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-029",
+      "name": "Шлифовка рельсов РШП",
+      "unit": "км проходов",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-030",
+      "name": "при шлифовке рельсов РШП",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-031",
+      "name": "Шлифовка рельсов в ручную станками",
+      "unit": "мест",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-032",
+      "name": "при шлифовке рельсов в ручную станками",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-019"
+    },
+    {
+      "code": "ТС-033",
+      "name": "Снижение дефектности крестовин, в т.ч.:",
+      "unit": "штук дефектных",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-034",
+      "name": "Наплавка крестовин (подрядчик)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-035",
+      "name": "Наплавка крестовин (хоз.способ)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-036",
+      "name": "Науглероживание крестовин",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-037",
+      "name": "Снижение дефектов шлифовкой стрелочных переводов (вручную)",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-038",
+      "name": "Замена ремкомплектов (нов+с/г):",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-039",
+      "name": "новых",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-038"
+    },
+    {
+      "code": "ТС-040",
+      "name": "старогодных",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-038"
+    },
+    {
+      "code": "ТС-041",
+      "name": "Замена крестовин:",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-042",
+      "name": "новых",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-041"
+    },
+    {
+      "code": "ТС-043",
+      "name": "старогодных",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-041"
+    },
+    {
+      "code": "ТС-044",
+      "name": "Количество мест временного восстановления",
+      "unit": "мест",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-045",
+      "name": "Сварка рельсовых плетей: ПРСМ (всего),",
+      "unit": "стыков штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-046",
+      "name": "в т.ч. мест временного восстановления плетей",
+      "unit": "стыков штук",
+      "group": "current",
+      "includedIn": "ТС-045"
+    },
+    {
+      "code": "ТС-047",
+      "name": "Алюминотермитным способом (всего),",
+      "unit": "стыков штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-048",
+      "name": "Алюминотермитным (хоз.способом)",
+      "unit": "стыков штук",
+      "group": "current",
+      "includedIn": "ТС-047"
+    },
+    {
+      "code": "ТС-049",
+      "name": "Алюминотермитным (подрядчик)",
+      "unit": "стыков штук",
+      "group": "current",
+      "includedIn": "ТС-047"
+    },
+    {
+      "code": "ТС-050",
+      "name": "в т.ч. ликвидация мест временного восстановления плетей",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-051",
+      "name": "смена новых деревянных шпал",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-052",
+      "name": "смена с/г деревянных шпал",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-053",
+      "name": "смена новых ж/б шпал",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-054",
+      "name": "смена с/г ж/б шпал",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-055",
+      "name": "Укладка щебня, всего",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-056",
+      "name": "при ППВ",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": "ТС-055"
+    },
+    {
+      "code": "ТС-057",
+      "name": "при ППВС",
+      "unit": "тыс.м2",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-058",
+      "name": "при ППВ с КСПДиЖТ",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": "ТС-055"
+    },
+    {
+      "code": "ТС-059",
+      "name": "при текщем содержании (пополнение плеча б.п., выплески, профильные просадки)",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": "ТС-055"
+    },
+    {
+      "code": "ТС-060",
+      "name": "при вырезке выплесков машинами",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": "ТС-055"
+    },
+    {
+      "code": "ТС-061",
+      "name": "при выправке продольных профилей",
+      "unit": "тыс.м3",
+      "group": "current",
+      "includedIn": "ТС-055"
+    },
+    {
+      "code": "ТС-062",
+      "name": "Устранение локальных выплесков",
+      "unit": "мест",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-063",
+      "name": "Устранение локальных выплесков",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-064",
+      "name": "Кол-во комплексов (всего),",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-065",
+      "name": "в т.ч. с ведущей машин. Дуоматик",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": "ТС-064"
+    },
+    {
+      "code": "ТС-067",
+      "name": "капитальный ремонт пути",
+      "unit": "км",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-068",
+      "name": "средний ремонт пути",
+      "unit": "км",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-069",
+      "name": "подъемочный ремонт пути",
+      "unit": "км",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-070",
+      "name": "смена рельсов с/г",
+      "unit": "км нити",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-071",
+      "name": "смена стр.переводов",
+      "unit": "компл",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-072",
+      "name": "смена дер.пер.брусьев",
+      "unit": "компл",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-073",
+      "name": "выправка профилей",
+      "unit": "км",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-074",
+      "name": "ремонт водоотводов",
+      "unit": "км",
+      "group": "capital",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-076",
+      "name": "усиление переводных кривых",
+      "unit": "кривых штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-077",
+      "name": "усиление закрестовинных кривых",
+      "unit": "кривых штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-078",
+      "name": "усиление кривых малого R (КД)",
+      "unit": "кривых штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-079",
+      "name": "усиление кривых малого R (ПШР)",
+      "unit": "кривых штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-080",
+      "name": "приведение кривых к расчетным параметрам",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-081",
+      "name": "переукладка рельсов в кривых",
+      "unit": "км нити",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-082",
+      "name": "в т.ч. со сменой раб.канта",
+      "unit": "км нити",
+      "group": "current",
+      "includedIn": "ТС-081"
+    },
+    {
+      "code": "ТС-083",
+      "name": "Замена стрелочных переводов Р50 и легче",
+      "unit": "штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-084",
+      "name": "ликвидация деревянных вставок",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-085",
+      "name": "в том числе при текущем содержании",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-084"
+    },
+    {
+      "code": "ТС-087",
+      "name": "оборудование переездов АПС",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-088",
+      "name": "оборудование УЗП",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-089",
+      "name": "кап.ремонт переездов",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-090",
+      "name": "асфальтировка проезжей части",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-091",
+      "name": "стр-во путепроводов",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-092",
+      "name": "закрытие переездов",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-093",
+      "name": "капитальный ремонт УЗП",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-094",
+      "name": "укладка резино-технического настила",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-095",
+      "name": "оборудование шлагбаумами ПАШ",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-096",
+      "name": "модернизация АПС",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-097",
+      "name": "внедрение светоф.головок на светоизлуч. диодах",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-098",
+      "name": "оборудование телеф.связью с ГИБДД",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-099",
+      "name": "улучш. электроснабжения",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-100",
+      "name": "улучш. электроосвещения",
+      "unit": "пер. шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-102",
+      "name": "укладка изолирующих стыков с композитными и металло-композитными накладками, а также других с улучшенными характеристиками",
+      "unit": "тыс. комл",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-103",
+      "name": "установка дублирующих соединителей",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-104",
+      "name": "приварка соединителей, всего в т.ч. :",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-105",
+      "name": "медных",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": "ТС-104"
+    },
+    {
+      "code": "ТС-106",
+      "name": "стальных",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": "ТС-104"
+    },
+    {
+      "code": "ТС-107",
+      "name": "установка тарельчатых шайб",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-108",
+      "name": "установка пружинных соединителей",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-109",
+      "name": "установка соединителей рельсовых пружинных (СРСП)",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-110",
+      "name": "комплексная переборка изостыков",
+      "unit": "т.штук",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-111",
+      "name": "укладка подшпальной резины в И.С.",
+      "unit": "компл",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-112",
+      "name": "Склейка металокомпозитных стыков",
+      "unit": "кмп",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-113",
+      "name": "Установка контррельс-протекторов на стрелочных переводах",
+      "unit": "компл",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-114",
+      "name": "Установка лубрикаторов на стрелочных переводах",
+      "unit": "штук СП",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-115",
+      "name": "обработка путей гербицидами всего,",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-116",
+      "name": "в т.ч. главных",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-115"
+    },
+    {
+      "code": "ТС-117",
+      "name": "станционных",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-115"
+    },
+    {
+      "code": "ТС-118",
+      "name": "подъездных",
+      "unit": "км",
+      "group": "current",
+      "includedIn": "ТС-115"
+    },
+    {
+      "code": "ТС-119",
+      "name": "Вырубка ДКР с уборкой порубочных остатков",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-120",
+      "name": "Опашка защитных лесонасаждений, обновление минполосы",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-121",
+      "name": "Выполнение работ по ограждению путей от выхода скота на путь на перегонах",
+      "unit": "шт.мест",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-123",
+      "name": "Оборка скально-обвальных участков",
+      "unit": "тыс.м2",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-124",
+      "name": "Очистка и нарезка кюветов",
+      "unit": "прив.км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-125",
+      "name": "Ликвидация лавиноопасных участков",
+      "unit": "шт",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-126",
+      "name": "тракторная техника",
+      "unit": "км",
+      "group": "current",
+      "includedIn": null
+    },
+    {
+      "code": "ТС-127",
+      "name": "Антикоррозийная обработка металлических пролетных сроений мостов",
+      "unit": "тонн",
+      "group": "current",
+      "includedIn": null
+    }
+  ]
+}

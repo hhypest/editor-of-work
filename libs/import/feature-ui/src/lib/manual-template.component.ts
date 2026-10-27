@@ -14,6 +14,9 @@ export class ManualTemplateComponent {
   constructor() {
     void this.facade.load()
   }
+  protected toggleTypical(event: Event): void {
+    if (event.target instanceof HTMLInputElement) this.facade.typical.set(event.target.checked)
+  }
   protected select(event: Event): void {
     if (event.target instanceof HTMLSelectElement) this.facade.select(Number(event.target.value))
   }

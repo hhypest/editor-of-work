@@ -43,3 +43,19 @@ thead {
   color: #9f1818;
   white-space: pre-wrap;
 }
+.typical {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+.typical input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.typical p {
+  grid-column: 2;
+  margin: 0.25rem 0 0;
+  color: #4a5561;
+}

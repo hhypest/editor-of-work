@@ -38,6 +38,18 @@
         {{ text.prepare }}
       </button>
     </div>
+    <div class="typical">
+      <input
+        id="manual-typical"
+        type="checkbox"
+        aria-describedby="manual-typical-hint"
+        [checked]="facade.typical()"
+        [disabled]="facade.busy() || !!facade.review()"
+        (change)="toggleTypical($event)"
+      />
+      <label for="manual-typical">{{ text.typical }}</label>
+      <p id="manual-typical-hint">{{ text.typicalHint }}</p>
+    </div>
     @if (!facade.canEdit()) {
       <p>{{ text.immutable }}</p>
     }

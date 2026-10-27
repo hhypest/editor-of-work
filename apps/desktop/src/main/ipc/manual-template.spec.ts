@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import ExcelJS from 'exceljs'
 import { channels } from '@eow/ipc/contracts'
-import { XlsxManualDataTemplate } from '@eow/import/infrastructure'
+import {
+  FileTypicalWorkKindCatalog,
+  TYPICAL_WORK_KINDS_FILE,
+  XlsxManualDataTemplate,
+} from '@eow/import/infrastructure'
 import { openPassportDatabase, type PassportDatabase } from '@eow/passport/infrastructure'
 import type { Result } from '@eow/shared/kernel'
 import { registerManualTemplateHandlers, type ManualTemplateDialogs } from './manual-template'
@@ -81,6 +85,63 @@ describe('Диалоги и подтверждение шаблона ручны
     expect(await invoke({ ...request, action: 'discard' })).toEqual({ status: 'discarded' })
     expect(await invoke({ ...request, action: 'apply' })).toMatchObject({ status: 'error' })
     expect(value(await store.manualImportReport(id))).toEqual([])
+  })
+  it('дописывает типовой перечень только в книгу; паспорт меняется после подтверждения, дублей нет', async () => {
+    expect(await invoke({ action: 'export', editionId: id, typicalWorkKinds: true })).toMatchObject(
+      { status: 'error', message: expect.stringContaining('недоступен') },
+    )
+    registerManualTemplateHandlers(
+      {
+        handle: (_name, listener) => {
+          handler = listener
+        },
+      },
+      store,
+      new XlsxManualDataTemplate(),
+      dialogs,
+      () => clock,
+      new FileTypicalWorkKindCatalog(
+        resolve(
+          import.meta.dirname,
+          '../../../../../libs/import/infrastructure/catalogs',
+          TYPICAL_WORK_KINDS_FILE,
+        ),
+      ),
+    )
+    expect(await invoke({ action: 'export', editionId: id, typicalWorkKinds: true })).toEqual({
+      status: 'exported',
+      typical: { added: 122, existing: 0 },
+    })
+    expect(value(await store.manualBasis(id)).data.workKinds).toEqual([])
+    const wb = new ExcelJS.Workbook()
+    await wb.xlsx.load(new Uint8Array(await readFile(path)).buffer)
+    expect(wb.getWorksheet('Виды работ')!.getRow(3).values).toEqual(
+      expect.arrayContaining(['ТС-002', 'км', 'текущее', 'ТС-001']),
+    )
+    const response = await invoke({ action: 'prepare', editionId: id })
+    if (response.status !== 'preview') throw new Error(JSON.stringify(response))
+    expect(response.review.changes).toContainEqual({
+      sheet: 'Виды работ',
+      added: 122,
+      changed: 0,
+      removed: 0,
+    })
+    expect(await invoke({ action: 'apply', editionId: id, token: response.review.token })).toEqual({
+      status: 'applied',
+    })
+    const kinds = value(await store.manualBasis(id)).data.workKinds
+    expect(kinds).toHaveLength(122)
+    expect(kinds.find((k) => k.code === 'ТС-067')).toMatchObject({
+      name: 'капитальный ремонт пути',
+      unit: 'км',
+      group: 'capital',
+      includedIn: null,
+    })
+    expect(await invoke({ action: 'export', editionId: id, typicalWorkKinds: true })).toEqual({
+      status: 'exported',
+      typical: { added: 0, existing: 122 },
+    })
+    expect(await invoke({ action: 'export', editionId: id })).toEqual({ status: 'exported' })
   })
   it('не принимает путь, данные или неправильный токен из renderer', async () => {
     await expect(invoke({ action: 'prepare', editionId: id, path })).rejects.toThrow(

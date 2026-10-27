@@ -8,7 +8,11 @@ import { registerPassportHandlers } from './ipc/passport'
 import { registerPassportDataHandlers } from './ipc/passport-data'
 import { registerExportWizardHandlers } from './ipc/export-wizard'
 import { registerManualTemplateHandlers } from './ipc/manual-template'
-import { XlsxManualDataTemplate } from '@eow/import/infrastructure'
+import {
+  FileTypicalWorkKindCatalog,
+  TYPICAL_WORK_KINDS_FILE,
+  XlsxManualDataTemplate,
+} from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
@@ -121,24 +125,31 @@ if (!app.requestSingleInstanceLock()) {
           return chosen.canceled ? undefined : chosen.filePaths
         },
       })
-      registerManualTemplateHandlers(ipcMain, passport, new XlsxManualDataTemplate(), {
-        async open() {
-          const chosen = await dialog.showOpenDialog({
-            title: 'Загрузить заполненный шаблон',
-            filters: [{ name: 'Шаблон ручных данных', extensions: ['xlsx'] }],
-            properties: ['openFile'],
-          })
-          return chosen.canceled ? undefined : chosen.filePaths[0]
+      registerManualTemplateHandlers(
+        ipcMain,
+        passport,
+        new XlsxManualDataTemplate(),
+        {
+          async open() {
+            const chosen = await dialog.showOpenDialog({
+              title: 'Загрузить заполненный шаблон',
+              filters: [{ name: 'Шаблон ручных данных', extensions: ['xlsx'] }],
+              properties: ['openFile'],
+            })
+            return chosen.canceled ? undefined : chosen.filePaths[0]
+          },
+          async save() {
+            const chosen = await dialog.showSaveDialog({
+              title: 'Сохранить шаблон ручных данных',
+              filters: [{ name: 'Шаблон ручных данных', extensions: ['xlsx'] }],
+              defaultPath: 'Ручные_данные.xlsx',
+            })
+            return chosen.canceled ? undefined : chosen.filePath
+          },
         },
-        async save() {
-          const chosen = await dialog.showSaveDialog({
-            title: 'Сохранить шаблон ручных данных',
-            filters: [{ name: 'Шаблон ручных данных', extensions: ['xlsx'] }],
-            defaultPath: 'Ручные_данные.xlsx',
-          })
-          return chosen.canceled ? undefined : chosen.filePath
-        },
-      })
+        undefined,
+        new FileTypicalWorkKindCatalog(join(__dirname, 'catalogs', TYPICAL_WORK_KINDS_FILE)),
+      )
       registerRepairHandlers(ipcMain, repairReports(passport))
       const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
       const stopPlanFiles = registerPlanFileHandlers(

@@ -152,6 +152,63 @@ export function importPrototype(
   }
 
   /**
+   * Строки «показатель / на 01.01 прошлого года (a) / на 01.01 года плана (b)».
+   * Пустое значение остаётся пустым; нечисловое не переносится и называется в отчёте.
+   */
+  function datedRows(source: readonly unknown[], path: string) {
+    const rows: PrototypeTransfer['dated'][number]['rows'][number][] = []
+    if (source.length > 10000) {
+      errors.push({ path, message: 'Более 10 000 строк таблицы «Показатели» в одной области' })
+      return rows
+    }
+    for (const [i, entry] of source.entries()) {
+      const at = `${path}.${i}`
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        warn(at, 'Строка таблицы «Показатели» не распознана; сохранена в снимке прототипа')
+        continue
+      }
+      const row = entry as Record<string, unknown>
+      for (const field of Object.keys(row))
+        if (!['name', 'a', 'b'].includes(field))
+          warn(`${at}.${field}`, 'Сохранено в снимке прототипа')
+      const name = label(row['name'])
+      if (name === undefined) {
+        warn(
+          `${at}.name`,
+          'Наименование показателя не является текстом; строка не перенесена и сохранена в снимке прототипа',
+        )
+        continue
+      }
+      const previous = amount(row['a']),
+        current = amount(row['b'])
+      const bad =
+        previous !== null && !Number.isFinite(previous)
+          ? 'a'
+          : current !== null && !Number.isFinite(current)
+            ? 'b'
+            : undefined
+      if (bad) {
+        warn(
+          `${at}.${bad}`,
+          'Значение показателя не является числом; строка сохранена в снимке прототипа',
+        )
+        continue
+      }
+      if (!name) {
+        warn(
+          at,
+          previous !== null || current !== null
+            ? 'Строка без наименования показателя не перенесена; она сохранена в снимке прототипа'
+            : 'Пустая строка таблицы «Показатели» пропущена',
+        )
+        continue
+      }
+      rows.push({ id: options.ids.next(), name, previous, current })
+    }
+    return rows
+  }
+
+  /**
    * Строки перечня «наименование / единица / объём / стоимость». Пустой объём или
    * стоимость — ноль, как в листе прототипа; отрицательное и нечисловое не переносится.
    */
@@ -508,6 +565,7 @@ export function importPrototype(
   const manual: PrototypeTransfer['manual'][number][] = []
   const expected: PrototypeTransfer['expected'][number][] = []
   const items: PrototypeTransfer['items'][number][] = []
+  const dated: PrototypeTransfer['dated'][number][] = []
   for (const [key, table] of Object.entries(p.tables)) {
     const area =
       key === 'dist'
@@ -533,6 +591,20 @@ export function importPrototype(
         'Ожидаемые показатели ведутся только для дистанции и ПД; таблица сохранена в снимке прототипа',
       )
       handled.add('expected')
+    }
+    const rawDated: unknown = table['indicators']
+    if (Array.isArray(rawDated)) {
+      handled.add('indicators')
+      if (area.kind === 'station') {
+        if (rawDated.length)
+          warn(
+            `tables.${key}.indicators`,
+            'Таблица «Показатели» ведётся только для дистанции и ПД; таблица сохранена в снимке прототипа',
+          )
+      } else {
+        const rows = datedRows(rawDated, `tables.${key}.indicators`)
+        if (rows.length) dated.push({ area, rows })
+      }
     }
     for (const name of ITEM_TABLES) {
       const raw: unknown = table[name]
@@ -574,6 +646,7 @@ export function importPrototype(
     works,
     manual,
     expected,
+    dated,
     items,
     prototype: { source, report },
   })

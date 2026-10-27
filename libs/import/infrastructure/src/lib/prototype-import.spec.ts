@@ -83,14 +83,7 @@ describe('импорт JSON прототипа', () => {
     expect(JSON.parse(plan.prototype!.source)).toEqual(source)
     const paths = plan.prototype!.report.map((r) => r.path)
     expect(paths).toEqual(
-      expect.arrayContaining([
-        'stations.0.layout',
-        'meta.dist',
-        'opts',
-        'pchu',
-        'tables.dist.indicators',
-        'catalog.0.color',
-      ]),
+      expect.arrayContaining(['stations.0.layout', 'meta.dist', 'opts', 'pchu', 'catalog.0.color']),
     )
   })
 
@@ -121,6 +114,7 @@ describe('импорт JSON прототипа', () => {
     const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
+    delete p.tables['dist']!['indicators']
     p.tables['dist']!['expected'] = [
       { group: ' Учебная протяжённость ', name: '', unit: 'км', value: null },
       { group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: '1,5' },
@@ -150,7 +144,6 @@ describe('импорт JSON прототипа', () => {
     ])
     const paths = plan.prototype.report.map((r) => r.path)
     expect(paths).not.toContain('tables.dist.expected')
-    expect(paths).toContain('tables.dist.indicators')
     expect(JSON.parse(plan.prototype.source)).toEqual(p)
   })
 
@@ -208,6 +201,7 @@ describe('импорт JSON прототипа', () => {
     const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
+    delete p.tables['dist']!['indicators']
     p.tables['dist']!['contract'] = [
       { name: ' Учебная подрядная ', unit: ' м3 ', qty: 12.5, cost: '1 234,5' },
       { name: 'Учебная без объёма', unit: 'шт', qty: 0, cost: 0 },
@@ -253,6 +247,7 @@ describe('импорт JSON прототипа', () => {
     const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
+    delete p.tables['dist']!['indicators']
     p.tables['D1']!['contract'] = [
       { name: '', unit: '', qty: 0, cost: null },
       { name: '', unit: 'шт', qty: 1, cost: 1 },
@@ -301,6 +296,79 @@ describe('импорт JSON прототипа', () => {
     expect(importPrototype(JSON.stringify(p), options())).toMatchObject({
       ok: false,
       error: [{ path: 'tables.dist.zp' }],
+    })
+  })
+
+  it('переносит таблицу «Показатели» дистанции и ПД: пустое значение, ноль, знак, запятая', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['indicators'] = [
+      { name: ' Учебная протяжённость, км ', a: 10, b: '12,5' },
+      { name: 'Учебный без прошлого', a: null, b: 0 },
+    ]
+    p.tables['D1']!['indicators'] = [{ name: 'Учебный ПД', a: '-1 000,5', b: '' }]
+    p.tables['S'] = { indicators: [] }
+    const plan = imported(p)
+    expect(plan.dated).toEqual([
+      {
+        area: { kind: 'district' },
+        rows: [
+          { id: 'legacy-1', name: 'Учебная протяжённость, км', previous: 10, current: 12.5 },
+          { id: 'legacy-2', name: 'Учебный без прошлого', previous: null, current: 0 },
+        ],
+      },
+      {
+        area: { kind: 'pd', pd: 'D1' },
+        rows: [{ id: 'legacy-3', name: 'Учебный ПД', previous: -1000.5, current: null }],
+      },
+    ])
+    const paths = plan.prototype.report.map((r) => r.path)
+    for (const path of ['tables.dist.indicators', 'tables.D1.indicators', 'tables.S.indicators'])
+      expect(paths).not.toContain(path)
+    expect(JSON.parse(plan.prototype.source)).toEqual(p)
+  })
+
+  it('называет в отчёте пропущенные строки «Показателей» и непустую таблицу станции', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['indicators'] = [
+      { name: '', a: null, b: null },
+      { name: '', a: 1, b: 2 },
+      { name: 'Учебный', a: 'много', b: 2 },
+      { name: 'Учебный', a: 1, b: [2] },
+      'не строка',
+      { name: { text: 'объект' }, a: 1, b: 2 },
+      { name: 'Учебный', a: 1, b: 2, color: 'красный' },
+    ]
+    p.tables['S'] = { indicators: [{ name: 'Станционный', a: 1, b: 2 }] }
+    const plan = imported(p)
+    expect(plan.dated).toEqual([
+      {
+        area: { kind: 'district' },
+        rows: [{ id: 'legacy-1', name: 'Учебный', previous: 1, current: 2 }],
+      },
+    ])
+    const report = new Map(plan.prototype.report.map((r) => [r.path, r.message]))
+    expect(report.get('tables.dist.indicators.0')).toContain('Пустая строка')
+    expect(report.get('tables.dist.indicators.1')).toContain('без наименования')
+    expect(report.get('tables.dist.indicators.2.a')).toContain('не является числом')
+    expect(report.get('tables.dist.indicators.3.b')).toContain('не является числом')
+    expect(report.get('tables.dist.indicators.4')).toContain('не распознана')
+    expect(report.get('tables.dist.indicators.5.name')).toContain('не является текстом')
+    expect(report.get('tables.dist.indicators.6.color')).toContain('снимке прототипа')
+    expect(report.get('tables.S.indicators')).toContain('только для дистанции и ПД')
+  })
+
+  it('отклоняет импорт с более чем 10 000 строк таблицы «Показатели» в области', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['D1']!['indicators'] = Array.from({ length: 10001 }, () => ({ name: 'У', a: 1, b: 2 }))
+    expect(importPrototype(JSON.stringify(p), options())).toMatchObject({
+      ok: false,
+      error: [{ path: 'tables.D1.indicators' }],
     })
   })
 

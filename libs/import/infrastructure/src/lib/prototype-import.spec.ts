@@ -204,6 +204,106 @@ describe('импорт JSON прототипа', () => {
     })
   })
 
+  it('переносит перечни подрядных, ИССО и ЗП дистанции и ПД с прежним порядком строк', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['contract'] = [
+      { name: ' Учебная подрядная ', unit: ' м3 ', qty: 12.5, cost: '1 234,5' },
+      { name: 'Учебная без объёма', unit: 'шт', qty: 0, cost: 0 },
+    ]
+    p.tables['D1']!['isso'] = [{ name: 'Учебная ИССО', unit: 'шт', qty: '2', cost: 0.25 }]
+    p.tables['D1']!['zp'] = []
+    p.tables['D2'] = { zp: [{ name: 'Учебная ЗП', unit: 'км', qty: 1, cost: 3 }] }
+    p.tables['S'] = { contract: [], isso: [], zp: [] }
+    const plan = imported(p)
+    expect(plan.items).toEqual([
+      {
+        area: { kind: 'district' },
+        table: 'contract',
+        rows: [
+          { id: 'legacy-1', name: 'Учебная подрядная', unit: 'м3', quantity: 12.5, cost: 1234.5 },
+          { id: 'legacy-2', name: 'Учебная без объёма', unit: 'шт', quantity: 0, cost: 0 },
+        ],
+      },
+      {
+        area: { kind: 'pd', pd: 'D1' },
+        table: 'isso',
+        rows: [{ id: 'legacy-3', name: 'Учебная ИССО', unit: 'шт', quantity: 2, cost: 0.25 }],
+      },
+      {
+        area: { kind: 'pd', pd: 'D2' },
+        table: 'zp',
+        rows: [{ id: 'legacy-4', name: 'Учебная ЗП', unit: 'км', quantity: 1, cost: 3 }],
+      },
+    ])
+    const paths = plan.prototype.report.map((r) => r.path)
+    for (const path of [
+      'tables.dist.contract',
+      'tables.D1.isso',
+      'tables.D1.zp',
+      'tables.D2.zp',
+      'tables.S.contract',
+    ])
+      expect(paths).not.toContain(path)
+    expect(JSON.parse(plan.prototype.source)).toEqual(p)
+  })
+
+  it('называет в отчёте пропущенные строки перечней и непустой перечень станции', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['D1']!['contract'] = [
+      { name: '', unit: '', qty: 0, cost: null },
+      { name: '', unit: 'шт', qty: 1, cost: 1 },
+      { name: 'Учебная', unit: 'шт', qty: 'много', cost: 1 },
+      { name: 'Учебная', unit: 'шт', qty: 1, cost: -1 },
+      'не строка',
+      { name: { text: 'объект' }, unit: 'шт', qty: 1, cost: 1 },
+      { name: 'Учебная', unit: 'шт', qty: null, cost: 5, note: 'лишнее' },
+      { name: 'Учебная', unit: 'шт', qty: 2, cost: '' },
+    ]
+    p.tables['S'] = { isso: [{ name: 'Станционная', unit: 'шт', qty: 1, cost: 1 }] }
+    const plan = imported(p)
+    expect(plan.items).toEqual([
+      {
+        area: { kind: 'pd', pd: 'D1' },
+        table: 'contract',
+        rows: [
+          { id: 'legacy-1', name: 'Учебная', unit: 'шт', quantity: 0, cost: 5 },
+          { id: 'legacy-2', name: 'Учебная', unit: 'шт', quantity: 2, cost: 0 },
+        ],
+      },
+    ])
+    const report = new Map(plan.prototype.report.map((r) => [r.path, r.message]))
+    expect(report.get('tables.D1.contract.0')).toContain('Пустая строка')
+    expect(report.get('tables.D1.contract.1')).toContain('без наименования не перенесена')
+    expect(report.get('tables.D1.contract.2.qty')).toContain('не является числом')
+    expect(report.get('tables.D1.contract.3')).toContain('Отрицательный')
+    expect(report.get('tables.D1.contract.4')).toContain('не распознана')
+    expect(report.get('tables.D1.contract.5.name')).toContain('не является текстом')
+    expect(report.get('tables.D1.contract.6.note')).toContain('снимке прототипа')
+    expect(report.get('tables.D1.contract.6.qty')).toContain('Пустой объём перенесён нулём')
+    expect(report.get('tables.D1.contract.7.cost')).toContain('Пустая стоимость перенесена нулём')
+    expect(report.get('tables.S.isso')).toContain('только для дистанции и ПД')
+  })
+
+  it('отклоняет импорт с более чем 10 000 строк перечня в области', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['zp'] = Array.from({ length: 10001 }, () => ({
+      name: 'Учебная',
+      unit: '',
+      qty: 1,
+      cost: 1,
+    }))
+    expect(importPrototype(JSON.stringify(p), options())).toMatchObject({
+      ok: false,
+      error: [{ path: 'tables.dist.zp' }],
+    })
+  })
+
   it('не подставляет нормативы при отсутствии каталога', () => {
     const { catalog, ...p } = prototypeFixture()
     expect(importPrototype(JSON.stringify(p), options()).ok).toBe(false)

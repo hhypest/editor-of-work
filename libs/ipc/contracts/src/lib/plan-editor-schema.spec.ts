@@ -9,7 +9,7 @@ describe('Контракт редактора', () => {
     })
     expect(channels.planFile.request.safeParse(request(['works', 'current'])).success).toBe(true)
     expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
-    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 7 }, () => 'works')])
+    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 8 }, () => 'works')])
       expect(channels.planFile.request.safeParse(request(hidden)).success).toBe(false)
     expect(
       channels.planFile.request.safeParse({ ...request([]), path: '/unexpected' }).success,
@@ -58,6 +58,29 @@ describe('Контракт редактора', () => {
       { ...row, value: 0 },
       { ...row, path: '/unexpected' },
       { ...row, id: 4 },
+    ])
+      expect(channels.planFile.request.safeParse(request([invalid])).success).toBe(false)
+    expect(
+      channels.planFile.request.safeParse(request(Array.from({ length: 10001 }, () => row)))
+        .success,
+    ).toBe(false)
+  })
+  it('проверяет строгий пакет ожидаемых показателей с текстом значения', () => {
+    const row = { id: null, group: 'Учебный показатель', name: '', unit: 'км', value: '' }
+    const request = (rows: unknown[]) => ({
+      action: 'editor',
+      command: { kind: 'expectedRows', rows },
+      revision: 1,
+      area: 'district',
+    })
+    expect(channels.planFile.request.safeParse(request([row])).success).toBe(true)
+    expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
+    for (const invalid of [
+      { ...row, value: null },
+      { ...row, value: 1 },
+      { ...row, note: '' },
+      { ...row, id: 4 },
+      { id: null, name: '', unit: '', value: '' },
     ])
       expect(channels.planFile.request.safeParse(request([invalid])).success).toBe(false)
     expect(

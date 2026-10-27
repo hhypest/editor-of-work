@@ -8,6 +8,7 @@ export const PD_TABLE_KINDS = Object.freeze([
   'summary',
   'works',
   'indicators',
+  'expected',
 ] as const)
 export type PdTableKind = (typeof PD_TABLE_KINDS)[number]
 const EMPTY: readonly PdTableKind[] = Object.freeze([])

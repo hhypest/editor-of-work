@@ -236,7 +236,7 @@ export const planFileV4Schema = planFileV3Schema
   })
   .strict()
 
-export const planFileSchema = planFileV4Schema
+export const planFileV5Schema = planFileV4Schema
   .extend({
     format: z.object({ version: z.literal(5), appVersion: id }).strict(),
     plan: planFileV4Schema.shape.plan
@@ -248,6 +248,60 @@ export const planFileSchema = planFileV4Schema
               hidden: z
                 .array(z.enum(['current', 'capital', 'other', 'summary', 'works', 'indicators']))
                 .max(6),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
+
+/** v6: ожидаемые показатели дистанции и ПД; в составе таблиц ПД появился ключ «expected». */
+export const planFileSchema = planFileV5Schema
+  .extend({
+    format: z.object({ version: z.literal(6), appVersion: id }).strict(),
+    plan: planFileV5Schema.shape.plan
+      .extend({
+        pdHiddenTables: z.array(
+          z
+            .object({
+              pd: id,
+              hidden: z
+                .array(
+                  z.enum([
+                    'current',
+                    'capital',
+                    'other',
+                    'summary',
+                    'works',
+                    'indicators',
+                    'expected',
+                  ]),
+                )
+                .max(7),
+            })
+            .strict(),
+        ),
+        expectedIndicators: z.array(
+          z
+            .object({
+              area: z.discriminatedUnion('kind', [
+                z.object({ kind: z.literal('district') }).strict(),
+                z.object({ kind: z.literal('pd'), pd: id }).strict(),
+              ]),
+              rows: z
+                .array(
+                  z
+                    .object({
+                      id,
+                      group: z.string(),
+                      name: z.string(),
+                      unit: z.string(),
+                      value: z.number().nullable(),
+                    })
+                    .strict(),
+                )
+                .max(10000),
             })
             .strict(),
         ),

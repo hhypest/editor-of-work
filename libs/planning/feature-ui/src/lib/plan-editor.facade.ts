@@ -2,6 +2,7 @@ import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from
 import type {
   EditorAction,
   EditorDraft,
+  EditorExpectedDraft,
   EditorIndicatorDraft,
   EditorIssue,
   EditorState,
@@ -46,6 +47,16 @@ export class PlanEditorFacade {
   readonly cells = signal<Readonly<Record<string, CellDraft>>>({})
   readonly indicatorDraft = signal<readonly EditorIndicatorDraft[] | null>(null)
   readonly pdTablesDraft = signal<readonly string[] | null>(null)
+  readonly expectedDraft = signal<readonly EditorExpectedDraft[] | null>(null)
+  readonly expectedRows = computed<readonly EditorExpectedDraft[]>(
+    () =>
+      this.expectedDraft() ??
+      this.view()?.expected?.map((row) => ({
+        ...row,
+        value: row.value === null ? '' : String(row.value).replace('.', ','),
+      })) ??
+      [],
+  )
   readonly indicatorRows = computed<readonly EditorIndicatorDraft[]>(
     () =>
       this.indicatorDraft() ??
@@ -69,6 +80,7 @@ export class PlanEditorFacade {
       this.hasCells() ||
       this.approvalDirty() ||
       this.indicatorDraft() !== null ||
+      this.expectedDraft() !== null ||
       this.pdTablesDraft() !== null,
   )
   readonly placeIssues = computed(() => [
@@ -194,6 +206,7 @@ export class PlanEditorFacade {
   private resetAll(): void {
     this.pdTablesDraft.set(null)
     this.indicatorDraft.set(null)
+    this.expectedDraft.set(null)
     this.resetForm()
     this.cells.set({})
     this.approvalDirty.set(false)
@@ -359,6 +372,48 @@ export class PlanEditorFacade {
     this.indicatorDraft.set(null)
     return true
   }
+  addExpected(): void {
+    if (
+      this.busy() ||
+      this.state()?.hasRecovery ||
+      !this.view()?.expected ||
+      this.expectedRows().length >= 10000
+    )
+      return
+    // Новая строка продолжает группу предыдущей: так вводятся составляющие «в т.ч.».
+    const last = this.expectedRows().at(-1)
+    this.expectedDraft.set([
+      ...this.expectedRows(),
+      { id: null, group: last?.group ?? '', name: '', unit: last?.unit ?? '', value: '' },
+    ])
+  }
+  patchExpected(index: number, patch: Partial<EditorExpectedDraft>): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.expectedRows(),
+      row = rows[index]
+    if (row) this.expectedDraft.set(rows.with(index, { ...row, ...patch }))
+  }
+  moveExpected(index: number, step: -1 | 1): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.expectedRows(),
+      row = rows[index],
+      other = rows[index + step]
+    if (row && other) this.expectedDraft.set(rows.with(index, other).with(index + step, row))
+  }
+  removeExpected(index: number): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    this.expectedDraft.set(this.expectedRows().filter((_row, i) => i !== index))
+  }
+  cancelExpected(): void {
+    this.expectedDraft.set(null)
+  }
+  async applyExpected(): Promise<boolean> {
+    const rows = this.expectedDraft()
+    if (rows === null) return true
+    if (!(await this.run({ kind: 'expectedRows', rows }))) return false
+    this.expectedDraft.set(null)
+    return true
+  }
   pdTableVisible(key: string): boolean {
     const draft = this.pdTablesDraft()
     return draft === null
@@ -405,6 +460,7 @@ export class PlanEditorFacade {
     if (
       !(await this.applyCells()) ||
       !(await this.applyIndicators()) ||
+      !(await this.applyExpected()) ||
       !(await this.applyPdTables()) ||
       !(await this.applyApproval())
     )

@@ -24,6 +24,7 @@ const state: EditorState = {
     area: 'district',
     works: [],
     indicators: [],
+    expected: [],
     pdScale: null,
     pdTables: [],
     tables: [
@@ -529,6 +530,99 @@ describe('Редактор плана', () => {
     expect(facade.pending()).toBe(true)
     facade.cancelIndicators()
     expect(facade.pending()).toBe(false)
+  })
+  it('ведёт ожидаемые показатели черновиком: группа продолжается, порядок меняется, Ctrl+S применяет пакет', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: {
+        ...state,
+        view: {
+          ...state.view!,
+          year: 2027,
+          expected: [
+            { id: 'e', group: 'Учебная протяжённость', name: '', unit: 'км', value: null },
+          ],
+        },
+      },
+    })
+    const { facade, fixture, element } = await setup(port)
+    expect(element.textContent).toContain('Ожидаемые показатели на 01.01.2028')
+    expect(facade.expectedRows()).toEqual([
+      { id: 'e', group: 'Учебная протяжённость', name: '', unit: 'км', value: '' },
+    ])
+    facade.addExpected()
+    fixture.detectChanges()
+    expect(facade.expectedRows()[1]).toEqual({
+      id: null,
+      group: 'Учебная протяжённость',
+      name: '',
+      unit: 'км',
+      value: '',
+    })
+    const value = element.querySelector<HTMLInputElement>(
+      '[aria-label="Значение ожидаемого показателя 2"]',
+    )!
+    value.value = '1,5'
+    value.dispatchEvent(new Event('input'))
+    await fixture.whenStable()
+    facade.patchExpected(1, { name: '<учебная часть>' })
+    facade.moveExpected(1, -1)
+    facade.moveExpected(0, -1)
+    await facade.filter('pd:a')
+    expect(facade.area()).toBe('district')
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'invalid',
+      issues: [{ field: 'form', message: 'Учебная ошибка', start: null, end: null }],
+    })
+    expect(await facade.save()).toBe(false)
+    expect(facade.expectedRows()[0]).toMatchObject({ name: '<учебная часть>', value: '1,5' })
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await fixture.whenStable()
+    expect(
+      vi
+        .mocked(port.send)
+        .mock.calls.slice(-2)
+        .map(([c]) => c),
+    ).toEqual([
+      {
+        kind: 'expectedRows',
+        rows: [
+          {
+            id: null,
+            group: 'Учебная протяжённость',
+            name: '<учебная часть>',
+            unit: 'км',
+            value: '1,5',
+          },
+          { id: 'e', group: 'Учебная протяжённость', name: '', unit: 'км', value: '' },
+        ],
+      },
+      { kind: 'save', saveAs: false },
+    ])
+    expect(facade.pending()).toBe(false)
+    facade.removeExpected(0)
+    expect(facade.pending()).toBe(true)
+    facade.cancelExpected()
+    expect(facade.pending()).toBe(false)
+  })
+  it('не показывает ожидаемые показатели для станции', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: { ...state, view: { ...state.view!, area: 'station:s', expected: null } },
+    })
+    const { facade, element } = await setup(port)
+    expect(element.querySelector('#expected-title')).toBeNull()
+    facade.addExpected()
+    expect(facade.expectedDraft()).toBeNull()
   })
   it('требует отдельного подтверждения отказа от найденной автокопии', async () => {
     const port = client()

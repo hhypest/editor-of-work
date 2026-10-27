@@ -18,6 +18,9 @@ import {
   setManualValue,
   setPlanIndicators,
   indicatorsOf,
+  expectedAreaAllowed,
+  expectedIndicatorsOf,
+  setExpectedIndicators,
   pdScaleOf,
   setPdScale,
   setPdHiddenTables,
@@ -61,6 +64,15 @@ export function editorNumber(text: string): Result<number | undefined, readonly 
           'volume',
         ),
       ])
+}
+/** Число со знаком для таблиц показателей; пустая строка — «не задано» (null), ошибка — undefined. */
+function signedNumber(text: string): number | null | undefined {
+  const normalized = text.trim().replace(',', '.')
+  if (!normalized) return null
+  const value = Number(normalized)
+  return /^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/iu.test(normalized) && Number.isFinite(value)
+    ? value
+    : undefined
 }
 export function editorArea(key: string): PlanArea | undefined {
   if (key === 'district') return { kind: 'district' }
@@ -173,6 +185,26 @@ export function changeEditor(
       ? ok(commit(session, changed.value))
       : err(changed.error.map((e) => issue(describePlanError(e))))
   }
+  if (change.kind === 'expectedRows') {
+    const area = editorArea(areaId)
+    if (!area || !areaExists(area, session.present.basis))
+      return err([issue('Выберите область из среза плана.')])
+    const rows = []
+    for (const [index, row] of change.rows.entries()) {
+      const value = signedNumber(row.value)
+      if (value === undefined)
+        return err([
+          issue(
+            `Ожидаемый показатель ${index + 1}: введите число или оставьте значение пустым; десятичная часть — через запятую или точку.`,
+          ),
+        ])
+      rows.push({ ...row, id: row.id ?? ids.next(), value })
+    }
+    const changed = setExpectedIndicators(session.present, area, rows)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'approval') {
     const result = setApproval(session.present, {
       title: change.title,
@@ -262,11 +294,15 @@ export function editorView(
               summary: 'Сводные показатели ПД',
               works: 'Ведомость работ ПД',
               indicators: 'Ручные показатели ПД',
+              expected: 'Ожидаемые показатели',
             }[key],
             visible: !hiddenPdTablesOf(plan, area.pd).includes(key),
           }))
         : [],
     indicators: indicatorsOf(plan, area).map((row) => ({ ...row })),
+    expected: expectedAreaAllowed(area)
+      ? expectedIndicatorsOf(plan, area).map((row) => ({ ...row }))
+      : null,
     lines: [...plan.basis.lines.values()].map((l) => ({ id: l.id, name: l.name })),
     stations: [...plan.basis.stations.values()].map((s) => ({
       id: s.id,

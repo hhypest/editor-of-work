@@ -13,6 +13,11 @@ export interface MeasuredTable {
   readonly title: string
   readonly header: MeasuredTableRow
   readonly rows: readonly MeasuredTableRow[]
+  /**
+   * Вариант строки без повторной подписи группы: есть только у строки, продолжающей группу
+   * предыдущей. В начале страницы печатается полная строка из rows.
+   */
+  readonly continued: readonly (MeasuredTableRow | undefined)[]
 }
 /** Все строки измерены до пагинации; размер шрифта не уменьшается ниже 2,5 мм. */
 export function measureTable(
@@ -25,6 +30,12 @@ export function measureTable(
     Math.abs(table.columns.reduce((s, c) => s + c.width, 0) - 390) > 0.001
   )
     return err({ message: 'Ширина столбцов таблицы должна составлять 390 мм.' })
+  const group = table.groupColumn
+  if (
+    group !== undefined &&
+    (!Number.isInteger(group) || group < 0 || group >= table.columns.length)
+  )
+    return err({ message: 'Столбец группы отсутствует в таблице.' })
   const row = (cells: readonly string[], header: boolean): Result<MeasuredTableRow, SheetError> => {
     if (cells.length !== table.columns.length)
       return err({ message: 'Число ячеек не совпадает с заголовком таблицы.' })
@@ -58,11 +69,19 @@ export function measureTable(
     true,
   )
   if (!header.ok) return header
-  const rows: MeasuredTableRow[] = []
-  for (const cells of table.rows) {
+  const rows: MeasuredTableRow[] = [],
+    continued: (MeasuredTableRow | undefined)[] = []
+  for (const [index, cells] of table.rows.entries()) {
     const r = row(cells, false)
     if (!r.ok) return r
     rows.push(r.value)
+    if (group === undefined || !cells[group] || table.rows[index - 1]?.[group] !== cells[group]) {
+      continued.push(undefined)
+      continue
+    }
+    const blank = row(cells.with(group, ''), false)
+    if (!blank.ok) return blank
+    continued.push(blank.value)
   }
-  return ok({ title: table.title, header: header.value, rows })
+  return ok({ title: table.title, header: header.value, rows, continued })
 }

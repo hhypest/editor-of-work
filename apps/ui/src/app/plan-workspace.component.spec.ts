@@ -160,6 +160,32 @@ it('composition root обновляет SVG после добавления, и�
   await history('KeyZ')
   await click('Следующий лист')
   expect(svg()).toContain('<Учебный показатель>')
+  // Ожидаемые показатели: черновик → лист ПД, затем отмена возвращает прежний лист.
+  const bothPages = async () => {
+    const second = svg()
+    await click('Предыдущий лист')
+    const first = svg()
+    await click('Следующий лист')
+    return first + second
+  }
+  await click('Добавить ожидаемый показатель')
+  const expectedInput = async (label: string, text: string) => {
+    const field = element.querySelector<HTMLInputElement>(`[aria-label="${label}"]`)!
+    field.value = text
+    field.dispatchEvent(new Event('input'))
+    await settle()
+  }
+  await expectedInput('Ожидаемый показатель 1', '<Учебная протяжённость>')
+  await expectedInput('Значение ожидаемого показателя 1', '3,5')
+  expect(await bothPages()).not.toContain('Ожидаемые показатели')
+  await click('Применить ожидаемые показатели')
+  const withExpected = await bothPages()
+  expect(withExpected).toContain('Ожидаемые показатели на 01.01.2028')
+  expect(withExpected).toContain('<Учебная протяжённость>')
+  expect(withExpected).toContain('3,5')
+  await history('KeyZ')
+  expect(await bothPages()).not.toContain('Ожидаемые показатели')
+  expect(svg()).toContain('<Учебный показатель>')
   expect(sheets.source).toHaveBeenLastCalledWith(revision, 'ПД-1')
   expect(session.present.works).toHaveLength(1)
   const currentSession = session,

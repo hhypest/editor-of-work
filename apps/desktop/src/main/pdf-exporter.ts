@@ -1,8 +1,9 @@
-import { open, rename, rm } from 'node:fs/promises'
+import { access, open, rename, rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import { PdfRenderError } from './pdf-renderer'
 import { randomUUID } from 'node:crypto'
 import { err, ok } from '@eow/shared/kernel'
-import type { PdfExporter, SheetPage } from '@eow/documents/application'
+import type { PdfBatchWriter, PdfExporter, SheetPage } from '@eow/documents/application'
 
 /** Временный файл рядом с целью: сбой до rename сохраняет прежний PDF. */
 export async function writePdfAtomically(path: string, data: Uint8Array): Promise<void> {
@@ -20,9 +21,17 @@ export async function writePdfAtomically(path: string, data: Uint8Array): Promis
     await rm(temporary, { force: true })
   }
 }
+const MAX_PDF_FILE_BYTES = 512 * 1024 * 1024
+function validPdf(data: Uint8Array): boolean {
+  return (
+    data.length >= 5 &&
+    data.length <= MAX_PDF_FILE_BYTES &&
+    String.fromCharCode(...data.slice(0, 5)) === '%PDF-'
+  )
+}
 export function pdfExporter(
   choosePath: (page: SheetPage) => Promise<string | undefined>,
-  render: (page: SheetPage) => Promise<Uint8Array>,
+  render: (pages: readonly SheetPage[]) => Promise<Uint8Array>,
   write = writePdfAtomically,
 ): PdfExporter {
   return {
@@ -33,15 +42,51 @@ export function pdfExporter(
         if (!/\.pdf$/iu.test(chosen))
           return err({ message: 'Укажите имя файла с расширением .pdf.' })
         const path = chosen
-        const data = await render(page)
-        if (
-          data.length < 5 ||
-          data.length > 100 * 1024 * 1024 ||
-          String.fromCharCode(...data.slice(0, 5)) !== '%PDF-'
-        )
-          return err({ message: 'Не удалось сформировать корректный PDF.' })
+        const data = await render([page])
+        if (!validPdf(data)) return err({ message: 'Не удалось сформировать корректный PDF.' })
         await write(path, data)
         return ok('saved')
+      } catch (error) {
+        if (error instanceof PdfRenderError) return err({ message: error.message })
+        return err({
+          message: 'Не удалось сохранить PDF. Проверьте доступ к папке и повторите попытку.',
+        })
+      }
+    },
+  }
+}
+
+/** Пакет листов: диалоги main, проверка занятых имён и атомарная запись каждого файла. */
+export function pdfBatchWriter(
+  dialogs: {
+    chooseFile(defaultName: string): Promise<string | undefined>
+    chooseFolder(): Promise<string | undefined>
+  },
+  render: (pages: readonly SheetPage[]) => Promise<Uint8Array>,
+  write = writePdfAtomically,
+): PdfBatchWriter {
+  return {
+    chooseFile: (name) => dialogs.chooseFile(name),
+    chooseFolder: () => dialogs.chooseFolder(),
+    join: (folder, name) => join(folder, name),
+    async existing(folder, names) {
+      const taken: string[] = []
+      for (const name of names)
+        if (
+          await access(join(folder, name)).then(
+            () => true,
+            () => false,
+          )
+        )
+          taken.push(name)
+      return taken
+    },
+    async write(path, pages) {
+      try {
+        const data = await render(pages)
+        if (!validPdf(data)) return err({ message: 'Не удалось сформировать корректный PDF.' })
+        await write(path, data)
+        return ok(undefined)
       } catch (error) {
         if (error instanceof PdfRenderError) return err({ message: error.message })
         return err({

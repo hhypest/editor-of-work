@@ -1,6 +1,8 @@
 import { DestroyRef, Injectable, InjectionToken, computed, inject, signal } from '@angular/core'
 import {
   buildPdSheets,
+  exportPdBatch,
+  type PdfBatchClient,
   type EditorSheetClient,
   type EditorPdfClient,
   type PdDocument,
@@ -11,10 +13,15 @@ import type { PlanPageSelection, PlanPreviewContext, PlanSheetData } from '@eow/
 import { SHEET_MEASURER } from './overview.facade'
 
 export const EDITOR_PDF_CLIENT = new InjectionToken<EditorPdfClient>('PDF листа редактора')
+export const EDITOR_PDF_BATCH_CLIENT = new InjectionToken<PdfBatchClient>('Пакетный PDF листов ПД')
+/** Какие листы сохранить пакетом: текущий ПД, все ПД в один файл или по файлам. */
+export type PdfBatchKind = 'pd' | 'all' | 'folder'
 export const EDITOR_SHEET_CLIENT = new InjectionToken<EditorSheetClient>('Листы редактора плана')
 @Injectable()
 export class EditorSheetsFacade {
   private readonly pdf = inject(EDITOR_PDF_CLIENT, { optional: true })
+  private readonly batch = inject(EDITOR_PDF_BATCH_CLIENT, { optional: true })
+  private stopRequested = false
   private readonly client = inject(EDITOR_SHEET_CLIENT)
   private readonly prepare = inject(SHEET_MEASURER)
   private generation = 0
@@ -27,6 +34,9 @@ export class EditorSheetsFacade {
   readonly savedScale = signal<OverviewScale>(50000)
   readonly zoom = signal(0.5)
   readonly exporting = signal(false)
+  /** Идёт пакетное сохранение; stoppable — можно остановить до печати общего файла. */
+  readonly batchRunning = signal(false)
+  readonly batchStoppable = signal(false)
   readonly pdfStatus = signal<string | null>(null)
   readonly pdfError = signal<string | null>(null)
   readonly busy = signal(false)
@@ -152,6 +162,97 @@ export class EditorSheetsFacade {
       this.pdfStatus.set(null)
     } finally {
       this.exporting.set(false)
+    }
+  }
+  canExportBatch(context: PlanPreviewContext | null): boolean {
+    const ready = this.readyContext()
+    return (
+      !!this.batch &&
+      !!context?.hasPlan &&
+      !context.busy &&
+      !context.pending &&
+      !context.hasRecovery &&
+      !this.exporting() &&
+      !this.busy() &&
+      !!this.source &&
+      !!this.measurer &&
+      !!ready &&
+      ready.revision === context.revision &&
+      ready.area === context.area
+    )
+  }
+  /** Листы печатаются в масштабе, сохранённом в плане у каждого ПД (ADR-0039). */
+  async exportBatch(kind: PdfBatchKind, context: PlanPreviewContext | null): Promise<void> {
+    const source = this.source,
+      measurer = this.measurer,
+      ready = this.readyContext()
+    if (!this.canExportBatch(context) || !source || !measurer || !ready || !this.batch) {
+      if (!this.exporting())
+        this.pdfError.set(
+          'Дождитесь готового листа ПД и примените или отмените незавершённый ввод.',
+        )
+      return
+    }
+    const pds = kind === 'pd' ? [this.selected()] : source.pds.map((pd) => pd.id)
+    const names = new Map(source.pds.map((pd) => [pd.id, pd.name]))
+    this.stopRequested = false
+    this.exporting.set(true)
+    this.batchRunning.set(true)
+    this.batchStoppable.set(true)
+    this.pdfError.set(null)
+    this.pdfStatus.set('Выбор файла PDF…')
+    try {
+      const result = await exportPdBatch({
+        client: this.batch,
+        sheets: this.client,
+        measurer,
+        revision: ready.revision,
+        mode: kind === 'folder' ? 'folder' : 'file',
+        pds,
+        stopped: () => this.stopRequested,
+        progress: (step) => {
+          if (step.phase === 'print') {
+            this.batchStoppable.set(false)
+            this.pdfStatus.set(`Печать и сохранение PDF: листов ${step.pages}…`)
+          } else
+            this.pdfStatus.set(
+              `${kind === 'folder' ? 'Сохранение' : 'Подготовка'} ${names.get(step.pd ?? '') ?? step.pd} (${step.done + 1} из ${step.total})…`,
+            )
+        },
+      })
+      if (!result.ok) {
+        this.pdfError.set(
+          result.error.files && !result.error.message.includes('Сохранено файлов')
+            ? `${result.error.message} Сохранено файлов: ${result.error.files}.`
+            : result.error.message,
+        )
+        this.pdfStatus.set(null)
+      } else if (result.value.outcome === 'cancelled')
+        this.pdfStatus.set(
+          result.value.files
+            ? `Сохранение PDF остановлено. Сохранено файлов: ${result.value.files}.`
+            : 'Сохранение PDF отменено.',
+        )
+      else
+        this.pdfStatus.set(
+          kind === 'folder'
+            ? `PDF сохранены: файлов ${result.value.files}, листов ${result.value.pages}.`
+            : `PDF сохранён: листов ${result.value.pages}.`,
+        )
+    } catch {
+      this.pdfError.set('Не удалось сохранить PDF. Повторите попытку.')
+      this.pdfStatus.set(null)
+    } finally {
+      this.exporting.set(false)
+      this.batchRunning.set(false)
+      this.batchStoppable.set(false)
+    }
+  }
+  /** Остановка проверяется между ПД; уже начатая печать общего файла завершается. */
+  stopBatch(): void {
+    if (this.batchStoppable()) {
+      this.stopRequested = true
+      this.pdfStatus.set('Остановка после текущего ПД…')
     }
   }
   async retry(context: PlanPreviewContext | null): Promise<void> {

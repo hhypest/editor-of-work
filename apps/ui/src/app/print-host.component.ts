@@ -31,14 +31,29 @@ export const PRINT_HOST_API = new InjectionToken<Pick<EowApi, 'printHost'> | und
 @Component({
   selector: 'eow-root',
   imports: [SheetA3Component],
-  template: `@if (page(); as sheet) {
-    <eow-sheet-a3 [page]="sheet" [zoom]="1" />
+  // Каждый лист — отдельная страница А3; после последнего разрыва нет, чтобы не было пустой.
+  template: `@for (sheet of pages(); track $index) {
+    <div class="sheet"><eow-sheet-a3 [page]="sheet" [zoom]="1" /></div>
   }`,
-  styles: ':host { display: block; width: 420mm; height: 297mm; }',
+  styles: `
+    :host {
+      display: block;
+      width: 420mm;
+    }
+    .sheet {
+      width: 420mm;
+      height: 297mm;
+      overflow: hidden;
+      break-after: page;
+    }
+    .sheet:last-child {
+      break-after: auto;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PrintHostComponent {
-  protected readonly page = signal<SheetPage | null>(null)
+  protected readonly pages = signal<readonly SheetPage[]>([])
   private readonly api = inject(PRINT_HOST_API)
   private readonly injector = inject(Injector)
   private readonly prepareFonts = inject(PRINT_HOST_FONTS)
@@ -49,8 +64,8 @@ export class PrintHostComponent {
     if (!this.api) return
     try {
       const result = await this.api.printHost({ action: 'load' })
-      if (result.status !== 'page') throw new Error('Нет модели печати')
-      this.page.set(result.page)
+      if (result.status !== 'pages') throw new Error('Нет модели печати')
+      this.pages.set(result.pages)
       await new Promise<void>((resolve) =>
         afterNextRender(() => resolve(), { injector: this.injector }),
       )

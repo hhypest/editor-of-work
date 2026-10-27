@@ -11,7 +11,7 @@ const report = {
   electron: '44.9.0',
   node: '24.0.0',
   sqlite: '3.50.0',
-  pdf: { pages: 1, widthMm: 420, heightMm: 297, embeddedFonts: 4, svgMatches: true },
+  pdf: { pages: 2, widthMm: 420, heightMm: 297, embeddedFonts: 4, svgMatches: true },
   checks: [
     'create',
     'migrations-and-wal',
@@ -50,7 +50,7 @@ test('неполные проверки и чужой runtime отклоняют
     { processType: 'node' },
     { sqlite: 'undefined' },
     { pdf: undefined },
-    { pdf: { ...report.pdf, pages: 2 } },
+    { pdf: { ...report.pdf, pages: 1 } },
     { pdf: { ...report.pdf, widthMm: 297 } },
     { pdf: { ...report.pdf, embeddedFonts: 0 } },
     { pdf: { ...report.pdf, svgMatches: false } },

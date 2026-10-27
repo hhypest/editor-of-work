@@ -72,6 +72,7 @@ export async function checkPdf(): Promise<{
             viewBox: string
             text: string[]
             primitives: number
+            sheets: number
             fonts: string
             nav: boolean
             scripts: number
@@ -80,17 +81,17 @@ export async function checkPdf(): Promise<{
             const svg = document.querySelector('svg');
             return { width: svg?.getAttribute('width'), height: svg?.getAttribute('height'), viewBox: svg?.getAttribute('viewBox'),
               text: [...document.querySelectorAll('svg text')].map(t => t.textContent.trim()),
-              primitives: svg?.querySelector('g').children.length, fonts: document.fonts.status,
+              primitives: svg?.querySelector('g').children.length, sheets: document.querySelectorAll('svg').length,
+              fonts: document.fonts.status,
               nav: !!document.querySelector('nav'), scripts: document.querySelectorAll('svg script').length,
               nodeAccess: typeof require !== 'undefined' || typeof process !== 'undefined' };
           })()`)
           assert.equal(view.width, '420mm')
           assert.equal(view.height, '297mm')
           assert.equal(view.viewBox, '0 0 420 297')
-          assert.deepEqual(
-            view.text,
-            page.primitives.filter((p) => p.kind === 'text').map((p) => p.text),
-          )
+          const texts = page.primitives.filter((p) => p.kind === 'text').map((p) => p.text)
+          assert.deepEqual(view.text, [...texts, ...texts])
+          assert.equal(view.sheets, 2)
           assert.equal(view.primitives, page.primitives.length)
           assert.equal(view.fonts, 'loaded')
           assert.equal(view.nav, false)
@@ -103,15 +104,22 @@ export async function checkPdf(): Promise<{
     },
   }
   const render = electronPdfRenderer(ipc, join(__dirname, 'preload.js'), `${APP_ORIGIN}/`)
-  const data = await render(page)
+  // Два листа одним вызовом printToPDF: пакетный PDF (ADR-0039).
+  const data = await render([page, { ...page, number: 8 }])
   assert.equal(inspected, true, 'Нужна реальная отрисовка Angular, а не пустой PDF')
   assert.equal(BrowserWindow.getAllWindows().length, 0, 'Окно печати должно быть освобождено')
   const pdf = await PDFDocument.load(data)
-  assert.equal(pdf.getPageCount(), 1, 'Не должно быть пустой второй страницы')
-  const sheet = pdf.getPage(0).getSize()
-  const widthMm = (sheet.width * 25.4) / 72,
-    heightMm = (sheet.height * 25.4) / 72
-  assert.ok(Math.abs(widthMm - 420) < 0.5 && Math.abs(heightMm - 297) < 0.5, 'Требуется А3 альбом')
+  assert.equal(pdf.getPageCount(), 2, 'Каждый лист — одна страница, без пустой последней')
+  const sizes = pdf.getPages().map((p) => p.getSize())
+  const first = pdf.getPage(0).getSize()
+  const widthMm = (first.width * 25.4) / 72,
+    heightMm = (first.height * 25.4) / 72
+  for (const sheet of sizes)
+    assert.ok(
+      Math.abs((sheet.width * 25.4) / 72 - 420) < 0.5 &&
+        Math.abs((sheet.height * 25.4) / 72 - 297) < 0.5,
+      'Требуется А3 альбом на каждой странице',
+    )
   const fonts: string[] = []
   for (const [, object] of pdf.context.enumerateIndirectObjects()) {
     if (
@@ -128,5 +136,5 @@ export async function checkPdf(): Promise<{
       fonts.some((name) => name.endsWith(suffix)),
       `Нет встроенного ${suffix}`,
     )
-  return { pages: 1, widthMm, heightMm, embeddedFonts: fonts.length, svgMatches: true }
+  return { pages: 2, widthMm, heightMm, embeddedFonts: fonts.length, svgMatches: true }
 }

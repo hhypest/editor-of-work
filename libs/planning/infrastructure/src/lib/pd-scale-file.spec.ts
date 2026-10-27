@@ -16,7 +16,7 @@ describe('Масштабы и формат v4', () => {
     (old) => {
       const original = JSON.stringify(old)
       const file = value(readPlanFile(original))
-      expect(file.format.version).toBe(6)
+      expect(file.format.version).toBe(7)
       expect(file.plan.pdScales).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

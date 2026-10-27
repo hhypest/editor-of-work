@@ -14,6 +14,15 @@ export interface EditorExpectedDraft {
   readonly unit: string
   readonly value: string
 }
+/** Строка перечня работ в форме: объём и стоимость — текст до применения. */
+export interface EditorItemDraft {
+  readonly id: string | null
+  readonly name: string
+  readonly unit: string
+  readonly quantity: string
+  readonly cost: string
+}
+export type EditorItemTable = 'contract' | 'isso' | 'zp'
 /** DTO редактора. UI не получает доменные объекты и пути файлов. */
 export interface EditorDraft {
   readonly kind: string
@@ -38,6 +47,11 @@ export type EditorChange =
   | { readonly kind: 'pdScale'; readonly scale: number }
   | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
   | { readonly kind: 'expectedRows'; readonly rows: readonly EditorExpectedDraft[] }
+  | {
+      readonly kind: 'itemRows'
+      readonly table: EditorItemTable
+      readonly rows: readonly EditorItemDraft[]
+    }
   | {
       readonly kind: 'manualRows'
       readonly rows: readonly {
@@ -98,6 +112,20 @@ export interface EditorView {
         readonly name: string
         readonly unit: string
         readonly value: number | null
+      }[]
+    | null
+  /** Перечни подрядных работ, ИССО и ЗП; null — область без перечней (станция). */
+  readonly items:
+    | readonly {
+        readonly table: EditorItemTable
+        readonly title: string
+        readonly rows: readonly {
+          readonly id: string
+          readonly name: string
+          readonly unit: string
+          readonly quantity: number
+          readonly cost: number
+        }[]
       }[]
     | null
   readonly year: number

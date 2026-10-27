@@ -2335,6 +2335,1685 @@ exports[`Листы ПД > размещает ожидаемые показат�
 }
 `;
 
+exports[`Листы ПД > размещает перечни работ: заполненный с номерами и пустой с отметкой об отсутствии работ 1`] = `
+{
+  "pages": [
+    {
+      "height": {
+        "unit": "mm",
+        "value": 297,
+      },
+      "number": 1,
+      "primitives": [
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 277,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 400,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 10,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 10,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 4,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "ППР 2027 · ПД-2 · ПЧУ-1",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 19,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.6,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "УТВЕРЖДАЮ",
+          "x": {
+            "unit": "mm",
+            "value": 272,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 17,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.6,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Учебная должность",
+          "x": {
+            "unit": "mm",
+            "value": 272,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 22,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.6,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Учебный составитель",
+          "x": {
+            "unit": "mm",
+            "value": 272,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 33,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.6,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "«___» __________ 2026 г.",
+          "x": {
+            "unit": "mm",
+            "value": 272,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 40,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 3,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "УЧЕБНОЕ · 18+000 – 21+000",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 53,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 35,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 94.28,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 65,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 65,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 1.3,
+          },
+          "kind": "rect",
+          "shade": true,
+          "width": {
+            "unit": "mm",
+            "value": 19.28,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 75,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 62,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 84.64,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 84.64,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 65,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 80,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 68,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 50.64,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 80,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans Narrow",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "1. Учебная выправка · 0,964 км в ПД · 20+000 – 21+000",
+          "x": {
+            "unit": "mm",
+            "value": 52.64,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 84,
+          },
+        },
+        {
+          "border": false,
+          "height": {
+            "unit": "mm",
+            "value": 3.5,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 16.680000000000003,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 14.4,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 68.5,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans Narrow",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "От ПД-1 · 18+000",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 71,
+          },
+        },
+        {
+          "border": false,
+          "height": {
+            "unit": "mm",
+            "value": 3.5,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 15.740000000000004,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 79.14,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 72.5,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans Narrow",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "К ПД-3 · 21+000",
+          "x": {
+            "unit": "mm",
+            "value": 79.74,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 75,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 3,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "УЧЕБНОЕ · 30+000 – 31+000",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 96,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 35,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 55,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 108,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 108,
+          },
+        },
+        {
+          "border": false,
+          "height": {
+            "unit": "mm",
+            "value": 3.5,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 28.707499999999985,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 14.4,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 111.5,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans Narrow",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Граница направления · 30+000",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 114,
+          },
+        },
+        {
+          "border": false,
+          "height": {
+            "unit": "mm",
+            "value": 3.5,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 28.447499999999984,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 27.152500000000014,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 115.5,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans Narrow",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Вне действующих ПД · 31+000",
+          "x": {
+            "unit": "mm",
+            "value": 27.752500000000015,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 118,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 3,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Учебные показатели",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 134,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": true,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 138,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 138,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 147,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Показатель",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 142,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 295,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 295,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 138,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 147,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Значение",
+          "x": {
+            "unit": "mm",
+            "value": 297,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 142,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 147,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 147,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 156,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Длина главных путей, м",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 151,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 295,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 295,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 147,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 156,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "3964",
+          "x": {
+            "unit": "mm",
+            "value": 297,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 151,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 3,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Работы подрядным способом",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 165,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": true,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 169,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 169,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "№",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 173,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 169,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Наименование",
+          "x": {
+            "unit": "mm",
+            "value": 32,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 173,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 169,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Ед. изм.",
+          "x": {
+            "unit": "mm",
+            "value": 247,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 173,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 169,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Объём",
+          "x": {
+            "unit": "mm",
+            "value": 287,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 173,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 169,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Стоимость, тыс. руб.",
+          "x": {
+            "unit": "mm",
+            "value": 342,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 173,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 178,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 178,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "1",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 182,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 178,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Учебная подрядная работа с длинным наименованием Учебная подрядная работа с длинным наименованием Учебная подрядная работа с длинным наименованием",
+          "x": {
+            "unit": "mm",
+            "value": 32,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 182,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 178,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "м3",
+          "x": {
+            "unit": "mm",
+            "value": 247,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 182,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 178,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "12,5",
+          "x": {
+            "unit": "mm",
+            "value": 287,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 182,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 178,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "3,26",
+          "x": {
+            "unit": "mm",
+            "value": 342,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 182,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": false,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 187,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 187,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 196,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "2",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 191,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 187,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 196,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Учебная вторая",
+          "x": {
+            "unit": "mm",
+            "value": 32,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 191,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 187,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 196,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 187,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 196,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "0",
+          "x": {
+            "unit": "mm",
+            "value": 287,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 191,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 187,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 196,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "1,01",
+          "x": {
+            "unit": "mm",
+            "value": 342,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 191,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 3,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Работы по содержанию ИССО",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 205,
+          },
+        },
+        {
+          "border": true,
+          "height": {
+            "unit": "mm",
+            "value": 9,
+          },
+          "kind": "rect",
+          "shade": true,
+          "width": {
+            "unit": "mm",
+            "value": 390,
+          },
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 209,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 209,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 218,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "№",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 213,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 30,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 209,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 218,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Наименование",
+          "x": {
+            "unit": "mm",
+            "value": 32,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 213,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 245,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 209,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 218,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Ед. изм.",
+          "x": {
+            "unit": "mm",
+            "value": 247,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 213,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 285,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 209,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 218,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Объём",
+          "x": {
+            "unit": "mm",
+            "value": 287,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 213,
+          },
+        },
+        {
+          "dashed": false,
+          "kind": "line",
+          "x1": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "x2": {
+            "unit": "mm",
+            "value": 340,
+          },
+          "y1": {
+            "unit": "mm",
+            "value": 209,
+          },
+          "y2": {
+            "unit": "mm",
+            "value": 218,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 700,
+          },
+          "kind": "text",
+          "text": "Стоимость, тыс. руб.",
+          "x": {
+            "unit": "mm",
+            "value": 342,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 213,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.8,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Нет работ",
+          "x": {
+            "unit": "mm",
+            "value": 17,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 223,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Линия — главный путь; серый участок — работа; № выноски — строка ведомости.",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 259,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.5,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "* — ручное значение плана; объёмы относятся ко всему ПД, а не к отдельной странице.",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 265,
+          },
+        },
+        {
+          "font": {
+            "family": "PT Sans",
+            "size": {
+              "unit": "mm",
+              "value": 2.6,
+            },
+            "weight": 400,
+          },
+          "kind": "text",
+          "text": "Редакция 7 от 2027-01-01 · 1:50000 · Лист 1",
+          "x": {
+            "unit": "mm",
+            "value": 15,
+          },
+          "y": {
+            "unit": "mm",
+            "value": 281,
+          },
+        },
+      ],
+      "width": {
+        "unit": "mm",
+        "value": 420,
+      },
+    },
+  ],
+  "warnings": [],
+  "workIdsByPage": [
+    [
+      "w",
+    ],
+  ],
+}
+`;
+
 exports[`Листы ПД > размещает ручные показатели ПД с единицей, знаком и многострочным примечанием 1`] = `
 {
   "pages": [

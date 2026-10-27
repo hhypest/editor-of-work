@@ -25,6 +25,7 @@ const state: EditorState = {
     works: [],
     indicators: [],
     expected: [],
+    items: [],
     pdScale: null,
     pdTables: [],
     tables: [
@@ -612,6 +613,89 @@ describe('Редактор плана', () => {
     expect(facade.pending()).toBe(true)
     facade.cancelExpected()
     expect(facade.pending()).toBe(false)
+  })
+  it('ведёт перечни работ черновиком по каждому перечню, Ctrl+S применяет все перед записью', async () => {
+    const port = client()
+    const items = [
+      { table: 'contract' as const, title: 'Работы подрядным способом', rows: [] },
+      {
+        table: 'isso' as const,
+        title: 'Работы по содержанию ИССО',
+        rows: [{ id: 'i', name: 'Учебная ИССО', unit: 'шт', quantity: 2.5, cost: 0 }],
+      },
+      { table: 'zp' as const, title: 'Работы по содержанию земляного полотна', rows: [] },
+    ]
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: { ...state, view: { ...state.view!, items } },
+    })
+    const { facade, fixture, element } = await setup(port)
+    expect(element.textContent).toContain('Работы по содержанию ИССО')
+    expect(facade.itemRows('isso')).toEqual([
+      { id: 'i', name: 'Учебная ИССО', unit: 'шт', quantity: '2,5', cost: '0' },
+    ])
+    facade.addItem('contract')
+    fixture.detectChanges()
+    const name = element.querySelector<HTMLInputElement>(
+      '[aria-label="Работы подрядным способом: наименование, строка 1"]',
+    )!
+    name.value = '<Учебная подрядная>'
+    name.dispatchEvent(new Event('input'))
+    await fixture.whenStable()
+    facade.patchItem('isso', 0, { cost: '1,5' })
+    expect(facade.pending()).toBe(true)
+    await facade.filter('pd:a')
+    expect(facade.area()).toBe('district')
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'invalid',
+      issues: [{ field: 'form', message: 'Учебная ошибка', start: null, end: null }],
+    })
+    expect(await facade.save()).toBe(false)
+    expect(facade.itemRows('contract')[0]?.name).toBe('<Учебная подрядная>')
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await fixture.whenStable()
+    expect(
+      vi
+        .mocked(port.send)
+        .mock.calls.slice(-3)
+        .map(([c]) => c),
+    ).toEqual([
+      {
+        kind: 'itemRows',
+        table: 'contract',
+        rows: [{ id: null, name: '<Учебная подрядная>', unit: '', quantity: '0', cost: '0' }],
+      },
+      {
+        kind: 'itemRows',
+        table: 'isso',
+        rows: [{ id: 'i', name: 'Учебная ИССО', unit: 'шт', quantity: '2,5', cost: '1,5' }],
+      },
+      { kind: 'save', saveAs: false },
+    ])
+    expect(facade.pending()).toBe(false)
+    facade.addItem('zp')
+    facade.removeItem('zp', 0)
+    expect(facade.pending()).toBe(true)
+    facade.cancelItems('zp')
+    expect(facade.pending()).toBe(false)
+  })
+  it('станция не показывает перечни работ', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: { ...state, view: { ...state.view!, area: 'station:s', items: null } },
+    })
+    const { facade, element } = await setup(port)
+    expect(element.textContent).not.toContain('Работы подрядным способом')
+    facade.addItem('contract')
+    expect(facade.itemDrafts().contract).toBeNull()
   })
   it('не показывает ожидаемые показатели для станции', async () => {
     const port = client()

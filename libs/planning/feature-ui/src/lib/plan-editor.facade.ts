@@ -4,6 +4,8 @@ import type {
   EditorDraft,
   EditorExpectedDraft,
   EditorIndicatorDraft,
+  EditorItemDraft,
+  EditorItemTable,
   EditorIssue,
   EditorState,
   PlaceHint,
@@ -48,6 +50,10 @@ export class PlanEditorFacade {
   readonly indicatorDraft = signal<readonly EditorIndicatorDraft[] | null>(null)
   readonly pdTablesDraft = signal<readonly string[] | null>(null)
   readonly expectedDraft = signal<readonly EditorExpectedDraft[] | null>(null)
+  /** Черновики перечней подрядных работ, ИССО и ЗП; null — нет незавершённого ввода. */
+  readonly itemDrafts = signal<
+    Readonly<Record<EditorItemTable, readonly EditorItemDraft[] | null>>
+  >({ contract: null, isso: null, zp: null })
   readonly expectedRows = computed<readonly EditorExpectedDraft[]>(
     () =>
       this.expectedDraft() ??
@@ -81,6 +87,7 @@ export class PlanEditorFacade {
       this.approvalDirty() ||
       this.indicatorDraft() !== null ||
       this.expectedDraft() !== null ||
+      Object.values(this.itemDrafts()).some((rows) => rows !== null) ||
       this.pdTablesDraft() !== null,
   )
   readonly placeIssues = computed(() => [
@@ -207,6 +214,7 @@ export class PlanEditorFacade {
     this.pdTablesDraft.set(null)
     this.indicatorDraft.set(null)
     this.expectedDraft.set(null)
+    this.itemDrafts.set({ contract: null, isso: null, zp: null })
     this.resetForm()
     this.cells.set({})
     this.approvalDirty.set(false)
@@ -372,6 +380,58 @@ export class PlanEditorFacade {
     this.indicatorDraft.set(null)
     return true
   }
+  itemRows(table: EditorItemTable): readonly EditorItemDraft[] {
+    return (
+      this.itemDrafts()[table] ??
+      this.view()
+        ?.items?.find((t) => t.table === table)
+        ?.rows.map((row) => ({
+          ...row,
+          quantity: String(row.quantity).replace('.', ','),
+          cost: String(row.cost).replace('.', ','),
+        })) ??
+      []
+    )
+  }
+  private setItems(table: EditorItemTable, rows: readonly EditorItemDraft[] | null): void {
+    this.itemDrafts.set({ ...this.itemDrafts(), [table]: rows })
+  }
+  addItem(table: EditorItemTable): void {
+    if (
+      this.busy() ||
+      this.state()?.hasRecovery ||
+      !this.view()?.items ||
+      this.itemRows(table).length >= 10000
+    )
+      return
+    this.setItems(table, [
+      ...this.itemRows(table),
+      { id: null, name: '', unit: '', quantity: '0', cost: '0' },
+    ])
+  }
+  patchItem(table: EditorItemTable, index: number, patch: Partial<EditorItemDraft>): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    const rows = this.itemRows(table),
+      row = rows[index]
+    if (row) this.setItems(table, rows.with(index, { ...row, ...patch }))
+  }
+  removeItem(table: EditorItemTable, index: number): void {
+    if (this.busy() || this.state()?.hasRecovery) return
+    this.setItems(
+      table,
+      this.itemRows(table).filter((_row, i) => i !== index),
+    )
+  }
+  cancelItems(table: EditorItemTable): void {
+    this.setItems(table, null)
+  }
+  async applyItems(table: EditorItemTable): Promise<boolean> {
+    const rows = this.itemDrafts()[table]
+    if (rows === null) return true
+    if (!(await this.run({ kind: 'itemRows', table, rows }))) return false
+    this.setItems(table, null)
+    return true
+  }
   addExpected(): void {
     if (
       this.busy() ||
@@ -461,6 +521,9 @@ export class PlanEditorFacade {
       !(await this.applyCells()) ||
       !(await this.applyIndicators()) ||
       !(await this.applyExpected()) ||
+      !(await this.applyItems('contract')) ||
+      !(await this.applyItems('isso')) ||
+      !(await this.applyItems('zp')) ||
       !(await this.applyPdTables()) ||
       !(await this.applyApproval())
     )

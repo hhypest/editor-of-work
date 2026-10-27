@@ -68,7 +68,7 @@ describe('файл плана на диске', () => {
     expect(await restarted.recovery()).toEqual({ ok: true, value: changed.value })
     expect((await restarted.save(changed.value)).ok).toBe(true)
     expect(await readFile(`${path}.bak`, 'utf8')).toBe(original)
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(6)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(7)
     expect(await restarted.load()).toEqual({ ok: true, value: changed.value })
   })
   it('сохраняет масштаб в v4, исходный v3 в .bak и восстанавливает настройку из автокопии', async () => {
@@ -125,7 +125,7 @@ describe('файл плана на диске', () => {
   )
 
   it('не перезаписывает файл будущей версии даже без его открытия', async () => {
-    const future = '{"format":{"version":7},"data":"будущие данные"}'
+    const future = '{"format":{"version":8},"data":"будущие данные"}'
     await writeFile(path, future)
     expect(await store.save(plan(2027))).toMatchObject({
       ok: false,

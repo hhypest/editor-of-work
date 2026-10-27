@@ -12,7 +12,11 @@ const pdTableKey = z.enum([
   'works',
   'indicators',
   'expected',
+  'contract',
+  'isso',
+  'zp',
 ])
+const itemTable = z.enum(['contract', 'isso', 'zp'])
 export const editorDraftSchema = z
   .object({
     kind: id,
@@ -31,7 +35,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('pdTables'),
-      hidden: z.array(pdTableKey).max(7),
+      hidden: z.array(pdTableKey).max(10),
     })
     .strict(),
   z
@@ -57,6 +61,19 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
         .array(
           z
             .object({ id: id.nullable(), group: text, name: text, unit: text, value: text })
+            .strict(),
+        )
+        .max(10000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('itemRows'),
+      table: itemTable,
+      rows: z
+        .array(
+          z
+            .object({ id: id.nullable(), name: text, unit: text, quantity: text, cost: text })
             .strict(),
         )
         .max(10000),
@@ -124,7 +141,31 @@ const view = z
           })
           .strict(),
       )
-      .max(7),
+      .max(10),
+    items: z
+      .array(
+        z
+          .object({
+            table: itemTable,
+            title: text,
+            rows: z
+              .array(
+                z
+                  .object({
+                    id,
+                    name: text,
+                    unit: text,
+                    quantity: z.number().nonnegative(),
+                    cost: z.number().nonnegative(),
+                  })
+                  .strict(),
+              )
+              .max(10000),
+          })
+          .strict(),
+      )
+      .max(3)
+      .nullable(),
     indicators: z
       .array(z.object({ id, name: text, unit: text, value: z.number(), note: text }).strict())
       .max(10000),

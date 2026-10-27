@@ -15,10 +15,15 @@
   grid-template-columns: minmax(320px, 1fr) minmax(320px, 1.3fr);
   gap: 1.5rem;
 }
+/* Длинное наименование вида работ не раздвигает колонку формы под список работ. */
+.editor-grid > * {
+  min-width: 0;
+}
 fieldset {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-inline-size: 0;
   border: 1px solid #bdc7d1;
   border-radius: 0.3rem;
 }

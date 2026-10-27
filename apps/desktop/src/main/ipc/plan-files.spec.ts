@@ -87,7 +87,7 @@ describe('планы в main', () => {
   it('экспорт текущего листа проверяет план, ПД, ревизию и не меняет состояние и историю', async () => {
     const request = { action: 'exportEditorSheet' as const, revision: 0, pd: 'ПД-1', page }
     expect(await invoke(request)).toMatchObject({ status: 'error' })
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const before = await editorState()
     expect(await invoke({ ...request, revision: before.revision - 1 })).toMatchObject({
       status: 'error',
@@ -114,7 +114,7 @@ describe('планы в main', () => {
     expect(await readdir(directory)).toEqual([])
   })
   it('PDF занимает очередь плана: правка не обгоняет снимок и следующий устаревший экспорт отклоняется', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const before = await editorState()
     let finish!: (result: Awaited<ReturnType<PdfExporter['export']>>) => void
     vi.mocked(pdf.export).mockImplementationOnce(
@@ -152,7 +152,7 @@ describe('планы в main', () => {
     expect(await readFile(`${path}.autosave`, 'utf8')).toBe(document(2028))
   })
   it('просматривает другой файл без замены текущего плана, пути и содержимого файлов', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const original = document(2028)
     await writeFile(path, original)
     const preview = await invoke({ action: 'previewSheets', open: true })
@@ -161,17 +161,14 @@ describe('планы в main', () => {
       source: { year: 2028, pds: [{ id: 'ПД-1' }, { id: 'ПД-2' }] },
     })
     expect(await readFile(path, 'utf8')).toBe(original)
-    expect(await invoke({ action: 'state' })).toMatchObject({
-      status: 'ok',
-      document: document(2027),
-    })
+    expect(await year()).toBe(2027)
     expect(await invoke({ action: 'previewSheets', open: false })).toMatchObject({
       status: 'sheets',
       source: { year: 2027 },
     })
     const savePath = join(directory, 'other.ppr.json')
     dialogs.save.mockResolvedValue(savePath)
-    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    await edit({ kind: 'save', saveAs: false })
     expect(dialogs.save).toHaveBeenCalledTimes(1)
     expect(await readFile(path, 'utf8')).toBe(original)
   })
@@ -192,8 +189,7 @@ describe('планы в main', () => {
   it.each(['open', 'prototype', 'recovery'] as const)(
     'отказ чтения большого %s сохраняет текущий файл и путь',
     async (operation) => {
-      const original = document(2026)
-      await invoke({ action: 'save', document: original, saveAs: false })
+      await openDocument(document(2026))
       const selected = join(directory, 'large.json')
       const large = operation === 'recovery' ? `${selected}.autosave` : selected
       if (operation === 'recovery') await writeFile(selected, document(2027))
@@ -205,57 +201,66 @@ describe('планы в main', () => {
       }
       dialogs.open.mockResolvedValueOnce(selected)
       dialogs.openPrototype.mockResolvedValueOnce(selected)
-      const response = await invoke(
-        operation === 'prototype'
-          ? { action: 'importPrototype', edition: { number: 'test', date: '2026-01-01' } }
-          : { action: 'open' },
-      )
+      const response = await (operation === 'prototype' ? importProject() : edit({ kind: 'open' }))
       expect(response).toMatchObject({
         status: 'error',
         message: expect.stringContaining('80 МиБ'),
       })
-      expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', document: original })
-      expect(
-        await invoke({ action: 'save', document: document(2028), saveAs: false }),
-      ).toMatchObject({ status: 'ok' })
-      expect(dialogs.save).toHaveBeenCalledTimes(1)
-      expect(await readFile(path, 'utf8')).toBe(document(2028))
+      expect(await editorState()).toMatchObject({ hasRecovery: false, view: { year: 2026 } })
+      await markChanged()
+      expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
+      expect(dialogs.save).not.toHaveBeenCalled()
+      expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+        ok: true,
+        value: { approval: { title: 'Учебный гриф' } },
+      })
     },
   )
-  it('выбирает путь диалогом и сохраняет проверенный документ', async () => {
-    expect(await invoke({ action: 'save', document: document(2027), saveAs: false })).toMatchObject(
-      { status: 'ok' },
-    )
+  it('выбирает путь диалогом при первом сохранении и далее пишет в тот же файл', async () => {
+    await createPlan()
+    expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
     expect(dialogs.save).toHaveBeenCalledTimes(1)
     expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
       ok: true,
       value: { year: 2027 },
     })
-    await invoke({ action: 'save', document: document(2028), saveAs: false })
+    await markChanged('Учебный гриф', 2027)
+    await edit({ kind: 'save', saveAs: false })
     expect(dialogs.save).toHaveBeenCalledTimes(1)
+    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { approval: { title: 'Учебный гриф' } },
+    })
   })
 
   it('отмена диалога оставляет текущий документ', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     dialogs.open.mockResolvedValue(undefined)
-    expect(await invoke({ action: 'open' })).toEqual({ status: 'cancelled' })
-    expect(await invoke({ action: 'state' })).toMatchObject({
-      status: 'ok',
-      document: document(2027),
-    })
+    expect(await edit({ kind: 'open' })).toEqual({ status: 'cancelled' })
+    expect(await year()).toBe(2027)
   })
 
-  it('не открывает диалог для повреждённого документа', async () => {
-    expect(await invoke({ action: 'save', document: '{', saveAs: true })).toMatchObject({
-      status: 'error',
-    })
+  it.each([
+    ['документ для записи', { action: 'save', document: document(2027), saveAs: false }],
+    ['замену плана целиком', { action: 'update', document: document(2027) }],
+    ['открытие мимо редактора', { action: 'open' }],
+    ['восстановление мимо редактора', { action: 'recover', accept: true }],
+    [
+      'импорт мимо редактора',
+      { action: 'importPrototype', edition: { number: 'test', date: '2026-10-20' } },
+    ],
+    [
+      'путь к файлу',
+      { action: 'editor', command: { kind: 'open', path: 'arbitrary' }, revision: 0, area: '' },
+    ],
+  ])('не принимает от renderer %s (ADR-0035)', async (_name, request) => {
+    await createPlan()
+    const before = await editorState()
+    await expect(listener({}, request)).rejects.toThrow('неверный запрос')
+    expect(await editorState()).toEqual(before)
     expect(dialogs.save).not.toHaveBeenCalled()
-  })
-
-  it('не принимает путь от renderer', async () => {
-    await expect(listener({}, { action: 'open', path: 'arbitrary' })).rejects.toThrow(
-      'неверный запрос',
-    )
+    expect(dialogs.open).not.toHaveBeenCalled()
+    expect(await readdir(directory)).toEqual([])
   })
 
   it('импортирует выбранный JSON в новый план и сохраняет его отдельным файлом', async () => {
@@ -287,17 +292,11 @@ describe('планы в main', () => {
     })
     await writeFile(sourcePath, source)
     dialogs.openPrototype.mockResolvedValue(sourcePath)
-    const imported = await invoke({
-      action: 'importPrototype',
-      edition: { number: 'test', date: '2026-10-20' },
+    expect(await importProject()).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, hasFile: false, view: { works: [{ id: 'w' }] } },
     })
-    expect(imported.status).toBe('ok')
-    if (imported.status !== 'ok' || !imported.document) throw new Error('нет плана')
-    expect(decodePlan(imported.document)).toMatchObject({
-      ok: true,
-      value: { works: [{ id: 'w' }] },
-    })
-    await invoke({ action: 'save', document: imported.document, saveAs: false })
+    await edit({ kind: 'save', saveAs: false })
     expect(await readFile(sourcePath, 'utf8')).toBe(source)
     expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
       ok: true,
@@ -321,20 +320,15 @@ describe('планы в main', () => {
   })
 
   it('ошибка импорта оставляет ранее открытый план', async () => {
-    await invoke({ action: 'update', document: document(2026) })
+    await createPlan(2026)
     await writeFile(path, '{')
-    expect(
-      await invoke({ action: 'importPrototype', edition: { number: 'test', date: '2026-10-20' } }),
-    ).toMatchObject({ status: 'error' })
-    expect(await invoke({ action: 'state' })).toMatchObject({
-      status: 'ok',
-      document: document(2026),
-    })
+    expect(await importProject()).toMatchObject({ status: 'error' })
+    expect(await year()).toBe(2026)
   })
 
   it('отклоняет разросшийся при экранировании снимка импорт, сохраняя текущий план и его файл', async () => {
     const original = document(2026)
-    await invoke({ action: 'save', document: original, saveAs: false })
+    await openDocument(original)
     const sourcePath = join(directory, 'large-legacy.json')
     const source = JSON.stringify({
       v: 1,
@@ -346,22 +340,18 @@ describe('планы в main', () => {
     expect(source.length).toBeLessThan(20 * 1024 * 1024)
     await writeFile(sourcePath, source)
     dialogs.openPrototype.mockResolvedValue(sourcePath)
-    expect(
-      await invoke({ action: 'importPrototype', edition: { number: 'test', date: '2026-10-20' } }),
-    ).toEqual({
+    expect(await importProject()).toEqual({
       status: 'error',
       message: 'План превышает допустимый размер. Текущий план не изменён.',
     })
-    expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', document: original })
-    await invoke({ action: 'save', document: original, saveAs: false })
-    expect(dialogs.save).toHaveBeenCalledTimes(1)
+    expect(await editorState()).toMatchObject({ dirty: false, hasFile: true, view: { year: 2026 } })
+    expect(dialogs.save).not.toHaveBeenCalled()
     expect(await readFile(path, 'utf8')).toBe(original)
     expect(await readFile(sourcePath, 'utf8')).toBe(source)
   })
 
   it('отклоняет слишком большой открываемый план до замены текущего', async () => {
-    const original = document(2026)
-    await invoke({ action: 'update', document: original })
+    await createPlan(2026)
     const parsed = decodePlan(document(2027))
     if (!parsed.ok) throw new Error('нет плана')
     const encoded = encodePlan(
@@ -376,18 +366,17 @@ describe('планы в main', () => {
     )
     if (!encoded.ok) throw new Error('нет файла')
     await writeFile(path, encoded.value)
-    expect(await invoke({ action: 'open' })).toMatchObject({
+    expect(await edit({ kind: 'open' })).toMatchObject({
       status: 'error',
       message: expect.stringContaining('превышает допустимый размер'),
     })
-    expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', document: original })
+    expect(await editorState()).toMatchObject({ hasFile: false, view: { year: 2026 } })
   })
 
   it.each(['oversized', 'corrupt'] as const)(
     'не переключает файл сохранения, если автокопия выбранного плана %s',
     async (problem) => {
-      const original = document(2026)
-      await invoke({ action: 'save', document: original, saveAs: false })
+      await openDocument(document(2026))
       const selectedPath = join(directory, 'other.ppr.json')
       const selected = document(2027)
       await writeFile(selectedPath, selected)
@@ -410,18 +399,15 @@ describe('планы в main', () => {
       }
       await writeFile(`${selectedPath}.autosave`, recovery)
       dialogs.open.mockResolvedValue(selectedPath)
-      expect(await invoke({ action: 'open' })).toMatchObject({ status: 'error' })
-      expect(await invoke({ action: 'state' })).toMatchObject({
-        status: 'ok',
-        document: original,
-        recovery: null,
+      expect(await edit({ kind: 'open' })).toMatchObject({ status: 'error' })
+      expect(await editorState()).toMatchObject({ hasRecovery: false, view: { year: 2026 } })
+      await markChanged()
+      expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
+      expect(dialogs.save).not.toHaveBeenCalled()
+      expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+        ok: true,
+        value: { year: 2026, approval: { title: 'Учебный гриф' } },
       })
-      const changed = document(2029)
-      expect(await invoke({ action: 'save', document: changed, saveAs: false })).toMatchObject({
-        status: 'ok',
-      })
-      expect(dialogs.save).toHaveBeenCalledTimes(1)
-      expect(await readFile(path, 'utf8')).toBe(changed)
       expect(await readFile(selectedPath, 'utf8')).toBe(selected)
       expect(await readFile(`${selectedPath}.autosave`, 'utf8')).toBe(recovery)
     },
@@ -430,7 +416,7 @@ describe('планы в main', () => {
   it.each(['kind', 'outside', 'duplicate'] as const)(
     'доменная ошибка %s отклоняет весь импорт без смены текущего плана',
     async (change) => {
-      await invoke({ action: 'update', document: document(2026) })
+      await createPlan(2026)
       const project = {
         v: 1,
         meta: { year: 2027 },
@@ -450,33 +436,24 @@ describe('планы в main', () => {
           break
       }
       await writeFile(path, JSON.stringify(project))
-      expect(
-        await invoke({
-          action: 'importPrototype',
-          edition: { number: 'test', date: '2026-10-20' },
-        }),
-      ).toMatchObject({ status: 'error' })
-      expect(await invoke({ action: 'state' })).toMatchObject({
-        status: 'ok',
-        document: document(2026),
-      })
+      expect(await importProject()).toMatchObject({ status: 'error' })
+      expect(await year()).toBe(2026)
     },
   )
 
   it('открывает основной документ и восстанавливает автокопию только по выбору', async () => {
-    await invoke({ action: 'save', document: document(2026), saveAs: false })
+    await writeFile(path, document(2026))
     const store = new FilePlanStore(path, '0.1.0')
     const decoded = decodePlan(document(2027))
     if (!decoded.ok) throw new Error('нет плана')
     await store.autosave(decoded.value)
-    expect(await invoke({ action: 'open' })).toMatchObject({
-      status: 'ok',
-      document: document(2026),
-      recovery: document(2027),
+    expect(await edit({ kind: 'open' })).toMatchObject({
+      status: 'editor',
+      state: { hasRecovery: true, dirty: false, view: { year: 2026 } },
     })
-    expect(await invoke({ action: 'recover', accept: true })).toMatchObject({
-      status: 'ok',
-      document: document(2027),
+    expect(await edit({ kind: 'recover', accept: true })).toMatchObject({
+      status: 'editor',
+      state: { hasRecovery: false, dirty: true, view: { year: 2027 } },
     })
     expect((await editorState()).hasRecovery).toBe(false)
     expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
@@ -486,7 +463,7 @@ describe('планы в main', () => {
   })
 
   it('не стирает предложение восстановления минутным таймером после открытия', async () => {
-    await invoke({ action: 'save', document: document(2026), saveAs: false })
+    await writeFile(path, document(2026))
     const decoded = decodePlan(document(2027))
     if (!decoded.ok) throw new Error('нет плана')
     await new FilePlanStore(path, '0.1.0').autosave(decoded.value)
@@ -498,16 +475,17 @@ describe('планы в main', () => {
       },
     }
     stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0')
-    await invoke({ action: 'open' })
+    await edit({ kind: 'open' })
     await vi.advanceTimersByTimeAsync(60_000)
-    expect(await invoke({ action: 'state' })).toMatchObject({
-      status: 'ok',
-      recovery: document(2027),
+    expect((await editorState()).hasRecovery).toBe(true)
+    expect(decodePlan(await readFile(`${path}.autosave`, 'utf8'))).toMatchObject({
+      ok: true,
+      value: { year: 2027 },
     })
   })
 
   it('минутный таймер записывает обновлённый документ, сохраняя основной файл', async () => {
-    await invoke({ action: 'save', document: document(2026), saveAs: false })
+    await writeFile(path, document(2026))
     await stop()
     vi.useFakeTimers()
     const ipc: IpcMainLike = {
@@ -516,17 +494,15 @@ describe('планы в main', () => {
       },
     }
     stop = registerPlanFileHandlers(ipc, dialogs, '0.1.0')
-    await invoke({ action: 'open' })
-    await invoke({ action: 'update', document: document(2027) })
+    await edit({ kind: 'open' })
+    await markChanged()
     await vi.advanceTimersByTimeAsync(60_000)
-    expect(await invoke({ action: 'state' })).toMatchObject({
-      status: 'ok',
-      recovery: document(2027),
-    })
-    expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
+    await editorState() // ждём очередь, в которой стоит автозапись
+    expect(decodePlan(await readFile(`${path}.autosave`, 'utf8'))).toMatchObject({
       ok: true,
-      value: { year: 2026 },
+      value: { approval: { title: 'Учебный гриф' } },
     })
+    expect(await readFile(path, 'utf8')).toBe(document(2026))
   })
   const draft: EditorDraft = {
     kind: 'ППР',
@@ -559,8 +535,24 @@ describe('планы в main', () => {
         area,
       }),
     )
+  /** Новый план без файла и с несохранёнными правками, как после «Создать». */
+  const createPlan = async (year = 2027) => {
+    const created = await edit({ kind: 'create', editionId: 7, year })
+    if (created.status !== 'editor') throw new Error('План не создан')
+  }
+  /** План из файла по штатному пути диалога «Открыть». */
+  const openDocument = async (text: string) => {
+    await writeFile(path, text)
+    const opened = await edit({ kind: 'open' })
+    if (opened.status !== 'editor') throw new Error('План не открыт')
+  }
+  const importProject = () =>
+    edit({ kind: 'import', edition: { number: 'test', date: '2026-10-20' } })
+  const year = async () => (await editorState()).view?.year
+  const markChanged = (title = 'Учебный гриф', planYear = 2026) =>
+    edit({ kind: 'approval', title, name: '', year: planYear })
   it('применяет состав таблиц одним шагом, сохраняет работы и открывает настройки после записи', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     await edit({ kind: 'add', draft }, 'pd:ПД-2')
     const before = await edit({ kind: 'state' }, 'pd:ПД-2')
     expect(await edit({ kind: 'pdTables', hidden: ['works', 'works'] }, 'pd:ПД-2')).toMatchObject({
@@ -608,7 +600,7 @@ describe('планы в main', () => {
     })
   })
   it('закрепляет масштаб по ПД, отменяет, сохраняет и открывает; устаревшая команда не меняет настройку', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const before = await editorState()
     expect(await edit({ kind: 'pdScale', scale: 25000 }, 'district')).toMatchObject({
       status: 'invalid',
@@ -647,7 +639,7 @@ describe('планы в main', () => {
     })
   })
   it('применяет показатели ПД одним пакетом, сохраняет v4 и повторно открывает с тем же id', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const rows = [
       { id: null, name: 'Учебный показатель', unit: 'шт.', value: '0', note: 'Учебное примечание' },
     ]
@@ -700,7 +692,7 @@ describe('планы в main', () => {
     expect((await editorState()).view?.indicators).toEqual([])
   })
   it('применяет ожидаемые показатели ПД пакетом, выводит их на лист, сохраняет v6 и открывает', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const rows = [
       { id: null, group: 'Учебная протяжённость', name: '', unit: 'км', value: '' },
       { id: null, group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: '2,5' },
@@ -762,7 +754,7 @@ describe('планы в main', () => {
     expect((await editorState()).view?.expected).toEqual([])
   })
   it('применяет перечень ИССО ПД пакетом, выводит его на лист, сохраняет v7 и открывает', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const rows = [
       { id: null, name: 'Учебная работа ИССО', unit: 'шт', quantity: '2', cost: '1,255' },
       { id: null, name: 'Учебная нулевая', unit: '', quantity: '0', cost: '0' },
@@ -817,8 +809,7 @@ describe('планы в main', () => {
     expect(await invoke({ action: 'previewEditorSheets', revision: 0, pd: 'ПД-2' })).toMatchObject({
       status: 'error',
     })
-    await writeFile(path, document(2027))
-    await invoke({ action: 'open' })
+    await openDocument(document(2027))
     const original = await readFile(path, 'utf8')
     const before = await editorState()
     const preview = async (revision = before.revision) =>
@@ -871,7 +862,7 @@ describe('планы в main', () => {
     expect((await editorState()).view?.canUndo).toBe(true)
   })
   it('редактирует, сохраняет и отменяет; сохранение не сбрасывает историю', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     expect(await edit({ kind: 'add', draft })).toMatchObject({
       status: 'editor',
       state: { dirty: true, view: { works: [{ volume: 0.064 }] } },
@@ -896,7 +887,7 @@ describe('планы в main', () => {
     expect(dialogs.save).toHaveBeenCalledTimes(1)
   })
   it('ошибка места и устаревшая версия не меняют текущий документ', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     const initial = await editorState()
     expect(await edit({ kind: 'add', draft: { ...draft, text: '20 км пк 11' } })).toMatchObject({
       status: 'invalid',
@@ -914,7 +905,7 @@ describe('планы в main', () => {
     expect((await editorState()).view?.works).toHaveLength(1)
   })
   it('ошибка «Сохранить как» сохраняет прежний путь и возможность повторной записи', async () => {
-    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    await openDocument(document(2027))
     await edit({ kind: 'add', draft })
     dialogs.save.mockResolvedValueOnce(join(directory, 'нет-папки', 'test.ppr.json'))
     expect(await edit({ kind: 'save', saveAs: true })).toMatchObject({ status: 'error' })
@@ -929,7 +920,7 @@ describe('планы в main', () => {
     })
   })
   it('отмена открытия оставляет план и историю; другой файл начинает новую историю', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await createPlan()
     await edit({ kind: 'add', draft })
     const current = await editorState()
     dialogs.open.mockResolvedValueOnce(undefined)
@@ -1062,22 +1053,20 @@ describe('планы в main', () => {
     )
   }
 
-  it('отказ через прежний IPC снимает блокировку редактора и возобновляет автокопию', async () => {
+  it('отказ от автокопии снимает блокировку редактора и возобновляет автокопию', async () => {
     await writeFile(path, document(2027))
     await writeFile(`${path}.autosave`, document(2028))
     await restartWithTimers()
-    await invoke({ action: 'open' })
+    await edit({ kind: 'open' })
     expect((await editorState()).hasRecovery).toBe(true)
-    expect(await invoke({ action: 'recover', accept: false })).toMatchObject({
-      status: 'ok',
-      recovery: null,
+    expect(await edit({ kind: 'recover', accept: false })).toMatchObject({
+      status: 'editor',
+      state: { hasRecovery: false },
     })
-    expect((await editorState()).hasRecovery).toBe(false)
     expect(await edit({ kind: 'add', draft })).toMatchObject({ status: 'editor' })
     await vi.advanceTimersByTimeAsync(60_000)
-    const state = await invoke({ action: 'state' })
-    if (state.status !== 'ok' || !state.recovery) throw new Error('Нет автокопии')
-    expect(decodePlan(state.recovery)).toMatchObject({
+    await editorState() // ждём очередь, в которой стоит автозапись
+    expect(decodePlan(await readFile(`${path}.autosave`, 'utf8'))).toMatchObject({
       ok: true,
       value: { works: [{ note: draft.note }] },
     })
@@ -1095,9 +1084,10 @@ describe('планы в main', () => {
         await edit({ kind: 'undo' })
       }
       await vi.advanceTimersByTimeAsync(60_000)
-      expect(await invoke({ action: 'state' })).toMatchObject({
-        status: 'ok',
-        recovery: expect.any(String),
+      await editorState() // ждём очередь, в которой стоит автозапись
+      expect(decodePlan(await readFile(`${path}.autosave`, 'utf8'))).toMatchObject({
+        ok: true,
+        value: { works: kind === 'undo' ? [{ note: draft.note }] : [] },
       })
       expect(await edit({ kind })).toMatchObject({ status: 'editor', state: { dirty: false } })
       await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
@@ -1158,10 +1148,11 @@ describe('планы в main', () => {
     await vi.advanceTimersByTimeAsync(60_000)
     release()
     expect(await undo).toMatchObject({ status: 'editor', state: { dirty: false } })
-    expect(await invoke({ action: 'state' })).toMatchObject({ status: 'ok', recovery: null })
+    await editorState() // ждём очередь, в которой стоит автозапись
+    await expect(readFile(`${path}.autosave`, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
   it('создаёт план без пути и старой истории; первое сохранение выбирает новый файл', async () => {
-    await invoke({ action: 'save', document: document(2027), saveAs: false })
+    await openDocument(document(2027))
     await edit({ kind: 'add', draft })
     const old = await editorState()
     expect(await edit({ kind: 'editions' })).toMatchObject({
@@ -1186,7 +1177,7 @@ describe('планы в main', () => {
       status: 'editor',
       state: { dirty: false, hasFile: true },
     })
-    expect(dialogs.save).toHaveBeenCalledTimes(2)
+    expect(dialogs.save).toHaveBeenCalledTimes(1)
     expect(decodePlan(await readFile(newPath, 'utf8'))).toMatchObject({
       ok: true,
       value: { year: 2028, works: [], manual: new Map() },
@@ -1200,7 +1191,7 @@ describe('планы в main', () => {
   it.each(['read', 'size'] as const)(
     'сбой создания (%s) сохраняет прежние файл, историю и ввод',
     async (problem) => {
-      await invoke({ action: 'save', document: document(2027), saveAs: false })
+      await openDocument(document(2027))
       await edit({ kind: 'add', draft })
       const old = await editorState()
       if (problem === 'read')
@@ -1221,7 +1212,7 @@ describe('планы в main', () => {
       })
       expect(await editorState()).toEqual(old)
       expect(await edit({ kind: 'save', saveAs: false })).toMatchObject({ status: 'editor' })
-      expect(dialogs.save).toHaveBeenCalledTimes(1)
+      expect(dialogs.save).not.toHaveBeenCalled()
       expect(decodePlan(await readFile(path, 'utf8'))).toMatchObject({
         ok: true,
         value: { works: [{ note: draft.note }] },
@@ -1229,7 +1220,7 @@ describe('планы в main', () => {
     },
   )
   it('не создаёт новый план по устаревшей ревизии', async () => {
-    await invoke({ action: 'update', document: document(2027) })
+    await openDocument(document(2027))
     expect(
       await invoke({
         action: 'editor',

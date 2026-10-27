@@ -31,11 +31,11 @@ describe('Пакетное задание PDF в main', () => {
     ).toMatchObject({ done: 2 })
     expect(writer.write).not.toHaveBeenCalled()
     expect(await jobs.finish(started.job, 3)).toEqual({ ok: true, value: undefined })
-    expect(writer.write).toHaveBeenCalledExactlyOnceWith('/учебная/ПД 2027.pdf', [
-      page,
-      page,
-      { ...page, number: 2 },
-    ])
+    expect(writer.write).toHaveBeenCalledExactlyOnceWith(
+      '/учебная/ПД 2027.pdf',
+      [page, page, { ...page, number: 2 }],
+      { replace: true },
+    )
     expect((await jobs.finish(started.job, 3)).ok).toBe(false)
   })
   it('режим «папка» пишет файл на каждый ПД и не перезаписывает существующие', async () => {
@@ -50,9 +50,9 @@ describe('Пакетное задание PDF в main', () => {
     expect(writer.existing).toHaveBeenLastCalledWith('/учебная', ['ПД_1.pdf', 'ПД_1 (2).pdf'])
     await jobs.add(started.job, 3, 'a', [page])
     await jobs.add(started.job, 3, 'b', [page])
-    expect(vi.mocked(writer.write).mock.calls.map(([path]) => path)).toEqual([
-      '/учебная/ПД_1.pdf',
-      '/учебная/ПД_1 (2).pdf',
+    expect(vi.mocked(writer.write).mock.calls.map(([path, , options]) => [path, options])).toEqual([
+      ['/учебная/ПД_1.pdf', { replace: false }],
+      ['/учебная/ПД_1 (2).pdf', { replace: false }],
     ])
     expect(await jobs.finish(started.job, 3)).toEqual({ ok: true, value: undefined })
   })
@@ -109,5 +109,28 @@ describe('Пакетное задание PDF в main', () => {
         Array.from({ length: 101 }, () => page),
       ),
     ).toMatchObject({ ok: false, error: { message: expect.stringContaining('не более 300') } })
+  })
+  it('ограничивает общий объём листов одного PDF тем же бюджетом, что окно печати', async () => {
+    const { writer, jobs } = setup()
+    const started = value(await jobs.start(3, 'file', ['a', 'b'], ['ПД-1', 'ПД-2'], 'x.pdf'))
+    if (started === 'cancelled') throw new Error('отмена')
+    const text = {
+      kind: 'text' as const,
+      x: mm(1),
+      y: mm(1),
+      text: 'Учебный'.repeat(1400),
+      font: { family: 'PT Sans' as const, weight: 400 as const, size: mm(3) },
+    }
+    // Около 10 МБ на лист: 4 листа проходят, ещё 3 превышают 64 МиБ при 7 листах из 300.
+    const heavy = { ...page, primitives: Array.from({ length: 1000 }, () => text) }
+    expect(value(await jobs.add(started.job, 3, 'a', [heavy, heavy, heavy, heavy]))).toMatchObject({
+      done: 1,
+    })
+    expect(await jobs.add(started.job, 3, 'b', [heavy, heavy, heavy])).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining('64 МиБ') },
+    })
+    expect((await jobs.finish(started.job, 3)).ok).toBe(false)
+    expect(writer.write).not.toHaveBeenCalled()
   })
 })

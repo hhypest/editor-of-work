@@ -150,11 +150,11 @@ describe('планы в main', () => {
       status: 'pdf',
       result: 'saved',
     })
-    expect(batchWriter.write).toHaveBeenCalledExactlyOnceWith(join(directory, 'ПД 2027.pdf'), [
-      page,
-      page,
-      second,
-    ])
+    expect(batchWriter.write).toHaveBeenCalledExactlyOnceWith(
+      join(directory, 'ПД 2027.pdf'),
+      [page, page, second],
+      { replace: true },
+    )
     expect(await editorState()).toMatchObject({ revision, dirty: true })
   })
   it('правка плана между листами пакета отменяет задание без записи', async () => {

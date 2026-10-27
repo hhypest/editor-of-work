@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { MAX_PDF_PAGES } from '@eow/ipc/contracts'
+import { MAX_PDF_BYTES, MAX_PDF_PAGES } from '@eow/ipc/contracts'
 import {
   pdfFileNames,
   type PdfBatchMode,
@@ -17,6 +17,8 @@ interface Job {
   readonly target: string
   readonly names: readonly string[]
   readonly pages: SheetPage[]
+  /** Размер накопленных листов в единицах строки JSON, как считает окно печати. */
+  bytes: number
   done: number
 }
 export interface PdfBatchState {
@@ -56,7 +58,17 @@ export function pdfBatchJobs(writer: PdfBatchWriter) {
         const path = await writer.chooseFile(fileName)
         if (!path) return ok('cancelled')
         if (!/\.pdf$/iu.test(path)) return err({ message: 'Укажите имя файла с расширением .pdf.' })
-        job = { id: randomUUID(), mode, revision, pds, target: path, names: [], pages: [], done: 0 }
+        job = {
+          id: randomUUID(),
+          mode,
+          revision,
+          pds,
+          target: path,
+          names: [],
+          pages: [],
+          bytes: 0,
+          done: 0,
+        }
         return ok(state(job))
       }
       const folder = await writer.chooseFolder()
@@ -80,6 +92,7 @@ export function pdfBatchJobs(writer: PdfBatchWriter) {
         target: folder,
         names: files,
         pages: [],
+        bytes: 0,
         done: 0,
       }
       return ok(state(job))
@@ -101,12 +114,19 @@ export function pdfBatchJobs(writer: PdfBatchWriter) {
           return drop(
             `В одном PDF допускается не более ${MAX_PDF_PAGES} листов. Сохраните ПД по файлам.`,
           )
+        // Тот же бюджет, что у окна печати: иначе отказ проявился бы только при печати.
+        const bytes = current.bytes + JSON.stringify(pages).length + (current.pages.length ? 1 : 0)
+        if (bytes > MAX_PDF_BYTES)
+          return drop('Листы превышают 64 МиБ для одного PDF. Сохраните ПД по файлам.')
+        current.bytes = bytes
         current.pages.push(...pages)
       } else {
         const name = current.names[current.done]
         if (name === undefined)
           return drop('Переданы лишние листы ПД. Повторите сохранение.', current.done)
-        const written = await writer.write(writer.join(current.target, name), pages)
+        const written = await writer.write(writer.join(current.target, name), pages, {
+          replace: false,
+        })
         if (!written.ok) return drop(written.error.message, current.done)
       }
       current.done++
@@ -121,7 +141,8 @@ export function pdfBatchJobs(writer: PdfBatchWriter) {
         return drop('Переданы не все ПД пакета. Повторите сохранение.', current.done)
       job = undefined
       if (current.mode === 'folder') return ok(undefined)
-      const written = await writer.write(current.target, current.pages)
+      // Замену существующего файла пользователь подтвердил в диалоге сохранения.
+      const written = await writer.write(current.target, current.pages, { replace: true })
       return written.ok ? ok(undefined) : err(written.error)
     },
     cancel(id: string): void {

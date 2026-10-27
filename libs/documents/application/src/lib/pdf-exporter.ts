@@ -44,8 +44,15 @@ export interface PdfBatchWriter {
   chooseFolder(): Promise<string | undefined>
   /** Какие из имён уже заняты в папке: такие файлы не перезаписываются молча. */
   existing(folder: string, names: readonly string[]): Promise<readonly string[]>
-  /** Печатает листы одним файлом и атомарно записывает его. */
-  write(path: string, pages: readonly SheetPage[]): Promise<Result<void, SheetError>>
+  /**
+   * Печатает листы одним файлом и атомарно записывает его. replace: false — файл в
+   * папке: если имя занято к моменту записи, ничего не заменяется.
+   */
+  write(
+    path: string,
+    pages: readonly SheetPage[],
+    options: { readonly replace: boolean },
+  ): Promise<Result<void, SheetError>>
   /** Путь файла в выбранной папке. */
   join(folder: string, name: string): string
 }

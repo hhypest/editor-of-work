@@ -2,7 +2,12 @@ import { mkdtemp, readFile, readdir, mkdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { mm, type SheetPage } from '@eow/documents/application'
-import { pdfBatchWriter, pdfExporter, writePdfAtomically } from './pdf-exporter'
+import {
+  pdfBatchWriter,
+  pdfExporter,
+  writePdfAtomically,
+  writePdfExclusively,
+} from './pdf-exporter'
 const page: SheetPage = { width: mm(420), height: mm(297), number: 2, primitives: [] }
 const bytes = new TextEncoder().encode('%PDF-учебный')
 let directory: string
@@ -85,7 +90,7 @@ describe('запись пакета PDF', () => {
     const writer = pdfBatchWriter(dialogs, render)
     expect(await writer.existing(directory, ['ПД-1.pdf', 'ПД-2.pdf'])).toEqual(['ПД-1.pdf'])
     const target = writer.join(directory, 'ПД-2.pdf')
-    expect(await writer.write(target, [page, { ...page, number: 3 }])).toEqual({
+    expect(await writer.write(target, [page, { ...page, number: 3 }], { replace: false })).toEqual({
       ok: true,
       value: undefined,
     })
@@ -106,8 +111,36 @@ describe('запись пакета PDF', () => {
           throw new Error('учебный отказ записи')
         },
       )
-      expect((await writer.write(join(directory, 'ПД.pdf'), [page])).ok).toBe(false)
+      expect((await writer.write(join(directory, 'ПД.pdf'), [page], { replace: true })).ok).toBe(
+        false,
+      )
       expect(await readdir(directory)).toEqual([])
     },
   )
+  it('файл в папке, появившийся после проверки, не заменяется; файл из диалога заменяется', async () => {
+    const writer = pdfBatchWriter(dialogs, async () => bytes)
+    const target = join(directory, 'ПД-1.pdf')
+    await writeFile(target, 'чужой документ')
+    expect(await writer.write(target, [page], { replace: false })).toEqual({
+      ok: false,
+      error: {
+        message: 'Файл «ПД-1.pdf» появился в папке во время сохранения и не перезаписан.',
+      },
+    })
+    expect(await readFile(target, 'utf8')).toBe('чужой документ')
+    expect(await readdir(directory)).toEqual(['ПД-1.pdf'])
+    expect(await writer.write(target, [page], { replace: true })).toEqual({
+      ok: true,
+      value: undefined,
+    })
+    expect(await readFile(target)).toEqual(Buffer.from(bytes))
+  })
+  it('записывает новый файл без замены существующего и без временных файлов', async () => {
+    const target = join(directory, 'ПД-2.pdf')
+    await writePdfExclusively(target, bytes)
+    expect(await readFile(target)).toEqual(Buffer.from(bytes))
+    await expect(writePdfExclusively(target, new Uint8Array([1]))).rejects.toThrow('ПД-2.pdf')
+    expect(await readFile(target)).toEqual(Buffer.from(bytes))
+    expect(await readdir(directory)).toEqual(['ПД-2.pdf'])
+  })
 })

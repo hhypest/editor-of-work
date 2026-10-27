@@ -21,6 +21,9 @@ import {
   expectedAreaAllowed,
   expectedIndicatorsOf,
   setExpectedIndicators,
+  datedAreaAllowed,
+  datedIndicatorsOf,
+  setDatedIndicators,
   itemAreaAllowed,
   itemsOf,
   setPlanItems,
@@ -238,6 +241,27 @@ export function changeEditor(
       ? ok(commit(session, changed.value))
       : err(changed.error.map((e) => issue(describePlanError(e))))
   }
+  if (change.kind === 'datedRows') {
+    const area = editorArea(areaId)
+    if (!area || !areaExists(area, session.present.basis))
+      return err([issue('Выберите область из среза плана.')])
+    const rows = []
+    for (const [index, row] of change.rows.entries()) {
+      const previous = signedNumber(row.previous),
+        current = signedNumber(row.current)
+      if (previous === undefined || current === undefined)
+        return err([
+          issue(
+            `Показатель ${index + 1}: введите число или оставьте значение пустым; десятичная часть — через запятую или точку.`,
+          ),
+        ])
+      rows.push({ id: row.id ?? ids.next(), name: row.name, previous, current })
+    }
+    const changed = setDatedIndicators(session.present, area, rows)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'approval') {
     const result = setApproval(session.present, {
       title: change.title,
@@ -321,6 +345,7 @@ export function editorView(
         ? PD_TABLE_KINDS.map((key) => ({
             key,
             label: {
+              dated: 'Показатели',
               current: 'План текущего содержания',
               capital: 'Капитальные работы',
               other: 'Прочие работы',
@@ -341,6 +366,7 @@ export function editorView(
           rows: itemsOf(plan, area, table).map((row) => ({ ...row })),
         }))
       : null,
+    dated: datedAreaAllowed(area) ? datedIndicatorsOf(plan, area).map((row) => ({ ...row })) : null,
     expected: expectedAreaAllowed(area)
       ? expectedIndicatorsOf(plan, area).map((row) => ({ ...row }))
       : null,

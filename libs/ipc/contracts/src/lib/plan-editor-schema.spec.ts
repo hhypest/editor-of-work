@@ -9,7 +9,7 @@ describe('Контракт редактора', () => {
     })
     expect(channels.planFile.request.safeParse(request(['works', 'current'])).success).toBe(true)
     expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
-    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 11 }, () => 'works')])
+    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 12 }, () => 'works')])
       expect(channels.planFile.request.safeParse(request(hidden)).success).toBe(false)
     expect(
       channels.planFile.request.safeParse({ ...request([]), path: '/unexpected' }).success,
@@ -87,6 +87,37 @@ describe('Контракт редактора', () => {
       channels.planFile.request.safeParse(request(Array.from({ length: 10001 }, () => row)))
         .success,
     ).toBe(false)
+  })
+  it('проверяет строгий пакет таблицы «Показатели» с текстом значений', () => {
+    const row = { id: null, name: 'Учебный показатель', previous: '', current: '1,5' }
+    const request = (rows: unknown[]) => ({
+      action: 'editor',
+      command: { kind: 'datedRows', rows },
+      revision: 1,
+      area: 'pd:a',
+    })
+    expect(channels.planFile.request.safeParse(request([row])).success).toBe(true)
+    expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
+    for (const invalid of [
+      { ...row, previous: null },
+      { ...row, current: 1 },
+      { ...row, unit: '' },
+      { ...row, id: 4 },
+      { id: null, name: '', previous: '' },
+    ])
+      expect(channels.planFile.request.safeParse(request([invalid])).success).toBe(false)
+    expect(
+      channels.planFile.request.safeParse(request(Array.from({ length: 10001 }, () => row)))
+        .success,
+    ).toBe(false)
+    expect(
+      channels.planFile.request.safeParse({
+        action: 'editor',
+        command: { kind: 'pdTables', hidden: ['dated'] },
+        revision: 1,
+        area: 'pd:a',
+      }).success,
+    ).toBe(true)
   })
   it('проверяет строгий пакет перечня работ', () => {
     const row = { id: null, name: 'Учебная работа', unit: 'м3', quantity: '1', cost: '0' }

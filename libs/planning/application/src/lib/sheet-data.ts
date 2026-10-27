@@ -1,6 +1,8 @@
 import type { PlanSheetData } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
 import {
+  datedChange,
+  datedIndicatorsOf,
   expectedIndicatorsOf,
   indicatorsOf,
   itemsOf,
@@ -103,6 +105,33 @@ export function planSheetData(
       const hidden = hiddenPdTablesOf(plan, pd.id)
       const append = (kind: PdTableKind, table: PdSheetTable): void => {
         if (!hidden.includes(kind)) tables.push(table)
+      }
+      // «Показатели» на 01.01 идут первыми, как в листах прототипа; изменение и процент
+      // считаются при выводе и не хранятся (ADR-0038).
+      const dated = datedIndicatorsOf(plan, area)
+      if (dated.length) {
+        const value = (v: number | null) => (v === null ? '' : rounded(v, 3))
+        const signed = (text: string, v: number) => (v > 0 && text !== '0' ? `+${text}` : text)
+        append('dated', {
+          title: 'Показатели',
+          columns: [
+            { title: 'Показатель', width: 200 },
+            { title: `на 01.01.${plan.year - 1}`, width: 55 },
+            { title: `на 01.01.${plan.year}`, width: 55 },
+            { title: '+/−', width: 45 },
+            { title: '%', width: 35 },
+          ],
+          rows: dated.map((row) => {
+            const { delta, percent } = datedChange(row)
+            return [
+              row.name,
+              value(row.previous),
+              value(row.current),
+              delta === null ? '' : signed(rounded(delta, 3), delta),
+              percent === null ? '—' : rounded(percent, 1),
+            ]
+          }),
+        })
       }
       for (const [group, title] of [
         ['current', 'План текущего содержания'],

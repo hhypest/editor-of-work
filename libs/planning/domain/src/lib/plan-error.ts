@@ -33,6 +33,10 @@ export type PlanError =
   | { readonly kind: 'invalid-manual-value'; readonly value: number }
   | { readonly kind: 'invalid-indicator'; readonly reason: 'id' | 'name' | 'value' | 'limit' }
   | {
+      readonly kind: 'invalid-dated'
+      readonly reason: 'id' | 'name' | 'value' | 'limit' | 'area'
+    }
+  | {
       readonly kind: 'invalid-expected'
       readonly reason: 'id' | 'group' | 'value' | 'limit' | 'area'
     }
@@ -83,6 +87,14 @@ export function describePlanError(e: PlanError): string {
         limit: 'В одном перечне допускается не более 10 000 строк',
         area: 'Подрядные работы, ИССО и ЗП ведутся только для дистанции и ПД',
         kind: 'Неизвестный перечень работ',
+      }[e.reason]
+    case 'invalid-dated':
+      return {
+        id: 'Идентификаторы строк таблицы «Показатели» должны быть непустыми и уникальными в области',
+        name: 'Укажите наименование каждого показателя',
+        value: 'Значение показателя на 01.01 должно быть конечным числом или пустым',
+        limit: 'В одной области допускается не более 10 000 строк таблицы «Показатели»',
+        area: 'Таблица «Показатели» ведётся только для дистанции и ПД',
       }[e.reason]
     case 'invalid-expected':
       return {

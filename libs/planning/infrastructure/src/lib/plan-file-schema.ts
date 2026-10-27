@@ -310,7 +310,7 @@ export const planFileV6Schema = planFileV5Schema
   })
   .strict()
 /** v7: перечни подрядных работ, ИССО и ЗП дистанции и ПД; ключи их таблиц в составе листов ПД. */
-export const planFileSchema = planFileV6Schema
+export const planFileV7Schema = planFileV6Schema
   .extend({
     format: z.object({ version: z.literal(7), appVersion: id }).strict(),
     plan: planFileV6Schema.shape.plan
@@ -355,6 +355,62 @@ export const planFileSchema = planFileV6Schema
                       unit: z.string(),
                       quantity: z.number(),
                       cost: z.number(),
+                    })
+                    .strict(),
+                )
+                .max(10000),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
+/** v8: таблица «Показатели» на 01.01 двух лет для дистанции и ПД; ключ «dated» в составе листов ПД. */
+export const planFileSchema = planFileV7Schema
+  .extend({
+    format: z.object({ version: z.literal(8), appVersion: id }).strict(),
+    plan: planFileV7Schema.shape.plan
+      .extend({
+        pdHiddenTables: z.array(
+          z
+            .object({
+              pd: id,
+              hidden: z
+                .array(
+                  z.enum([
+                    'dated',
+                    'current',
+                    'capital',
+                    'other',
+                    'summary',
+                    'works',
+                    'indicators',
+                    'expected',
+                    'contract',
+                    'isso',
+                    'zp',
+                  ]),
+                )
+                .max(11),
+            })
+            .strict(),
+        ),
+        datedIndicators: z.array(
+          z
+            .object({
+              area: z.discriminatedUnion('kind', [
+                z.object({ kind: z.literal('district') }).strict(),
+                z.object({ kind: z.literal('pd'), pd: id }).strict(),
+              ]),
+              rows: z
+                .array(
+                  z
+                    .object({
+                      id,
+                      name: z.string(),
+                      previous: z.number().nullable(),
+                      current: z.number().nullable(),
                     })
                     .strict(),
                 )

@@ -24,6 +24,7 @@ const state: EditorState = {
     area: 'district',
     works: [],
     indicators: [],
+    dated: [],
     expected: [],
     items: [],
     pdScale: null,
@@ -696,6 +697,78 @@ describe('Редактор плана', () => {
     expect(element.textContent).not.toContain('Работы подрядным способом')
     facade.addItem('contract')
     expect(facade.itemDrafts().contract).toBeNull()
+  })
+  it('ведёт таблицу «Показатели» черновиком с годами в заголовках, Ctrl+S применяет пакет', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: {
+        ...state,
+        view: {
+          ...state.view!,
+          year: 2027,
+          dated: [{ id: 'd', name: 'Учебная протяжённость', previous: 10.5, current: null }],
+        },
+      },
+    })
+    const { facade, fixture, element } = await setup(port)
+    const section = element.querySelector('[aria-labelledby="dated-title"]')!
+    expect(section.textContent).toContain('на 01.01.2026')
+    expect(section.textContent).toContain('на 01.01.2027')
+    expect(facade.datedRows()).toEqual([
+      { id: 'd', name: 'Учебная протяжённость', previous: '10,5', current: '' },
+    ])
+    facade.addDated()
+    fixture.detectChanges()
+    const current = element.querySelector<HTMLInputElement>(
+      '[aria-label="Значение на начало года плана, строка 2"]',
+    )!
+    current.value = '-1,5'
+    current.dispatchEvent(new Event('input'))
+    await fixture.whenStable()
+    facade.patchDated(1, { name: '<Учебный новый>' })
+    facade.moveDated(1, -1)
+    expect(facade.pending()).toBe(true)
+    element.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        code: 'KeyS',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      }),
+    )
+    await fixture.whenStable()
+    expect(
+      vi
+        .mocked(port.send)
+        .mock.calls.slice(-2)
+        .map(([c]) => c),
+    ).toEqual([
+      {
+        kind: 'datedRows',
+        rows: [
+          { id: null, name: '<Учебный новый>', previous: '', current: '-1,5' },
+          { id: 'd', name: 'Учебная протяжённость', previous: '10,5', current: '' },
+        ],
+      },
+      { kind: 'save', saveAs: false },
+    ])
+    expect(facade.pending()).toBe(false)
+    facade.removeDated(0)
+    expect(facade.pending()).toBe(true)
+    facade.cancelDated()
+    expect(facade.pending()).toBe(false)
+  })
+  it('не показывает таблицу «Показатели» для станции', async () => {
+    const port = client()
+    vi.mocked(port.send).mockResolvedValue({
+      kind: 'state',
+      state: { ...state, view: { ...state.view!, area: 'station:s', dated: null } },
+    })
+    const { facade, element } = await setup(port)
+    expect(element.querySelector('#dated-title')).toBeNull()
+    facade.addDated()
+    expect(facade.datedDraft()).toBeNull()
   })
   it('не показывает ожидаемые показатели для станции', async () => {
     const port = client()

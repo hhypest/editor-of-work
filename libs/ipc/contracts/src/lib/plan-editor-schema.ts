@@ -5,6 +5,7 @@ const text = z.string(),
 const approval = z.object({ title: text, name: text, year: z.number().int() }).strict()
 const edition = z.object({ number: id, date: z.iso.date() }).strict()
 const pdTableKey = z.enum([
+  'dated',
   'current',
   'capital',
   'other',
@@ -35,7 +36,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('pdTables'),
-      hidden: z.array(pdTableKey).max(10),
+      hidden: z.array(pdTableKey).max(11),
     })
     .strict(),
   z
@@ -51,6 +52,14 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
         .array(
           z.object({ id: id.nullable(), name: text, unit: text, value: text, note: text }).strict(),
         )
+        .max(10000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('datedRows'),
+      rows: z
+        .array(z.object({ id: id.nullable(), name: text, previous: text, current: text }).strict())
         .max(10000),
     })
     .strict(),
@@ -141,7 +150,7 @@ const view = z
           })
           .strict(),
       )
-      .max(10),
+      .max(11),
     items: z
       .array(
         z
@@ -169,6 +178,19 @@ const view = z
     indicators: z
       .array(z.object({ id, name: text, unit: text, value: z.number(), note: text }).strict())
       .max(10000),
+    dated: z
+      .array(
+        z
+          .object({
+            id,
+            name: text,
+            previous: z.number().nullable(),
+            current: z.number().nullable(),
+          })
+          .strict(),
+      )
+      .max(10000)
+      .nullable(),
     expected: z
       .array(
         z

@@ -162,7 +162,7 @@ describe('Характеристики в SQLite', () => {
   afterEach(async () => {
     db.close()
     await store.close()
-    await rm(directory, { recursive: true, force: true })
+    await rm(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   async function input(): Promise<SegmentImport> {
     return fixture(value(await store.segmentBasis(id)).token)

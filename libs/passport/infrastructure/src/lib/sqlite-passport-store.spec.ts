@@ -36,7 +36,7 @@ describe('SQLite паспорта', () => {
   afterEach(async () => {
     for (const database of connections) database.close()
     for (const store of stores) await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   async function open(): Promise<PassportDatabase> {
     const store = await openPassportDatabase(path, migrations)

@@ -55,7 +55,7 @@ describe('Бюджет чтения плана и прототипа', () => {
       await expect(readPlanText(path)).rejects.toThrow('80 МиБ')
       await rm(path)
     } finally {
-      await rm(root, { recursive: true, force: true })
+      await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
     }
   })
 })

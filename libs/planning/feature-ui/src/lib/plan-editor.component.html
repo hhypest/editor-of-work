@@ -608,6 +608,106 @@
         </button>
       </fieldset>
     </section>
+    @if (facade.view()?.dated) {
+      <section aria-labelledby="dated-title">
+        <h3 id="dated-title">Показатели</h3>
+        <p>
+          Значения на 01.01.{{ (facade.view()?.year ?? 0) - 1 }} и на 01.01.{{
+            facade.view()?.year ?? 0
+          }}
+          для дистанции и каждого ПД. Изменение и процент считаются на листе; пустое значение не
+          равно нулю.
+        </p>
+        <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">
+          <legend>Показатели на 01.01</legend>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Показатель</th>
+                  <th scope="col">на 01.01.{{ (facade.view()?.year ?? 0) - 1 }}</th>
+                  <th scope="col">на 01.01.{{ facade.view()?.year ?? 0 }}</th>
+                  <th scope="col">Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of facade.datedRows(); track $index) {
+                  <tr>
+                    <td>
+                      <input
+                        [attr.aria-label]="'Показатель на 01.01, строка ' + ($index + 1)"
+                        [ngModel]="row.name"
+                        (ngModelChange)="facade.patchDated($index, { name: $event })"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        inputmode="decimal"
+                        [attr.aria-label]="
+                          'Значение на начало прошлого года, строка ' + ($index + 1)
+                        "
+                        [ngModel]="row.previous"
+                        (ngModelChange)="facade.patchDated($index, { previous: $event })"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        inputmode="decimal"
+                        [attr.aria-label]="'Значение на начало года плана, строка ' + ($index + 1)"
+                        [ngModel]="row.current"
+                        (ngModelChange)="facade.patchDated($index, { current: $event })"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        [disabled]="$first"
+                        (click)="facade.moveDated($index, -1)"
+                      >
+                        Выше {{ $index + 1 }}</button
+                      ><button
+                        type="button"
+                        [disabled]="$last"
+                        (click)="facade.moveDated($index, 1)"
+                      >
+                        Ниже {{ $index + 1 }}</button
+                      ><button type="button" (click)="facade.removeDated($index)">
+                        Удалить показатель на 01.01 {{ $index + 1 }}
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="4">Показатели не заданы.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            [disabled]="facade.datedRows().length >= 10000"
+            (click)="facade.addDated()"
+          >
+            Добавить показатель на 01.01
+          </button>
+          <button
+            type="button"
+            [disabled]="facade.datedDraft() === null"
+            (click)="facade.applyDated()"
+          >
+            Применить показатели на 01.01
+          </button>
+          <button
+            type="button"
+            [disabled]="facade.datedDraft() === null"
+            (click)="facade.cancelDated()"
+          >
+            Отменить ввод показателей на 01.01
+          </button>
+        </fieldset>
+      </section>
+    }
     @if (facade.view()?.expected) {
       <section aria-labelledby="expected-title">
         <h3 id="expected-title">

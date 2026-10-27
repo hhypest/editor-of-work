@@ -74,6 +74,16 @@ export interface PrototypeTransfer {
       readonly value: number | null
     }[]
   }[]
+  /** Таблица «Показатели» из `tables[область].indicators` прототипа: только дистанция и ПД. */
+  readonly dated: readonly {
+    readonly area: { readonly kind: 'district' } | { readonly kind: 'pd'; readonly pd: string }
+    readonly rows: readonly {
+      readonly id: string
+      readonly name: string
+      readonly previous: number | null
+      readonly current: number | null
+    }[]
+  }[]
   /** Перечни `tables[область].contract|isso|zp` прототипа: только дистанция и ПД. */
   readonly items: readonly {
     readonly area: { readonly kind: 'district' } | { readonly kind: 'pd'; readonly pd: string }

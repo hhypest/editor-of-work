@@ -5,8 +5,10 @@ import {
   planBasis,
   setExpectedIndicators,
   setManualValue,
+  setDatedIndicators,
   setPlanItems,
   workId,
+  type DatedIndicator,
   type ExpectedIndicator,
   type ItemTableKind,
   type PlanItem,
@@ -34,6 +36,10 @@ export interface ImportedPlanDraft {
   readonly expected: readonly {
     readonly area: PlanArea
     readonly rows: readonly ExpectedIndicator[]
+  }[]
+  readonly dated: readonly {
+    readonly area: PlanArea
+    readonly rows: readonly DatedIndicator[]
   }[]
   readonly items: readonly {
     readonly area: PlanArea
@@ -79,6 +85,12 @@ export function buildImportedPlan(
       errors.push(
         ...next.error.map((e) => ({ path: `expected.${i}`, message: describePlanError(e) })),
       )
+    else plan = next.value
+  }
+  for (const [i, entry] of input.dated.entries()) {
+    const next = setDatedIndicators(plan, entry.area, entry.rows)
+    if (!next.ok)
+      errors.push(...next.error.map((e) => ({ path: `dated.${i}`, message: describePlanError(e) })))
     else plan = next.value
   }
   for (const [i, entry] of input.items.entries()) {

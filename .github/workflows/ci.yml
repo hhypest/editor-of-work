@@ -42,3 +42,15 @@ jobs:
           path: test-results/electron-runtime/report.json
           if-no-files-found: error
           retention-days: 14
+      - name: End-to-end scenario in production Electron build
+        if: runner.os == 'Windows'
+        timeout-minutes: 15
+        run: npm run test:e2e
+      - name: End-to-end report
+        if: runner.os == 'Windows' && !cancelled()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-windows
+          path: test-results/e2e/
+          if-no-files-found: warn
+          retention-days: 14

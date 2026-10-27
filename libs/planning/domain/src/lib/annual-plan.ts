@@ -4,6 +4,7 @@ import type { PlanBasis } from './plan-basis'
 import type { PlanError } from './plan-error'
 import type { ExpectedIndicator } from './expected-indicators'
 import type { PlanIndicator } from './indicators'
+import type { PlanItem } from './item-tables'
 import type { PdScale } from './pd-scale'
 import type { PdTableKind } from './pd-tables'
 import {
@@ -41,6 +42,8 @@ export interface AnnualPlan {
   readonly indicators: ReadonlyMap<string, readonly PlanIndicator[]>
   /** Ожидаемые показатели на 01.01 следующего года: дистанция и ПД. */
   readonly expectedIndicators: ReadonlyMap<string, readonly ExpectedIndicator[]>
+  /** Перечни подрядных работ, ИССО и ЗП по ключу {@link itemTableKey}. */
+  readonly itemTables: ReadonlyMap<string, readonly PlanItem[]>
   readonly pdScales: ReadonlyMap<string, PdScale>
   readonly pdHiddenTables: ReadonlyMap<string, readonly PdTableKind[]>
 }
@@ -100,6 +103,7 @@ export function createAnnualPlan(
     manual: new Map(),
     indicators: new Map(),
     expectedIndicators: new Map(),
+    itemTables: new Map(),
     pdScales: new Map(),
     pdHiddenTables: new Map(),
   })

@@ -257,7 +257,7 @@ export const planFileV5Schema = planFileV4Schema
   .strict()
 
 /** v6: ожидаемые показатели дистанции и ПД; в составе таблиц ПД появился ключ «expected». */
-export const planFileSchema = planFileV5Schema
+export const planFileV6Schema = planFileV5Schema
   .extend({
     format: z.object({ version: z.literal(6), appVersion: id }).strict(),
     plan: planFileV5Schema.shape.plan
@@ -298,6 +298,63 @@ export const planFileSchema = planFileV5Schema
                       name: z.string(),
                       unit: z.string(),
                       value: z.number().nullable(),
+                    })
+                    .strict(),
+                )
+                .max(10000),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
+/** v7: перечни подрядных работ, ИССО и ЗП дистанции и ПД; ключи их таблиц в составе листов ПД. */
+export const planFileSchema = planFileV6Schema
+  .extend({
+    format: z.object({ version: z.literal(7), appVersion: id }).strict(),
+    plan: planFileV6Schema.shape.plan
+      .extend({
+        pdHiddenTables: z.array(
+          z
+            .object({
+              pd: id,
+              hidden: z
+                .array(
+                  z.enum([
+                    'current',
+                    'capital',
+                    'other',
+                    'summary',
+                    'works',
+                    'indicators',
+                    'expected',
+                    'contract',
+                    'isso',
+                    'zp',
+                  ]),
+                )
+                .max(10),
+            })
+            .strict(),
+        ),
+        itemTables: z.array(
+          z
+            .object({
+              area: z.discriminatedUnion('kind', [
+                z.object({ kind: z.literal('district') }).strict(),
+                z.object({ kind: z.literal('pd'), pd: id }).strict(),
+              ]),
+              kind: z.enum(['contract', 'isso', 'zp']),
+              rows: z
+                .array(
+                  z
+                    .object({
+                      id,
+                      name: z.string(),
+                      unit: z.string(),
+                      quantity: z.number(),
+                      cost: z.number(),
                     })
                     .strict(),
                 )

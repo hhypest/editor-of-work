@@ -713,6 +713,102 @@
         </fieldset>
       </section>
     }
+    @if (facade.view()?.items; as itemTables) {
+      @for (list of itemTables; track list.table) {
+        <section [attr.aria-labelledby]="'items-title-' + list.table">
+          <h3 [id]="'items-title-' + list.table">{{ list.title }}</h3>
+          <p>
+            Объём — в единице строки, стоимость — в тыс. руб.; пустое поле считается нулём. На лист
+            ПД выводятся строки с объёмом или стоимостью; если таких нет, лист сообщает, что работ
+            нет.
+          </p>
+          <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">
+            <legend>{{ list.title }}</legend>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Наименование</th>
+                    <th scope="col">Единица</th>
+                    <th scope="col">Объём</th>
+                    <th scope="col">Стоимость, тыс. руб.</th>
+                    <th scope="col">Действие</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of facade.itemRows(list.table); track $index) {
+                    <tr>
+                      <td>
+                        <input
+                          [attr.aria-label]="list.title + ': наименование, строка ' + ($index + 1)"
+                          [ngModel]="row.name"
+                          (ngModelChange)="facade.patchItem(list.table, $index, { name: $event })"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          [attr.aria-label]="list.title + ': единица, строка ' + ($index + 1)"
+                          [ngModel]="row.unit"
+                          (ngModelChange)="facade.patchItem(list.table, $index, { unit: $event })"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          inputmode="decimal"
+                          [attr.aria-label]="list.title + ': объём, строка ' + ($index + 1)"
+                          [ngModel]="row.quantity"
+                          (ngModelChange)="
+                            facade.patchItem(list.table, $index, { quantity: $event })
+                          "
+                        />
+                      </td>
+                      <td>
+                        <input
+                          inputmode="decimal"
+                          [attr.aria-label]="list.title + ': стоимость, строка ' + ($index + 1)"
+                          [ngModel]="row.cost"
+                          (ngModelChange)="facade.patchItem(list.table, $index, { cost: $event })"
+                        />
+                      </td>
+                      <td>
+                        <button type="button" (click)="facade.removeItem(list.table, $index)">
+                          Удалить строку {{ $index + 1 }}
+                        </button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="5">Работы не заданы.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <button
+              type="button"
+              [disabled]="facade.itemRows(list.table).length >= 10000"
+              (click)="facade.addItem(list.table)"
+            >
+              Добавить работу в перечень «{{ list.title }}»
+            </button>
+            <button
+              type="button"
+              [disabled]="facade.itemDrafts()[list.table] === null"
+              (click)="facade.applyItems(list.table)"
+            >
+              Применить перечень «{{ list.title }}»
+            </button>
+            <button
+              type="button"
+              [disabled]="facade.itemDrafts()[list.table] === null"
+              (click)="facade.cancelItems(list.table)"
+            >
+              Отменить ввод перечня «{{ list.title }}»
+            </button>
+          </fieldset>
+        </section>
+      }
+    }
     <details>
       <summary>Гриф утверждения</summary>
       <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">

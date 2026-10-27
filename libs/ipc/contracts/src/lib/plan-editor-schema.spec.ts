@@ -9,7 +9,7 @@ describe('Контракт редактора', () => {
     })
     expect(channels.planFile.request.safeParse(request(['works', 'current'])).success).toBe(true)
     expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
-    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 8 }, () => 'works')])
+    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 11 }, () => 'works')])
       expect(channels.planFile.request.safeParse(request(hidden)).success).toBe(false)
     expect(
       channels.planFile.request.safeParse({ ...request([]), path: '/unexpected' }).success,
@@ -87,5 +87,21 @@ describe('Контракт редактора', () => {
       channels.planFile.request.safeParse(request(Array.from({ length: 10001 }, () => row)))
         .success,
     ).toBe(false)
+  })
+  it('проверяет строгий пакет перечня работ', () => {
+    const row = { id: null, name: 'Учебная работа', unit: 'м3', quantity: '1', cost: '0' }
+    const request = (command: object) => ({ action: 'editor', command, revision: 1, area: 'pd:a' })
+    expect(
+      channels.planFile.request.safeParse(request({ kind: 'itemRows', table: 'isso', rows: [row] }))
+        .success,
+    ).toBe(true)
+    for (const command of [
+      { kind: 'itemRows', table: 'чужой', rows: [row] },
+      { kind: 'itemRows', table: 'zp', rows: [{ ...row, quantity: 1 }] },
+      { kind: 'itemRows', table: 'zp', rows: [{ ...row, note: '' }] },
+      { kind: 'itemRows', rows: [row] },
+      { kind: 'itemRows', table: 'zp', rows: Array.from({ length: 10001 }, () => row) },
+    ])
+      expect(channels.planFile.request.safeParse(request(command)).success).toBe(false)
   })
 })

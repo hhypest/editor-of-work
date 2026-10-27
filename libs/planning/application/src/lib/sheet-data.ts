@@ -3,6 +3,10 @@ import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/ker
 import {
   expectedIndicatorsOf,
   indicatorsOf,
+  itemsOf,
+  printedItems,
+  ITEM_TABLE_KINDS,
+  ITEM_TABLE_TITLES,
   hiddenPdTablesOf,
   type PdTableKind,
   pdScaleOf,
@@ -14,6 +18,16 @@ import {
 
 type PdSheetTable = PlanSheetData['pds'][number]['tables'][number]
 const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).replace('.', ',')
+/**
+ * Округление по десятичной записи: 1,255 → 1,26, а не 1,25 из-за двоичной погрешности
+ * умножения. Большое конечное число не превращается в Infinity (ADR-0026).
+ */
+const rounded = (value: number, digits: number): string => {
+  if (Math.abs(value) >= 1e15) return String(value).replace('.', ',')
+  const [mantissa, exponent] = value.toExponential().split('e')
+  const shifted = Math.round(Number(`${mantissa}e${Number(exponent) + digits}`))
+  return String(Number(`${shifted}e-${digits}`) || 0).replace('.', ',')
+}
 
 export function planSheetData(
   plan: AnnualPlan,
@@ -154,6 +168,28 @@ export function planSheetData(
             row.value === null ? '' : String(row.value).replace('.', ','),
           ]),
         })
+      // Перечни выводятся, если в области заведены строки; без объёма и стоимости — «Нет работ».
+      for (const kind of ITEM_TABLE_KINDS) {
+        const rows = itemsOf(plan, area, kind)
+        if (rows.length)
+          append(kind, {
+            title: ITEM_TABLE_TITLES[kind],
+            columns: [
+              { title: '№', width: 15 },
+              { title: 'Наименование', width: 215 },
+              { title: 'Ед. изм.', width: 40 },
+              { title: 'Объём', width: 55 },
+              { title: 'Стоимость, тыс. руб.', width: 65 },
+            ],
+            rows: printedItems(rows).map((row, i) => [
+              String(i + 1),
+              row.name,
+              row.unit,
+              rounded(row.quantity, 6),
+              rounded(row.cost, 2),
+            ]),
+          })
+      }
       append('works', {
         title: 'Ведомость работ ПД',
         workIds: works.map((w) => w.id),

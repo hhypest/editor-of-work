@@ -21,6 +21,11 @@ import {
   expectedAreaAllowed,
   expectedIndicatorsOf,
   setExpectedIndicators,
+  itemAreaAllowed,
+  itemsOf,
+  setPlanItems,
+  ITEM_TABLE_KINDS,
+  ITEM_TABLE_TITLES,
   pdScaleOf,
   setPdScale,
   setPdHiddenTables,
@@ -185,6 +190,33 @@ export function changeEditor(
       ? ok(commit(session, changed.value))
       : err(changed.error.map((e) => issue(describePlanError(e))))
   }
+  if (change.kind === 'itemRows') {
+    const area = editorArea(areaId)
+    if (!area || !areaExists(area, session.present.basis))
+      return err([issue('Выберите область из среза плана.')])
+    const rows = []
+    for (const [index, row] of change.rows.entries()) {
+      const quantity = editorNumber(row.quantity),
+        cost = editorNumber(row.cost)
+      if (!quantity.ok || !cost.ok)
+        return err([
+          issue(
+            `Строка ${index + 1}: объём и стоимость — неотрицательные числа; десятичная часть — через запятую или точку.`,
+          ),
+        ])
+      rows.push({
+        id: row.id ?? ids.next(),
+        name: row.name,
+        unit: row.unit,
+        quantity: quantity.value ?? 0,
+        cost: cost.value ?? 0,
+      })
+    }
+    const changed = setPlanItems(session.present, area, change.table, rows)
+    return changed.ok
+      ? ok(commit(session, changed.value))
+      : err(changed.error.map((e) => issue(describePlanError(e))))
+  }
   if (change.kind === 'expectedRows') {
     const area = editorArea(areaId)
     if (!area || !areaExists(area, session.present.basis))
@@ -295,11 +327,19 @@ export function editorView(
               works: 'Ведомость работ ПД',
               indicators: 'Ручные показатели ПД',
               expected: 'Ожидаемые показатели',
+              ...ITEM_TABLE_TITLES,
             }[key],
             visible: !hiddenPdTablesOf(plan, area.pd).includes(key),
           }))
         : [],
     indicators: indicatorsOf(plan, area).map((row) => ({ ...row })),
+    items: itemAreaAllowed(area)
+      ? ITEM_TABLE_KINDS.map((table) => ({
+          table,
+          title: ITEM_TABLE_TITLES[table],
+          rows: itemsOf(plan, area, table).map((row) => ({ ...row })),
+        }))
+      : null,
     expected: expectedAreaAllowed(area)
       ? expectedIndicatorsOf(plan, area).map((row) => ({ ...row }))
       : null,

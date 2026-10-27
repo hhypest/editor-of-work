@@ -210,6 +210,50 @@ describe('Листы ПД', () => {
     expect(all.filter((t) => t.includes('Учебная протяжённость')).length).toBe(1)
     expect(document).toMatchSnapshot()
   })
+  it('размещает перечни работ: заполненный с номерами и пустой с отметкой об отсутствии работ', () => {
+    const columns = [
+      { title: '№', width: 15 },
+      { title: 'Наименование', width: 215 },
+      { title: 'Ед. изм.', width: 40 },
+      { title: 'Объём', width: 55 },
+      { title: 'Стоимость, тыс. руб.', width: 65 },
+    ]
+    const data = {
+      ...source,
+      pds: source.pds.map((p) =>
+        p.id !== 'pd'
+          ? p
+          : {
+              ...p,
+              tables: [
+                ...p.tables,
+                {
+                  title: 'Работы подрядным способом',
+                  columns,
+                  rows: [
+                    [
+                      '1',
+                      'Учебная подрядная работа с длинным наименованием '.repeat(3),
+                      'м3',
+                      '12,5',
+                      '3,26',
+                    ],
+                    ['2', 'Учебная вторая', '', '0', '1,01'],
+                  ],
+                },
+                { title: 'Работы по содержанию ИССО', columns, rows: [] },
+              ],
+            },
+      ),
+    }
+    const document = built(data),
+      all = document.pages.flatMap((p) => texts(p.primitives))
+    expect(all).toContain('Работы подрядным способом')
+    expect(all).toContain('Стоимость, тыс. руб.')
+    expect(all).toContain('3,26')
+    expect(all.filter((t) => t === 'Нет работ')).toHaveLength(1)
+    expect(document).toMatchSnapshot()
+  })
   it('повторяет подпись группы в начале каждой страницы продолжения', () => {
     const label = 'Учебная группа показателей'
     const table = {

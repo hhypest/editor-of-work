@@ -186,6 +186,25 @@ it('composition root обновляет SVG после добавления, и�
   await history('KeyZ')
   expect(await bothPages()).not.toContain('Ожидаемые показатели')
   expect(svg()).toContain('<Учебный показатель>')
+  // Перечень ЗП: черновик → лист ПД, затем отмена возвращает прежний лист.
+  await click('Добавить работу в перечень «Работы по содержанию земляного полотна»')
+  const itemInput = async (label: string, text: string) => {
+    const field = element.querySelector<HTMLInputElement>(
+      `[aria-label="Работы по содержанию земляного полотна: ${label}, строка 1"]`,
+    )!
+    field.value = text
+    field.dispatchEvent(new Event('input'))
+    await settle()
+  }
+  await itemInput('наименование', '<Учебная работа ЗП>')
+  await itemInput('объём', '2,5')
+  await click('Применить перечень «Работы по содержанию земляного полотна»')
+  const withItems = await bothPages()
+  expect(withItems).toContain('Работы по содержанию земляного полотна')
+  expect(withItems).toContain('<Учебная работа ЗП>')
+  await history('KeyZ')
+  expect(await bothPages()).not.toContain('<Учебная работа ЗП>')
+  expect(svg()).toContain('<Учебный показатель>')
   expect(sheets.source).toHaveBeenLastCalledWith(revision, 'ПД-1')
   expect(session.present.works).toHaveLength(1)
   const currentSession = session,

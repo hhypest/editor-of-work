@@ -8,6 +8,7 @@ import {
   planBasis,
   setManualValue,
   setExpectedIndicators,
+  setPlanItems,
   setPlanIndicators,
   setPdScale,
   setPdHiddenTables,
@@ -37,12 +38,13 @@ import {
   planFileV3Schema,
   planFileV4Schema,
   planFileV5Schema,
+  planFileV6Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 6
+export const PLAN_FORMAT_VERSION = 7
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -51,6 +53,18 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    6,
+    (file) => {
+      const parsed = planFileV6Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 7 },
+        plan: { ...parsed.data.plan, itemTables: [] },
+      }
+    },
+  ],
   [
     5,
     (file) => {
@@ -182,6 +196,18 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       return err(invalid('неизвестная область ожидаемых показателей'))
     expectedIndicators.push({ area, rows: rows.map((row) => ({ ...row })) })
   }
+  const itemTables: PlanFile['plan']['itemTables'] = []
+  for (const [key, rows] of plan.itemTables) {
+    const separator = key.indexOf('|')
+    const kind = key.slice(0, separator),
+      area = areaFromKey(key.slice(separator + 1))
+    if (
+      (kind !== 'contract' && kind !== 'isso' && kind !== 'zp') ||
+      (area?.kind !== 'district' && area?.kind !== 'pd')
+    )
+      return err(invalid('неизвестный перечень работ'))
+    itemTables.push({ area, kind, rows: rows.map((row) => ({ ...row })) })
+  }
   for (const [key, values] of plan.manual) {
     const area = areaFromKey(key)
     if (!area) return err(invalid('неизвестная область ручных значений'))
@@ -198,6 +224,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       manual,
       indicators,
       expectedIndicators,
+      itemTables,
       pdScales: [...plan.pdScales].map(([pd, scale]) => ({ pd, scale })),
       pdHiddenTables: [...plan.pdHiddenTables].map(([pd, hidden]) => ({ pd, hidden: [...hidden] })),
     },
@@ -322,6 +349,15 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
     if (expectedAreas.has(key)) return err(invalid('область ожидаемых показателей повторяется'))
     expectedAreas.add(key)
     const next = setExpectedIndicators(plan, entry.area, entry.rows)
+    if (!next.ok) return err(invalid(next.error.map(describePlanError).join('; ')))
+    plan = next.value
+  }
+  const itemKeys = new Set<string>()
+  for (const entry of file.plan.itemTables) {
+    const key = `${entry.kind}|${areaKey(entry.area)}`
+    if (itemKeys.has(key)) return err(invalid('перечень работ области повторяется'))
+    itemKeys.add(key)
+    const next = setPlanItems(plan, entry.area, entry.kind, entry.rows)
     if (!next.ok) return err(invalid(next.error.map(describePlanError).join('; ')))
     plan = next.value
   }

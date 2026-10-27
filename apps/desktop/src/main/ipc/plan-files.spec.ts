@@ -692,7 +692,7 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(6)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(7)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },
@@ -751,7 +751,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(6)
+    expect(saved.format.version).toBe(7)
     expect(saved.plan.expectedIndicators).toEqual([
       { area: { kind: 'pd', pd: 'ПД-2' }, rows: expected },
     ])
@@ -760,6 +760,58 @@ describe('планы в main', () => {
       state: { dirty: false, view: { expected, canUndo: false } },
     })
     expect((await editorState()).view?.expected).toEqual([])
+  })
+  it('применяет перечень ИССО ПД пакетом, выводит его на лист, сохраняет v7 и открывает', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const rows = [
+      { id: null, name: 'Учебная работа ИССО', unit: 'шт', quantity: '2', cost: '1,255' },
+      { id: null, name: 'Учебная нулевая', unit: '', quantity: '0', cost: '0' },
+    ]
+    const before = await editorState()
+    expect(
+      await edit(
+        { kind: 'itemRows', table: 'isso', rows: [...rows, { ...rows[0]!, cost: '-1' }] },
+        'pd:ПД-2',
+      ),
+    ).toMatchObject({ status: 'invalid' })
+    expect(await editorState()).toEqual(before)
+    const applied = await edit({ kind: 'itemRows', table: 'isso', rows }, 'pd:ПД-2')
+    if (applied.status !== 'editor') throw new Error('Нет состояния редактора')
+    const isso = applied.state.view!.items!.find((t) => t.table === 'isso')!.rows
+    expect(isso.map((r) => [r.name, r.quantity, r.cost])).toEqual([
+      ['Учебная работа ИССО', 2, 1.255],
+      ['Учебная нулевая', 0, 0],
+    ])
+    expect(
+      await invoke({ action: 'previewEditorSheets', revision: applied.state.revision, pd: 'ПД-2' }),
+    ).toMatchObject({
+      status: 'editorSheets',
+      source: {
+        pds: [
+          { tables: [] },
+          {
+            tables: expect.arrayContaining([
+              {
+                title: 'Работы по содержанию ИССО',
+                columns: expect.any(Array),
+                rows: [['1', 'Учебная работа ИССО', 'шт', '2', '1,26']],
+              },
+            ]),
+          },
+        ],
+      },
+    })
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    const saved = JSON.parse(await readFile(path, 'utf8'))
+    expect(saved.format.version).toBe(7)
+    expect(saved.plan.itemTables).toEqual([
+      { area: { kind: 'pd', pd: 'ПД-2' }, kind: 'isso', rows: isso },
+    ])
+    await edit({ kind: 'open' })
+    const reopened = await edit({ kind: 'state' }, 'pd:ПД-2')
+    if (reopened.status !== 'editor') throw new Error('Нет состояния редактора')
+    expect(reopened.state.view!.items!.find((t) => t.table === 'isso')!.rows).toEqual(isso)
+    expect((await editorState()).view?.items?.every((t) => t.rows.length === 0)).toBe(true)
   })
   it('привязывает лист к ревизии редактора, отражает правки и историю без записи файла', async () => {
     expect(await invoke({ action: 'previewEditorSheets', revision: 0, pd: 'ПД-2' })).toMatchObject({

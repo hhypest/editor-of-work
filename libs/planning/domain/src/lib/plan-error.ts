@@ -36,6 +36,10 @@ export type PlanError =
       readonly kind: 'invalid-expected'
       readonly reason: 'id' | 'group' | 'value' | 'limit' | 'area'
     }
+  | {
+      readonly kind: 'invalid-item'
+      readonly reason: 'id' | 'name' | 'quantity' | 'cost' | 'limit' | 'area' | 'kind'
+    }
   | { readonly kind: 'invalid-pd-scale' }
   | { readonly kind: 'invalid-pd-tables'; readonly reason: 'key' | 'duplicate' }
 
@@ -69,6 +73,16 @@ export function describePlanError(e: PlanError): string {
         name: 'Укажите наименование каждого показателя',
         value: 'Значение показателя должно быть конечным числом',
         limit: 'В одной области допускается не более 10 000 показателей',
+      }[e.reason]
+    case 'invalid-item':
+      return {
+        id: 'Идентификаторы строк перечня должны быть непустыми и уникальными',
+        name: 'Укажите наименование каждой работы перечня',
+        quantity: 'Объём работы должен быть неотрицательным числом',
+        cost: 'Стоимость работы должна быть неотрицательным числом, тыс. руб.',
+        limit: 'В одном перечне допускается не более 10 000 строк',
+        area: 'Подрядные работы, ИССО и ЗП ведутся только для дистанции и ПД',
+        kind: 'Неизвестный перечень работ',
       }[e.reason]
     case 'invalid-expected':
       return {

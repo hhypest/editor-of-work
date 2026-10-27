@@ -26,7 +26,7 @@ describe('Ожидаемые показатели и формат v6', () => {
     (old) => {
       const original = JSON.stringify(old),
         file = value(readPlanFile(original))
-      expect(file.format.version).toBe(6)
+      expect(file.format.version).toBe(7)
       expect(file.plan.expectedIndicators).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

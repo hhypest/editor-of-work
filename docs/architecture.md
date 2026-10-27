@@ -465,7 +465,7 @@ docs/adr/             архитектурные решения (ADR)
 
 **CI/CD (GitHub Actions)**
 
-Реализован ci.yml: полный npm run check на pull request и push в main, Ubuntu и Windows, Node из .nvmrc. После полного check на Windows выполняется `check:electron`: отдельная проба настоящего main-процесса Electron проверяет публичный адаптер паспорта, поставляемые миграции, WAL, активацию редакций, резервные копии и повторное открытие. Отчёт содержит только версии runtime и результаты; базы остаются во временной папке и удаляются ([инструкция](electron-runtime-check.md)). Better-sqlite3 не используется, electron-rebuild не выполняется. Проба не запускает production main/preload или Angular. Их сквозная проверка, Playwright-эталоны Windows (#26), portable (#6) и ручной выпуск с SHA-256 (#27) ещё предстоят. Workflow сборки exe и Release по тегу отсутствует; выпуск не запускается автоматически.
+Реализован ci.yml: полный npm run check на pull request и push в main, Ubuntu и Windows, Node из .nvmrc. После полного check на Windows выполняется `check:electron`: отдельная проба настоящего main-процесса Electron проверяет публичный адаптер паспорта, поставляемые миграции, WAL, активацию редакций, резервные копии и повторное открытие. Отчёт содержит только версии runtime и результаты; базы остаются во временной папке и удаляются ([инструкция](electron-runtime-check.md)). Better-sqlite3 не используется, electron-rebuild не выполняется. Затем `test:e2e` проходит путь составителя в production-сборке Electron на вымышленных данных ([инструкция](e2e-electron.md)). Playwright-эталоны Windows (#26), portable (#6) и ручной выпуск с SHA-256 (#27) ещё предстоят. Workflow сборки exe и Release по тегу отсутствует; выпуск не запускается автоматически.
 
 **Безопасность Electron**
 

@@ -22,6 +22,7 @@
     "check:public": "node scripts/check-public-files.mjs",
     "check:licenses": "node scripts/check-licenses.mjs",
     "check:electron": "node scripts/check-electron-runtime.mjs",
+    "test:e2e": "node scripts/e2e-electron.mjs",
     "test:scripts": "node --test \"scripts/__tests__/*.test.mjs\"",
     "fixtures": "node scripts/fixtures.mjs"
   },
@@ -65,6 +66,7 @@
     "nx": "23.3.0",
     "oxlint": "1.89.0",
     "pdf-lib": "1.17.1",
+    "playwright": "1.63.0",
     "prettier": "3.9.10",
     "tslib": "^2.3.0",
     "typescript": "6.0.3",

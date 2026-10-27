@@ -19,7 +19,7 @@
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- |
 | `npm start`              | программа в режиме разработки (Electron + Angular с перезагрузкой)                                               |
 | `npm test`               | Vitest во всех проектах (`nx run-many -t test`)                                                                  |
-| `npm run test:e2e`       | Playwright для Electron: сценарии и эталонные снимки листов                                                      |
+| `npm run test:e2e`       | сквозной сценарий Playwright в production-сборке Electron; после build, [инструкция](docs/e2e-electron.md)       |
 | `npm run lint`           | ESLint (angular-eslint, границы модулей Nx) и oxlint; только проверка                                            |
 | `npm run lint:fix`       | то же с исправлением                                                                                             |
 | `npm run format`         | Prettier                                                                                                         |

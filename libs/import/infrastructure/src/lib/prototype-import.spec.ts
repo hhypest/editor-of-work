@@ -118,7 +118,7 @@ describe('импорт JSON прототипа', () => {
   )
 
   it('переносит ожидаемые показатели дистанции и ПД с пустыми значениями, нулём, знаком и запятой', () => {
-    const p = prototypeFixture() as ReturnType<typeof prototypeFixture> & {
+    const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
     p.tables['dist']!['expected'] = [
@@ -155,7 +155,7 @@ describe('импорт JSON прототипа', () => {
   })
 
   it('называет в отчёте пропущенные строки и таблицу станции, ничего не исправляя', () => {
-    const p = prototypeFixture() as ReturnType<typeof prototypeFixture> & {
+    const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
     p.tables['dist']!['expected'] = [
@@ -183,7 +183,7 @@ describe('импорт JSON прототипа', () => {
   })
 
   it('отклоняет импорт с более чем 10 000 строк ожидаемых показателей в области', () => {
-    const p = prototypeFixture() as ReturnType<typeof prototypeFixture> & {
+    const p = prototypeFixture() as unknown as {
       tables: Record<string, Record<string, unknown>>
     }
     p.tables['D1']!['expected'] = Array.from({ length: 10001 }, () => ({

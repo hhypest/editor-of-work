@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { ORG_FORMS, type OrgImport, type OrgImportRow } from '@eow/passport/import-api'
 import type { Result } from '@eow/shared/kernel'
 import { openPassportDatabase, type PassportDatabase } from './sqlite-passport-store'
+import { lineExtents } from './org-import-storage'
 
 const date = '2026-10-21'
 const provenance = (form: string, id: string): OrgImportRow => ({
@@ -126,6 +127,7 @@ describe('Запись оргструктуры в черновик паспор
         'subdivision',
         'subdivision_segment',
         'line',
+        'line_extent',
         'station',
         'station_pd',
         'station_track',
@@ -162,6 +164,31 @@ describe('Запись оргструктуры в черновик паспор
       { whole_track: 1, start_m: null, end_m: null },
     ])
     expect(rows('station_pd')).toHaveLength(1)
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+  })
+
+  it('записывает протяжение направления по границам отмеченных ПД и заменяет его при повторном импорте', async () => {
+    const input = fixture()
+    value(await store.applyOrgImport(id, input))
+    expect(rows('line_extent')).toMatchObject([
+      {
+        line_id: '["line","УЧЕБНЫЙ I"]',
+        start_km: 10,
+        start_m: 0,
+        end_km: 11,
+        end_m: 1045,
+        import_file_id: 'boundaries',
+        valid_from: null,
+        valid_to: null,
+      },
+    ])
+    value(
+      await store.applyOrgImport(id, {
+        ...input,
+        boundaries: input.boundaries.map((b) => ({ ...b, to: { km: 12, m: 0 } })),
+      }),
+    )
+    expect(rows('line_extent')).toMatchObject([{ start_km: 10, end_km: 12, end_m: 0 }])
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   })
 
@@ -392,5 +419,78 @@ describe('Запись оргструктуры в черновик паспор
     expect(JSON.stringify(snapshot())).not.toContain(marker)
     await store.close()
     expect((await readFile(path)).includes(Buffer.from(marker))).toBe(false)
+  })
+})
+
+describe('Протяжение направления по границам ПД', () => {
+  const unit = (id: string, type: string, active = true) => ({
+    ...provenance('subdivisions', id),
+    code: id,
+    type,
+    parentId: null,
+    activity: null,
+    active,
+  })
+  const border = (
+    id: string,
+    subdivisionId: string,
+    line: string,
+    from: [number, number],
+    to: [number, number],
+  ) => ({
+    ...provenance('boundaries', id),
+    line,
+    statedLength: null,
+    subdivisionId,
+    from: { km: from[0], m: from[1] },
+    to: { km: to[0], m: to[1] },
+  })
+
+  it('сливает касающиеся и перекрытые границы, сохраняет разрыв и не берёт ЗП, ПЧУ и неотмеченные ПД', () => {
+    expect(
+      lineExtents({
+        subdivisions: [
+          unit('pd1', 'ПД'),
+          unit('pd2', 'ПД'),
+          unit('pd3', 'ПД'),
+          unit('old', 'ПД', false),
+          unit('zp', 'ЗП'),
+          unit('pchu', 'ПЧУ'),
+        ],
+        boundaries: [
+          border('c', 'pd2', 'L1', [30, 0], [45, 0]),
+          border('a', 'pd1', 'L1', [10, 0], [18, 0]),
+          border('b', 'pd2', 'L1', [18, 0], [25, 0]),
+          border('d', 'pd3', 'L1', [44, 500], [60, 500]),
+          border('e', 'pd3', 'L2', [100, 200], [131, 700]),
+          border('f', 'old', 'L1', [25, 0], [30, 0]),
+          border('g', 'zp', 'L1', [10, 0], [60, 500]),
+          border('h', 'pchu', 'L2', [90, 0], [140, 0]),
+        ],
+      }),
+    ).toEqual([
+      { line: 'L1', from: { km: 10, m: 0 }, to: { km: 25, m: 0 }, importFileId: 'boundaries' },
+      { line: 'L1', from: { km: 30, m: 0 }, to: { km: 60, m: 500 }, importFileId: 'boundaries' },
+      {
+        line: 'L2',
+        from: { km: 100, m: 200 },
+        to: { km: 131, m: 700 },
+        importFileId: 'boundaries',
+      },
+    ])
+  })
+
+  it('граница внутри другой не укорачивает часть протяжения', () => {
+    expect(
+      lineExtents({
+        subdivisions: [unit('pd1', 'ПД'), unit('pd2', 'ПД')],
+        boundaries: [
+          border('a', 'pd1', 'L1', [10, 0], [20, 0]),
+          border('b', 'pd2', 'L1', [12, 0], [15, 0]),
+        ],
+      }),
+    ).toEqual([
+      { line: 'L1', from: { km: 10, m: 0 }, to: { km: 20, m: 0 }, importFileId: 'boundaries' },
+    ])
   })
 })

@@ -13,6 +13,7 @@ import { join, resolve } from 'node:path'
 import { build } from 'esbuild'
 import { PDFDocument } from 'pdf-lib'
 import { _electron as electron } from 'playwright'
+import { snapshotStore } from './e2e/snapshots.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const require = createRequire(import.meta.url)
@@ -396,8 +397,71 @@ try {
     assert.equal(backup.plan.works.length, 1)
   })
 
+  const snapshots = snapshotStore({ root, output })
+  // Снимок листа после загрузки шрифтов. Лист в просмотре 60 % целиком помещается в окно;
+  // на время снимка он поднимается поверх страницы, чтобы прокрутка и соседние блоки не
+  // попадали в кадр. Стиль задаётся через CSSOM: строгая CSP не пропускает вставку <style>.
+  const shoot = async (name) => {
+    await page.evaluate(() => document.fonts.ready)
+    const sheet = page.locator('eow-sheet-a3 svg').first()
+    await sheet.waitFor()
+    await sheet.evaluate((svg) => {
+      Object.assign(svg.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        zIndex: '2147483647',
+        background: '#fff',
+      })
+    })
+    try {
+      // Целые пиксели внутри листа: дробная ширина SVG иначе захватывает край страницы.
+      const box = await sheet.boundingBox()
+      assert.ok(box, `Лист ${name} не виден`)
+      const clip = { x: 0, y: 0, width: Math.floor(box.width), height: Math.floor(box.height) }
+      await snapshots.compare(name, await page.screenshot({ clip, animations: 'disabled' }))
+    } finally {
+      await sheet.evaluate((svg) => svg.removeAttribute('style'))
+    }
+  }
+  const pages = async (prefix, label) => {
+    const counter = status(/^Лист \d+ из \d+$/u).first()
+    await counter.waitFor()
+    const total = Number(/из (\d+)/u.exec(await counter.innerText())?.[1])
+    assert.ok(total >= 1, `${label}: нет листов`)
+    for (let n = 1; n <= total; n++) {
+      await status(`Лист ${n} из ${total}`).waitFor()
+      await shoot(`${prefix}-${n}`)
+      if (n < total) await button('Следующий лист').click()
+    }
+  }
+  await step('эталонные снимки листов ПД и общей схемы', async () => {
+    const pds = await page
+      .locator('#plan-area option')
+      .evaluateAll((options) => options.map((o) => o.value).filter((v) => v.startsWith('pd:')))
+    for (const [i, pd] of pds.entries()) {
+      await page.locator('#plan-area').selectOption(pd)
+      await page.locator('#editor-sheet-zoom').fill('0.6')
+      await pages(`pd-${i + 1}`, pd)
+    }
+    await nav('Схема А3').click()
+    await page.locator('#sheet-zoom').fill('0.6')
+    await pages('overview', 'Схема А3')
+    await nav('Годовой план').click()
+    snapshots.verify()
+    if (snapshots.missing.length)
+      console.log(
+        `  Эталонов для ${process.platform} нет (${snapshots.missing.length}); снимки — в test-results/e2e/snapshots`,
+      )
+  })
   await mkdir(output, { recursive: true })
-  const report = { status: 'passed', version, platform: process.platform, steps }
+  const report = {
+    status: 'passed',
+    version,
+    platform: process.platform,
+    steps,
+    snapshots: { checked: snapshots.checked, missing: snapshots.missing },
+  }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))
 } finally {

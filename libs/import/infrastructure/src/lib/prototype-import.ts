@@ -76,8 +76,15 @@ export function importPrototype(
       errors.push({ path, message: 'Более 10 000 строк ожидаемых показателей в одной области' })
       return rows
     }
-    const label = (v: unknown): string =>
-      typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : ''
+    /** Текст или число; пусто — только null/отсутствие. Иное значение не угадывается. */
+    const label = (v: unknown): string | undefined =>
+      typeof v === 'string'
+        ? v.trim()
+        : typeof v === 'number' && Number.isFinite(v)
+          ? String(v)
+          : v === null || v === undefined
+            ? ''
+            : undefined
     for (const [i, entry] of source.entries()) {
       const at = `${path}.${i}`
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
@@ -101,6 +108,14 @@ export function importPrototype(
       const group = label(row['group']),
         name = label(row['name']),
         unit = label(row['unit'])
+      const notText = (['group', 'name', 'unit'] as const).find((f) => label(row[f]) === undefined)
+      if (group === undefined || name === undefined || unit === undefined) {
+        warn(
+          `${at}.${notText ?? 'group'}`,
+          'Поле ожидаемого показателя не является текстом; строка не перенесена и сохранена в снимке прототипа',
+        )
+        continue
+      }
       if (value !== null && !Number.isFinite(value)) {
         warn(
           at,

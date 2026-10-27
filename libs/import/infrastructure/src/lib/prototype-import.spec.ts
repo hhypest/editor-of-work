@@ -164,6 +164,9 @@ describe('импорт JSON прототипа', () => {
       { group: 'Учебный', name: '', unit: 'км', value: 'много' },
       { group: 'Учебный', name: '', unit: 'км', value: 3, color: 'красный' },
       'не строка',
+      { group: 'Учебный', name: { text: 'объект' }, unit: 'км', value: 4 },
+      { group: 'Учебный', name: '', unit: ['км'], value: 5 },
+      { group: true, name: '', unit: 'км', value: 6 },
     ]
     p.tables['S'] = { expected: [{ group: 'Станционный', name: '', unit: '', value: 1 }] }
     const plan = imported(p)
@@ -179,6 +182,9 @@ describe('импорт JSON прототипа', () => {
     expect(report.get('tables.dist.expected.2')).toContain('не является числом')
     expect(report.get('tables.dist.expected.3.color')).toContain('снимке прототипа')
     expect(report.get('tables.dist.expected.4')).toContain('не распознана')
+    expect(report.get('tables.dist.expected.5.name')).toContain('не является текстом')
+    expect(report.get('tables.dist.expected.6.unit')).toContain('не является текстом')
+    expect(report.get('tables.dist.expected.7.group')).toContain('не является текстом')
     expect(report.get('tables.S.expected')).toContain('только для дистанции и ПД')
   })
 

@@ -6,6 +6,14 @@ export interface EditorIndicatorDraft {
   readonly value: string
   readonly note: string
 }
+/** Строка ожидаемых показателей в форме: значение — текст, пустое поле — «не задано». */
+export interface EditorExpectedDraft {
+  readonly id: string | null
+  readonly group: string
+  readonly name: string
+  readonly unit: string
+  readonly value: string
+}
 /** DTO редактора. UI не получает доменные объекты и пути файлов. */
 export interface EditorDraft {
   readonly kind: string
@@ -29,6 +37,7 @@ export type EditorChange =
   | { readonly kind: 'pdTables'; readonly hidden: readonly string[] }
   | { readonly kind: 'pdScale'; readonly scale: number }
   | { readonly kind: 'indicatorRows'; readonly rows: readonly EditorIndicatorDraft[] }
+  | { readonly kind: 'expectedRows'; readonly rows: readonly EditorExpectedDraft[] }
   | {
       readonly kind: 'manualRows'
       readonly rows: readonly {
@@ -81,6 +90,16 @@ export interface EditorView {
     readonly value: number
     readonly note: string
   }[]
+  /** null — область без ожидаемых показателей (станция). */
+  readonly expected:
+    | readonly {
+        readonly id: string
+        readonly group: string
+        readonly name: string
+        readonly unit: string
+        readonly value: number | null
+      }[]
+    | null
   readonly year: number
   readonly edition: { readonly number: string; readonly date: string }
   readonly approval: { readonly title: string; readonly name: string; readonly year: number }

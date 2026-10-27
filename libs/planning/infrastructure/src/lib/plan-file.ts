@@ -7,6 +7,7 @@ import {
   describePlanError,
   planBasis,
   setManualValue,
+  setExpectedIndicators,
   setPlanIndicators,
   setPdScale,
   setPdHiddenTables,
@@ -35,12 +36,13 @@ import {
   planFileV2Schema,
   planFileV3Schema,
   planFileV4Schema,
+  planFileV5Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 5
+export const PLAN_FORMAT_VERSION = 6
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -49,6 +51,18 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    5,
+    (file) => {
+      const parsed = planFileV5Schema.safeParse(file)
+      if (!parsed.success) return file
+      return {
+        ...parsed.data,
+        format: { ...parsed.data.format, version: 6 },
+        plan: { ...parsed.data.plan, expectedIndicators: [] },
+      }
+    },
+  ],
   [
     4,
     (file) => {
@@ -161,6 +175,13 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
     if (!area) return err(invalid('неизвестная область показателей'))
     indicators.push({ area, rows: rows.map((row) => ({ ...row })) })
   }
+  const expectedIndicators: PlanFile['plan']['expectedIndicators'] = []
+  for (const [key, rows] of plan.expectedIndicators) {
+    const area = areaFromKey(key)
+    if (area?.kind !== 'district' && area?.kind !== 'pd')
+      return err(invalid('неизвестная область ожидаемых показателей'))
+    expectedIndicators.push({ area, rows: rows.map((row) => ({ ...row })) })
+  }
   for (const [key, values] of plan.manual) {
     const area = areaFromKey(key)
     if (!area) return err(invalid('неизвестная область ручных значений'))
@@ -176,6 +197,7 @@ export function encodePlan(plan: AnnualPlan, appVersion: string): FileResult<str
       works: plan.works.map((w) => ({ ...w, volume: w.volume ?? null })),
       manual,
       indicators,
+      expectedIndicators,
       pdScales: [...plan.pdScales].map(([pd, scale]) => ({ pd, scale })),
       pdHiddenTables: [...plan.pdHiddenTables].map(([pd, hidden]) => ({ pd, hidden: [...hidden] })),
     },
@@ -291,6 +313,15 @@ export function restorePlan(file: PlanFile): FileResult<AnnualPlan> {
     if (indicatorAreas.has(key)) return err(invalid('область показателей повторяется'))
     indicatorAreas.add(key)
     const next = setPlanIndicators(plan, entry.area, entry.rows)
+    if (!next.ok) return err(invalid(next.error.map(describePlanError).join('; ')))
+    plan = next.value
+  }
+  const expectedAreas = new Set<string>()
+  for (const entry of file.plan.expectedIndicators) {
+    const key = areaKey(entry.area)
+    if (expectedAreas.has(key)) return err(invalid('область ожидаемых показателей повторяется'))
+    expectedAreas.add(key)
+    const next = setExpectedIndicators(plan, entry.area, entry.rows)
     if (!next.ok) return err(invalid(next.error.map(describePlanError).join('; ')))
     plan = next.value
   }

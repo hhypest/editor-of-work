@@ -608,6 +608,111 @@
         </button>
       </fieldset>
     </section>
+    @if (facade.view()?.expected) {
+      <section aria-labelledby="expected-title">
+        <h3 id="expected-title">
+          Ожидаемые показатели на 01.01.{{ (facade.view()?.year ?? 0) + 1 }}
+        </h3>
+        <p>
+          Ведутся для дистанции и каждого ПД отдельно. Подряд идущие строки с одним показателем
+          печатаются группой: показатель один раз, составляющие — в столбце «В т.ч.». Пустое
+          значение не равно нулю и печатается пустой ячейкой.
+        </p>
+        <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">
+          <legend>Ожидаемые показатели</legend>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Показатель</th>
+                  <th scope="col">В т.ч.</th>
+                  <th scope="col">Единица</th>
+                  <th scope="col">Значение</th>
+                  <th scope="col">Действие</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of facade.expectedRows(); track $index) {
+                  <tr>
+                    <td>
+                      <input
+                        [attr.aria-label]="'Ожидаемый показатель ' + ($index + 1)"
+                        [ngModel]="row.group"
+                        (ngModelChange)="facade.patchExpected($index, { group: $event })"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        [attr.aria-label]="'В т.ч., строка ' + ($index + 1)"
+                        [ngModel]="row.name"
+                        (ngModelChange)="facade.patchExpected($index, { name: $event })"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        [attr.aria-label]="'Единица ожидаемого показателя ' + ($index + 1)"
+                        [ngModel]="row.unit"
+                        (ngModelChange)="facade.patchExpected($index, { unit: $event })"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        inputmode="decimal"
+                        [attr.aria-label]="'Значение ожидаемого показателя ' + ($index + 1)"
+                        [ngModel]="row.value"
+                        (ngModelChange)="facade.patchExpected($index, { value: $event })"
+                      />
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        [disabled]="$first"
+                        (click)="facade.moveExpected($index, -1)"
+                      >
+                        Выше {{ $index + 1 }}</button
+                      ><button
+                        type="button"
+                        [disabled]="$last"
+                        (click)="facade.moveExpected($index, 1)"
+                      >
+                        Ниже {{ $index + 1 }}</button
+                      ><button type="button" (click)="facade.removeExpected($index)">
+                        Удалить ожидаемый показатель {{ $index + 1 }}
+                      </button>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5">Ожидаемые показатели не заданы.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            [disabled]="facade.expectedRows().length >= 10000"
+            (click)="facade.addExpected()"
+          >
+            Добавить ожидаемый показатель
+          </button>
+          <button
+            type="button"
+            [disabled]="facade.expectedDraft() === null"
+            (click)="facade.applyExpected()"
+          >
+            Применить ожидаемые показатели
+          </button>
+          <button
+            type="button"
+            [disabled]="facade.expectedDraft() === null"
+            (click)="facade.cancelExpected()"
+          >
+            Отменить ввод ожидаемых показателей
+          </button>
+        </fieldset>
+      </section>
+    }
     <details>
       <summary>Гриф утверждения</summary>
       <fieldset [disabled]="facade.busy() || !!facade.state()?.hasRecovery">

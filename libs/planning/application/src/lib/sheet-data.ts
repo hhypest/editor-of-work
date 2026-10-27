@@ -1,6 +1,7 @@
 import type { PlanSheetData } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
 import {
+  expectedIndicatorsOf,
   indicatorsOf,
   hiddenPdTablesOf,
   type PdTableKind,
@@ -133,6 +134,24 @@ export function planSheetData(
           ['Работ в ПД', String(works.length)],
         ],
       })
+      const expected = expectedIndicatorsOf(plan, area)
+      if (expected.length)
+        append('expected', {
+          title: `Ожидаемые показатели на 01.01.${plan.year + 1}`,
+          columns: [
+            { title: 'Показатель', width: 150 },
+            { title: 'В т.ч.', width: 140 },
+            { title: 'Ед.', width: 40 },
+            { title: 'Значение', width: 60 },
+          ],
+          // Показатель печатается один раз на подряд идущие строки группы, как в прототипе.
+          rows: expected.map((row, i) => [
+            i > 0 && expected[i - 1]?.group === row.group ? '' : row.group,
+            row.name,
+            row.unit,
+            row.value === null ? '' : String(row.value).replace('.', ','),
+          ]),
+        })
       append('works', {
         title: 'Ведомость работ ПД',
         workIds: works.map((w) => w.id),

@@ -172,6 +172,43 @@ describe('Листы ПД', () => {
     expect(all.filter((t) => t.includes('Учебное примечание')).length).toBeGreaterThan(1)
     expect(document).toMatchSnapshot()
   })
+  it('размещает ожидаемые показатели ПД с пустыми ячейками группы и значения', () => {
+    const data = {
+      ...source,
+      pds: source.pds.map((p) =>
+        p.id !== 'pd'
+          ? p
+          : {
+              ...p,
+              tables: [
+                ...p.tables,
+                {
+                  title: 'Ожидаемые показатели на 01.01.2028',
+                  columns: [
+                    { title: 'Показатель', width: 150 },
+                    { title: 'В т.ч.', width: 140 },
+                    { title: 'Ед.', width: 40 },
+                    { title: 'Значение', width: 60 },
+                  ],
+                  rows: [
+                    ['Учебная протяжённость главных путей', '', 'км', ''],
+                    ['', 'учебная часть первая', 'км', '12,5'],
+                    ['', 'учебная часть вторая', 'км', '0'],
+                    ['Учебное число', '', 'шт.', '-3'],
+                  ],
+                },
+              ],
+            },
+      ),
+    }
+    const document = built(data),
+      all = document.pages.flatMap((p) => texts(p.primitives))
+    expect(all).toContain('Ожидаемые показатели на 01.01.2028')
+    expect(all).toContain('12,5')
+    expect(all).toContain('-3')
+    expect(all.filter((t) => t.includes('Учебная протяжённость')).length).toBe(1)
+    expect(document).toMatchSnapshot()
+  })
   it('переносит большие таблицы, повторяя заголовки и сохраняя каждую ячейку', () => {
     const rows = Array.from({ length: 100 }, (_, i) => [
       `Учебная строка ${i + 1}`,

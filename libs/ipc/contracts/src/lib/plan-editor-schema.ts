@@ -4,6 +4,15 @@ const text = z.string(),
   id = z.string()
 const approval = z.object({ title: text, name: text, year: z.number().int() }).strict()
 const edition = z.object({ number: id, date: z.iso.date() }).strict()
+const pdTableKey = z.enum([
+  'current',
+  'capital',
+  'other',
+  'summary',
+  'works',
+  'indicators',
+  'expected',
+])
 export const editorDraftSchema = z
   .object({
     kind: id,
@@ -22,9 +31,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('pdTables'),
-      hidden: z
-        .array(z.enum(['current', 'capital', 'other', 'summary', 'works', 'indicators']))
-        .max(6),
+      hidden: z.array(pdTableKey).max(7),
     })
     .strict(),
   z
@@ -39,6 +46,18 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
       rows: z
         .array(
           z.object({ id: id.nullable(), name: text, unit: text, value: text, note: text }).strict(),
+        )
+        .max(10000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('expectedRows'),
+      rows: z
+        .array(
+          z
+            .object({ id: id.nullable(), group: text, name: text, unit: text, value: text })
+            .strict(),
         )
         .max(10000),
     })
@@ -99,16 +118,24 @@ const view = z
       .array(
         z
           .object({
-            key: z.enum(['current', 'capital', 'other', 'summary', 'works', 'indicators']),
+            key: pdTableKey,
             label: text,
             visible: z.boolean(),
           })
           .strict(),
       )
-      .max(6),
+      .max(7),
     indicators: z
       .array(z.object({ id, name: text, unit: text, value: z.number(), note: text }).strict())
       .max(10000),
+    expected: z
+      .array(
+        z
+          .object({ id, group: text, name: text, unit: text, value: z.number().nullable() })
+          .strict(),
+      )
+      .max(10000)
+      .nullable(),
     lines: z.array(z.object({ id, name: text }).strict()),
     stations: z.array(
       z.object({ id, name: text, tracks: z.array(id), switches: z.array(id) }).strict(),

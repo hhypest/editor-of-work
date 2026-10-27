@@ -32,6 +32,10 @@ export type PlanError =
   | { readonly kind: 'unknown-area'; readonly area: string }
   | { readonly kind: 'invalid-manual-value'; readonly value: number }
   | { readonly kind: 'invalid-indicator'; readonly reason: 'id' | 'name' | 'value' | 'limit' }
+  | {
+      readonly kind: 'invalid-expected'
+      readonly reason: 'id' | 'group' | 'value' | 'limit' | 'area'
+    }
   | { readonly kind: 'invalid-pd-scale' }
   | { readonly kind: 'invalid-pd-tables'; readonly reason: 'key' | 'duplicate' }
 
@@ -65,6 +69,14 @@ export function describePlanError(e: PlanError): string {
         name: 'Укажите наименование каждого показателя',
         value: 'Значение показателя должно быть конечным числом',
         limit: 'В одной области допускается не более 10 000 показателей',
+      }[e.reason]
+    case 'invalid-expected':
+      return {
+        id: 'Идентификаторы ожидаемых показателей должны быть непустыми и уникальными в области',
+        group: 'Укажите показатель в каждой строке ожидаемых показателей',
+        value: 'Значение ожидаемого показателя должно быть конечным числом или пустым',
+        limit: 'В одной области допускается не более 10 000 ожидаемых показателей',
+        area: 'Ожидаемые показатели ведутся только для дистанции и ПД',
       }[e.reason]
     case 'invalid-year':
       return `Год плана должен быть целым числом от 2000 до 2100, а не ${e.year}`

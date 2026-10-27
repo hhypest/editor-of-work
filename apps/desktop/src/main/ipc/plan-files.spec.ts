@@ -675,12 +675,73 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(5)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(6)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },
     })
     expect((await editorState()).view?.indicators).toEqual([])
+  })
+  it('применяет ожидаемые показатели ПД пакетом, выводит их на лист, сохраняет v6 и открывает', async () => {
+    await invoke({ action: 'update', document: document(2027) })
+    const rows = [
+      { id: null, group: 'Учебная протяжённость', name: '', unit: 'км', value: '' },
+      { id: null, group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: '2,5' },
+    ]
+    const before = await editorState()
+    expect(
+      await edit(
+        { kind: 'expectedRows', rows: [...rows, { ...rows[0]!, value: 'не число' }] },
+        'pd:ПД-2',
+      ),
+    ).toMatchObject({ status: 'invalid' })
+    expect(
+      await edit(
+        { kind: 'expectedRows', rows },
+        before.view!.areas.find((a) => a.key.startsWith('station:'))!.key,
+      ),
+    ).toMatchObject({ status: 'invalid' })
+    expect(await editorState()).toEqual(before)
+    const applied = await edit({ kind: 'expectedRows', rows }, 'pd:ПД-2')
+    expect(applied).toMatchObject({
+      status: 'editor',
+      state: { dirty: true, view: { expected: [{ value: null }, { value: 2.5 }] } },
+    })
+    if (applied.status !== 'editor') throw new Error('Нет состояния редактора')
+    const expected = applied.state.view!.expected
+    expect(
+      await invoke({ action: 'previewEditorSheets', revision: applied.state.revision, pd: 'ПД-2' }),
+    ).toMatchObject({
+      status: 'editorSheets',
+      source: {
+        pds: [
+          { tables: [] },
+          {
+            tables: expect.arrayContaining([
+              {
+                title: 'Ожидаемые показатели на 01.01.2028',
+                columns: expect.any(Array),
+                rows: [
+                  ['Учебная протяжённость', '', 'км', ''],
+                  ['', 'учебная часть', 'км', '2,5'],
+                ],
+              },
+            ]),
+          },
+        ],
+      },
+    })
+    await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
+    const saved = JSON.parse(await readFile(path, 'utf8'))
+    expect(saved.format.version).toBe(6)
+    expect(saved.plan.expectedIndicators).toEqual([
+      { area: { kind: 'pd', pd: 'ПД-2' }, rows: expected },
+    ])
+    await edit({ kind: 'open' })
+    expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
+      state: { dirty: false, view: { expected, canUndo: false } },
+    })
+    expect((await editorState()).view?.expected).toEqual([])
   })
   it('привязывает лист к ревизии редактора, отражает правки и историю без записи файла', async () => {
     expect(await invoke({ action: 'previewEditorSheets', revision: 0, pd: 'ПД-2' })).toMatchObject({

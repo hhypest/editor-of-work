@@ -165,6 +165,42 @@ describe('Шаблон xlsx ручных данных', () => {
       ),
     ).toMatchObject({ ok: false, error: { message: expect.stringContaining('строка 8') } })
   })
+  it('перестановка видов работ видна в предпросмотре как изменение', async () => {
+    const kind = (id: string, code: string) => ({
+      id,
+      validFrom: null,
+      validTo: null,
+      code,
+      name: `Учебный ${code}`,
+      unit: 'км',
+      group: 'current',
+      symbol: null,
+      includedIn: null,
+    })
+    const current: ManualBasis = {
+      ...basis,
+      data: { ...basis.data, workKinds: [kind('a', 'У-1'), kind('b', 'У-2'), kind('c', 'У-3')] },
+    }
+    const reordered: ManualBasis = {
+      ...current,
+      data: { ...current.data, workKinds: [kind('b', 'У-2'), kind('a', 'У-1'), kind('c', 'У-3')] },
+    }
+    const preview = value(
+      await prepareManualTemplate(
+        adapter,
+        current,
+        { name: 'учебный.xlsx', bytes: value(await adapter.write(reordered)) },
+        '2026-10-21T00:00:00Z',
+      ),
+    )
+    expect(preview.command.data.workKinds.map((k) => k.code)).toEqual(['У-2', 'У-1', 'У-3'])
+    expect(preview.changes.find((c) => c.sheet === 'Виды работ')).toEqual({
+      sheet: 'Виды работ',
+      added: 0,
+      changed: 3,
+      removed: 0,
+    })
+  })
   it('повреждённый ZIP и дублированный лист не принимаются', async () => {
     expect((await adapter.read(new Uint8Array([1, 2, 3]))).ok).toBe(false)
     const parts = unzipSync(value(await adapter.write(basis)))

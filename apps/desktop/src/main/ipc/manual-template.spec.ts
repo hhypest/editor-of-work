@@ -131,6 +131,12 @@ describe('Диалоги и подтверждение шаблона ручны
     })
     const kinds = value(await store.manualBasis(id)).data.workKinds
     expect(kinds).toHaveLength(122)
+    // Порядок каталога переживает запись в базу, несмотря на случайные идентификаторы.
+    expect(kinds.map((k) => k.code)).toEqual(
+      Array.from({ length: 127 }, (_, i) => `ТС-${String(i + 1).padStart(3, '0')}`).filter(
+        (code) => !['ТС-066', 'ТС-075', 'ТС-086', 'ТС-101', 'ТС-122'].includes(code),
+      ),
+    )
     expect(kinds.find((k) => k.code === 'ТС-067')).toMatchObject({
       name: 'капитальный ремонт пути',
       unit: 'км',

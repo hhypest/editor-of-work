@@ -14,6 +14,8 @@ export interface ManualTables {
     group_name: string
     included_in_id: string | null
     symbol: Generated<string | null>
+    /** Позиция в листе «Виды работ» (миграция 007); у прежних строк пусто. */
+    sort_order: Generated<number | null>
   }
   repair_norm: Row & {
     work_kind_id: string

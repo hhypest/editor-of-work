@@ -96,8 +96,16 @@ export async function prepareManualTemplate(
       },
     },
     changes: MANUAL_KEYS.map((key) => {
-      const before = new Map(basis.data[key].map((r) => [r.id, signature(r)])),
-        after = new Map(read.value.data[key].map((r) => [r.id, signature(r)]))
+      // У видов работ значим порядок: строка с другим предшественником считается изменённой.
+      const rows = (list: readonly { readonly id: string }[]) =>
+        new Map(
+          list.map((r, i) => [
+            r.id,
+            signature(r) + (key === 'workKinds' ? `|после:${list[i - 1]?.id ?? ''}` : ''),
+          ]),
+        )
+      const before = rows(basis.data[key]),
+        after = rows(read.value.data[key])
       return {
         sheet: MANUAL_SHEETS[key],
         added: [...after.keys()].filter((id) => !before.has(id)).length,

@@ -61,7 +61,8 @@ export function editorNumber(text: string): Result<number | undefined, readonly 
   const normalized = text.trim().replace(',', '.')
   if (!normalized) return ok(undefined)
   const number = Number(normalized)
-  return /^\d+(?:\.\d+)?$/u.test(normalized) && Number.isFinite(number)
+  // Экспоненциальная запись нужна для повторной правки: 0,0000001 возвращается в поле как «1e-7».
+  return /^\d+(?:\.\d+)?(?:e[+-]?\d+)?$/iu.test(normalized) && Number.isFinite(number)
     ? ok(number)
     : err([
         issue(

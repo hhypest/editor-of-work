@@ -178,4 +178,46 @@ describe('Перечни работ в сценариях редактора', (
       ['100000000000000000000', '100'],
     ])
   })
+  it('значения, которые черновик вернёт в экспоненциальной записи, применяются повторно', () => {
+    let session = value(
+      changeEditor(
+        fresh(),
+        {
+          kind: 'itemRows',
+          table: 'zp',
+          rows: [{ ...draft, quantity: '0,0000001', cost: '1000000000000000000000' }],
+        },
+        'district',
+        ids(),
+      ),
+    )
+    const row = value(editorView(session, 'district')).items?.find((t) => t.table === 'zp')?.rows[0]
+    // Так фасад отдаёт значения в поля черновика.
+    const quantity = String(row?.quantity).replace('.', ','),
+      cost = String(row?.cost).replace('.', ',')
+    expect([quantity, cost]).toEqual(['1e-7', '1e+21'])
+    session = value(
+      changeEditor(
+        session,
+        {
+          kind: 'itemRows',
+          table: 'zp',
+          rows: [{ id: row?.id ?? null, name: 'Новое имя', unit: '', quantity, cost }],
+        },
+        'district',
+        { next: () => 'x' },
+      ),
+    )
+    expect(itemsOf(session.present, { kind: 'district' }, 'zp')).toEqual([
+      { id: 'a', name: 'Новое имя', unit: '', quantity: 1e-7, cost: 1e21 },
+    ])
+    expect(
+      changeEditor(
+        session,
+        { kind: 'itemRows', table: 'zp', rows: [{ ...draft, quantity: '1e400' }] },
+        'district',
+        { next: () => 'y' },
+      ).ok,
+    ).toBe(false)
+  })
 })

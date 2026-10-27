@@ -37,7 +37,7 @@ test('обновление пишет эталон, сравнение с ним
   assert.deepEqual(await readdir(join(root, 'scripts/e2e/snapshots/win32')), ['pd-1-1.png'])
   const check = snapshotStore({ root, output, platform: 'win32', env: { CI: 'true' } })
   await check.compare('pd-1-1', image)
-  check.verify()
+  await check.verify()
   assert.deepEqual(check.checked, ['pd-1-1'])
 })
 
@@ -45,11 +45,11 @@ test('без эталона локально — отметка, в CI — ош�
   const { root, output } = await workspace(t)
   const local = snapshotStore({ root, output, platform: 'linux', env: {} })
   await local.compare('overview-1', png(10, 10))
-  local.verify()
+  await local.verify()
   assert.deepEqual(local.missing, ['overview-1'])
   const ci = snapshotStore({ root, output, platform: 'linux', env: { CI: 'true' } })
   await ci.compare('overview-1', png(10, 10))
-  assert.throws(() => ci.verify(), /нет эталона linux\/overview-1\.png/u)
+  await assert.rejects(() => ci.verify(), /нет эталона linux\/overview-1\.png/u)
 })
 
 test('изменённый лист и другой размер дают ошибку со всеми расхождениями и картой разницы', async (t) => {
@@ -65,7 +65,7 @@ test('изменённый лист и другой размер дают оши
     png(100, 100, (x) => (x < 10 ? [0, 0, 0] : [255, 255, 255])),
   )
   await store.compare('pd-1-2', png(100, 90))
-  assert.throws(
+  await assert.rejects(
     () => store.verify(),
     (error) => {
       assert.match(error.message, /\(2\)/u)
@@ -88,7 +88,7 @@ test('единичные пиксели сглаживания не считаю
     'a',
     png(200, 200, (x, y) => (x === 5 && y === 5 ? [0, 0, 0] : [255, 255, 255])),
   )
-  store.verify()
+  await store.verify()
 })
 
 test('эталоны без раздела объяснения в описании PR не принимаются', () => {
@@ -103,4 +103,32 @@ test('эталоны без раздела объяснения в описан�
     explanationError(changed, `## Что\nтекст\r\n${HEADING}\r\nШире колонка «Ед.».\r\n`),
     null,
   )
+})
+
+test('эталон листа, который больше не снимается, — расхождение; обновление его удаляет', async (t) => {
+  const { root, output } = await workspace(t)
+  const dir = join(root, 'scripts/e2e/snapshots/win32')
+  await mkdir(dir, { recursive: true })
+  for (const name of ['pd-1-1', 'pd-1-2', 'pd-1-3'])
+    await writeFile(join(dir, `${name}.png`), png(20, 20))
+  const store = snapshotStore({ root, output, platform: 'win32', env: { CI: 'true' } })
+  await store.compare('pd-1-1', png(20, 20))
+  await assert.rejects(
+    () => store.verify(),
+    (error) => {
+      assert.match(error.message, /\(2\)/u)
+      assert.match(error.message, /pd-1-2: лист есть в эталонах, но не снят/u)
+      assert.match(error.message, /pd-1-3: лист есть в эталонах, но не снят/u)
+      return true
+    },
+  )
+  const update = snapshotStore({
+    root,
+    output,
+    platform: 'win32',
+    env: { EOW_UPDATE_SNAPSHOTS: '1' },
+  })
+  await update.compare('pd-1-1', png(20, 20))
+  await update.verify()
+  assert.deepEqual(await readdir(dir), ['pd-1-1.png'])
 })

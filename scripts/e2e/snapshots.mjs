@@ -2,7 +2,7 @@
 // scripts/e2e/snapshots/<платформа>/. Эталоны снимаются на той же ОС, что проверка:
 // сглаживание шрифтов в Windows и Linux различается. Данные листов вымышленные (ADR-0008).
 import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import pixelmatch from 'pixelmatch'
 import { PNG } from 'pngjs'
@@ -21,6 +21,8 @@ export function snapshotStore({ root, output, platform = process.platform, env =
   const missing = []
   // Расхождения копятся до конца шага, чтобы один прогон показал все изменённые листы.
   const failures = []
+  // Все снятые листы: эталон листа, которого больше нет, тоже расхождение.
+  const seen = new Set()
 
   return {
     checked,
@@ -28,6 +30,7 @@ export function snapshotStore({ root, output, platform = process.platform, env =
     failures,
     async compare(name, png) {
       const file = `${name}.png`
+      seen.add(file)
       await mkdir(actuals, { recursive: true })
       await writeFile(join(actuals, file), png)
       const baseline = join(baselines, file)
@@ -68,7 +71,15 @@ export function snapshotStore({ root, output, platform = process.platform, env =
       checked.push(name)
     },
     /** Ошибка шага со всеми расхождениями; снимки и карты разницы — в test-results/e2e/snapshots. */
-    verify() {
+    async verify() {
+      const stored = existsSync(baselines)
+        ? (await readdir(baselines)).filter((file) => file.endsWith('.png'))
+        : []
+      for (const file of stored.filter((name) => !seen.has(name)).toSorted()) {
+        // При обновлении эталон исчезнувшего листа удаляется вместе с остальными изменениями.
+        if (update) await rm(join(baselines, file))
+        else failures.push(`${file.slice(0, -4)}: лист есть в эталонах, но не снят`)
+      }
       if (failures.length)
         throw new Error(
           `Листы не совпадают с эталонами (${failures.length}):\n${failures.join('\n')}\n` +

@@ -448,7 +448,7 @@ try {
     await page.locator('#sheet-zoom').fill('0.6')
     await pages('overview', 'Схема А3')
     await nav('Годовой план').click()
-    snapshots.verify()
+    await snapshots.verify()
     if (snapshots.missing.length)
       console.log(
         `  Эталонов для ${process.platform} нет (${snapshots.missing.length}); снимки — в test-results/e2e/snapshots`,

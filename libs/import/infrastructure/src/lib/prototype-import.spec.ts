@@ -117,6 +117,93 @@ describe('импорт JSON прототипа', () => {
     },
   )
 
+  it('переносит ожидаемые показатели дистанции и ПД с пустыми значениями, нулём, знаком и запятой', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['expected'] = [
+      { group: ' Учебная протяжённость ', name: '', unit: 'км', value: null },
+      { group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: '1,5' },
+      { group: 'Учебный итог', name: '', unit: 'шт', value: 0 },
+    ]
+    p.tables['D1']!['expected'] = [{ group: 'Учебный ПД', name: '', unit: '', value: '-2' }]
+    const plan = imported(p)
+    expect(plan.expected).toEqual([
+      {
+        area: { kind: 'district' },
+        rows: [
+          { id: 'legacy-1', group: 'Учебная протяжённость', name: '', unit: 'км', value: null },
+          {
+            id: 'legacy-2',
+            group: 'Учебная протяжённость',
+            name: 'учебная часть',
+            unit: 'км',
+            value: 1.5,
+          },
+          { id: 'legacy-3', group: 'Учебный итог', name: '', unit: 'шт', value: 0 },
+        ],
+      },
+      {
+        area: { kind: 'pd', pd: 'D1' },
+        rows: [{ id: 'legacy-4', group: 'Учебный ПД', name: '', unit: '', value: -2 }],
+      },
+    ])
+    const paths = plan.prototype.report.map((r) => r.path)
+    expect(paths).not.toContain('tables.dist.expected')
+    expect(paths).toContain('tables.dist.indicators')
+    expect(JSON.parse(plan.prototype.source)).toEqual(p)
+  })
+
+  it('называет в отчёте пропущенные строки и таблицу станции, ничего не исправляя', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['dist']!['expected'] = [
+      { group: '', name: '', unit: '', value: null },
+      { group: '', name: 'без показателя', unit: 'км', value: 1 },
+      { group: 'Учебный', name: '', unit: 'км', value: 'много' },
+      { group: 'Учебный', name: '', unit: 'км', value: 3, color: 'красный' },
+      'не строка',
+      { group: 'Учебный', name: { text: 'объект' }, unit: 'км', value: 4 },
+      { group: 'Учебный', name: '', unit: ['км'], value: 5 },
+      { group: true, name: '', unit: 'км', value: 6 },
+    ]
+    p.tables['S'] = { expected: [{ group: 'Станционный', name: '', unit: '', value: 1 }] }
+    const plan = imported(p)
+    expect(plan.expected).toEqual([
+      {
+        area: { kind: 'district' },
+        rows: [{ id: 'legacy-1', group: 'Учебный', name: '', unit: 'км', value: 3 }],
+      },
+    ])
+    const report = new Map(plan.prototype.report.map((r) => [r.path, r.message]))
+    expect(report.get('tables.dist.expected.0')).toContain('Пустая строка')
+    expect(report.get('tables.dist.expected.1')).toContain('без показателя не перенесена')
+    expect(report.get('tables.dist.expected.2')).toContain('не является числом')
+    expect(report.get('tables.dist.expected.3.color')).toContain('снимке прототипа')
+    expect(report.get('tables.dist.expected.4')).toContain('не распознана')
+    expect(report.get('tables.dist.expected.5.name')).toContain('не является текстом')
+    expect(report.get('tables.dist.expected.6.unit')).toContain('не является текстом')
+    expect(report.get('tables.dist.expected.7.group')).toContain('не является текстом')
+    expect(report.get('tables.S.expected')).toContain('только для дистанции и ПД')
+  })
+
+  it('отклоняет импорт с более чем 10 000 строк ожидаемых показателей в области', () => {
+    const p = prototypeFixture() as unknown as {
+      tables: Record<string, Record<string, unknown>>
+    }
+    p.tables['D1']!['expected'] = Array.from({ length: 10001 }, () => ({
+      group: 'Учебный',
+      name: '',
+      unit: '',
+      value: 1,
+    }))
+    expect(importPrototype(JSON.stringify(p), options())).toMatchObject({
+      ok: false,
+      error: [{ path: 'tables.D1.expected' }],
+    })
+  })
+
   it('не подставляет нормативы при отсутствии каталога', () => {
     const { catalog, ...p } = prototypeFixture()
     expect(importPrototype(JSON.stringify(p), options()).ok).toBe(false)

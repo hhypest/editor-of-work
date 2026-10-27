@@ -66,6 +66,62 @@ export function importPrototype(
   if (!('catalog' in raw))
     warn('catalog', 'Каталог передан отдельно: исходный файл его не содержит')
 
+  /**
+   * Строки «показатель / в т.ч. / единица / значение». Ничего не исправляется молча:
+   * пропущенная строка остаётся в снимке прототипа и называется в отчёте.
+   */
+  function expectedRows(source: readonly unknown[], path: string) {
+    const rows: PrototypeTransfer['expected'][number]['rows'][number][] = []
+    if (source.length > 10000) {
+      errors.push({ path, message: 'Более 10 000 строк ожидаемых показателей в одной области' })
+      return rows
+    }
+    const label = (v: unknown): string =>
+      typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : ''
+    for (const [i, entry] of source.entries()) {
+      const at = `${path}.${i}`
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+        warn(at, 'Строка ожидаемых показателей не распознана; сохранена в снимке прототипа')
+        continue
+      }
+      const row = entry as Record<string, unknown>
+      for (const field of Object.keys(row))
+        if (!['group', 'name', 'unit', 'value'].includes(field))
+          warn(`${at}.${field}`, 'Сохранено в снимке прототипа')
+      const raw = row['value']
+      const text = typeof raw === 'string' ? raw.trim().replace(',', '.') : ''
+      const value =
+        raw === null || raw === undefined || (typeof raw === 'string' && !text)
+          ? null
+          : typeof raw === 'number'
+            ? raw
+            : /^[+-]?\d+(?:\.\d+)?$/u.test(text)
+              ? Number(text)
+              : Number.NaN
+      const group = label(row['group']),
+        name = label(row['name']),
+        unit = label(row['unit'])
+      if (value !== null && !Number.isFinite(value)) {
+        warn(
+          at,
+          'Значение ожидаемого показателя не является числом; строка сохранена в снимке прототипа',
+        )
+        continue
+      }
+      if (!group) {
+        warn(
+          at,
+          name || unit || value !== null
+            ? 'Строка без показателя не перенесена; она сохранена в снимке прототипа'
+            : 'Пустая строка ожидаемых показателей пропущена',
+        )
+        continue
+      }
+      rows.push({ id: options.ids.next(), group, name, unit, value })
+    }
+    return rows
+  }
+
   function point(value: number, path: string): Chainage | undefined {
     let km = Math.floor(value)
     const fractionMeters = (value - km) * 1000
@@ -346,6 +402,7 @@ export function importPrototype(
         warn(`${path}.${key}`, 'Сохранено в снимке прототипа')
   }
   const manual: PrototypeTransfer['manual'][number][] = []
+  const expected: PrototypeTransfer['expected'][number][] = []
   for (const [key, table] of Object.entries(p.tables)) {
     const area =
       key === 'dist'
@@ -359,8 +416,21 @@ export function importPrototype(
     ] as const)
       for (const [code, value] of Object.entries(table[sourceField]))
         if (value !== null) manual.push({ area, field, code, value })
+    const rawExpected: unknown = table['expected']
+    let expectedDone = false
+    if (rawExpected !== undefined && area.kind !== 'station' && Array.isArray(rawExpected)) {
+      const rows = expectedRows(rawExpected, `tables.${key}.expected`)
+      if (rows.length) expected.push({ area, rows })
+      expectedDone = true
+    } else if (rawExpected !== undefined && area.kind === 'station') {
+      warn(
+        `tables.${key}.expected`,
+        'Ожидаемые показатели ведутся только для дистанции и ПД; таблица сохранена в снимке прототипа',
+      )
+      expectedDone = true
+    }
     for (const field of Object.keys(table))
-      if (!['override', 'need'].includes(field))
+      if (!['override', 'need'].includes(field) && !(field === 'expected' && expectedDone))
         warn(
           `tables.${key}.${field}`,
           'Сохранено в снимке прототипа; таблица пока не редактируется новой моделью',
@@ -383,6 +453,7 @@ export function importPrototype(
     basis: { edition: options.edition, lines, pds, stations, workKinds },
     works,
     manual,
+    expected,
     prototype: { source, report },
   })
 }

@@ -276,6 +276,14 @@ describe('планы в main', () => {
         },
       ],
       works: [{ id: 'w', kind: 'X', line: 'L', rangesText: '11 км — 12 км', qty: null }],
+      tables: {
+        dist: {
+          expected: [
+            { group: 'Учебная протяжённость', name: '', unit: 'км', value: null },
+            { group: 'Учебная протяжённость', name: 'учебная часть', unit: 'км', value: 2.5 },
+          ],
+        },
+      },
     })
     await writeFile(sourcePath, source)
     dialogs.openPrototype.mockResolvedValue(sourcePath)
@@ -297,6 +305,15 @@ describe('планы в main', () => {
     })
     const reopened = decodePlan(await readFile(path, 'utf8'))
     if (!reopened.ok) throw new Error('нет повторно открытого плана')
+    expect(
+      reopened.value.expectedIndicators.get('district')?.map((r) => [r.group, r.name, r.value]),
+    ).toEqual([
+      ['Учебная протяжённость', '', null],
+      ['Учебная протяжённость', 'учебная часть', 2.5],
+    ])
+    expect(reopened.value.prototype?.report.map((r) => r.path)).not.toContain(
+      'tables.dist.expected',
+    )
     expect(reopened.value.basis.stations.get('S')?.legacyLayout).toMatchObject({
       tracks: [{ id: 't', number: 'I', row: 2, x1: 4, x2: 40, fullMeters: 900 }],
       objects: [{ id: 'o', type: 'здание', x: 20, y: -1, width: 3, height: 1 }],

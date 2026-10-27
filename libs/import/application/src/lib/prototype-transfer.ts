@@ -63,6 +63,17 @@ export interface PrototypeTransfer {
     readonly code: string
     readonly value: number
   }[]
+  /** Ожидаемые показатели из `tables[область].expected` прототипа: только дистанция и ПД. */
+  readonly expected: readonly {
+    readonly area: { readonly kind: 'district' } | { readonly kind: 'pd'; readonly pd: string }
+    readonly rows: readonly {
+      readonly id: string
+      readonly group: string
+      readonly name: string
+      readonly unit: string
+      readonly value: number | null
+    }[]
+  }[]
   readonly prototype: { readonly source: string; readonly report: readonly TransferProblem[] }
 }
 

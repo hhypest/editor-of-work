@@ -40,7 +40,7 @@ describe('Порядок видов работ в паспорте', () => {
   })
   afterEach(async () => {
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   async function apply(workKinds: readonly ManualWorkKind[], name = 'Учебная.xlsx') {
     const basis = value(await store.manualBasis(id))

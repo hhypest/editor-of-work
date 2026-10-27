@@ -23,7 +23,7 @@ describe('Срез паспорта для создания плана', () => {
   afterEach(async () => {
     db.close()
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   it('читает номера путей и стрелок из таблиц, учитывает исключения и периоды', async () => {
     db.prepare(

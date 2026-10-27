@@ -75,7 +75,7 @@ describe('Данные редакции для просмотра', () => {
   })
   afterEach(async () => {
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
 
   it('сообщает об отсутствующей редакции', async () => {

@@ -54,7 +54,7 @@ describe('Согласованный срез SQLite для расчёта ре�
   afterEach(async () => {
     db.close()
     await store.close()
-    await rm(root, { recursive: true, force: true })
+    await rm(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   })
   it('читает нестандартный км, любой признак укладки и только тоннаж после неё; не пишет результаты', async () => {
     const before = db.prepare('PRAGMA data_version').get()

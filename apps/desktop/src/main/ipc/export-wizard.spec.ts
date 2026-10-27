@@ -6,6 +6,7 @@ import { channels } from '@eow/ipc/contracts'
 import { ORG_FORMS, SEGMENT_FORMS } from '@eow/passport/import-api'
 import { PassportExportSource, importOrgExports } from '@eow/import/infrastructure'
 import { openPassportDatabase, type PassportDatabase } from '@eow/passport/infrastructure'
+import { passportPlanView } from '@eow/planning/infrastructure'
 import type { ExportGroup } from '@eow/import/application'
 import type { Result } from '@eow/shared/kernel'
 import { registerExportWizardHandlers, type ExportWizardDialogs } from './export-wizard'
@@ -132,6 +133,20 @@ describe('Мастер выгрузок: файлы → предпросмотр
     const org = await apply('org')
     expect(org.files).toHaveLength(4)
     const before = value(await store.editionData(id))
+    // Протяжение — объединение границ отмеченных ПД; ЗП-1 разрыв 25–30 км не закрывает.
+    expect(before.lines.map((l) => [l.name, l.extents])).toEqual([
+      [
+        'Главный путь Восточная-Западная, 1',
+        [{ from: { km: 100, m: 200 }, to: { km: 131, m: 700 } }],
+      ],
+      [
+        'Главный путь Северная-Южная, 1',
+        [
+          { from: { km: 10, m: 0 }, to: { km: 25, m: 0 } },
+          { from: { km: 30, m: 0 }, to: { km: 60, m: 500 } },
+        ],
+      ],
+    ])
     const segments = await prepare('segments')
     expect(segments.files).toHaveLength(6)
     expect(segments.remarks.length).toBeGreaterThan(0)
@@ -153,6 +168,10 @@ describe('Мастер выгрузок: файлы → предпросмотр
     expect(await invoke({ action: 'discard', editionId: id, token: repeated.token })).toEqual({
       status: 'discarded',
     })
+    // Импортированная редакция годится основой годового плана: ПД лежат на протяжении.
+    value(await store.activate(id))
+    const basis = value(await passportPlanView(store).basis(id))
+    expect(basis.pds.map((pd) => pd.name)).toEqual(['ПД-1', 'ПД-2', 'ПД-3', 'ПД-4'])
   })
   it.each(['org', 'segments', 'stations'] as const)(
     'изменение паспорта после предпросмотра %s блокирует запись в транзакции',

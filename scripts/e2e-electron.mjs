@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { cp, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { build } from 'esbuild'
 import { PDFDocument } from 'pdf-lib'
 import { _electron as electron } from 'playwright'
@@ -20,6 +20,7 @@ const require = createRequire(import.meta.url)
 const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'))
 const output = join(root, 'test-results/e2e')
 const TIMEOUT = 60_000
+const packaged = process.env['EOW_E2E_EXECUTABLE']
 
 // Состав шагов мастера по файлам генератора фикстур (scripts/fixtures.mjs).
 const STEPS = [
@@ -137,10 +138,25 @@ await rm(output, { recursive: true, force: true })
 const work = await mkdtemp(join(tmpdir(), 'eow-e2e-'))
 let app
 try {
-  // В режиме без упаковки main хранит паспорт в ../../../private-data от dist/apps/desktop,
-  // поэтому копия сборки во временной папке не касается рабочих данных репозитория.
-  await cp(join(root, 'dist/apps/desktop'), join(work, 'dist/apps/desktop'), { recursive: true })
-  await cp(join(root, 'dist/apps/ui'), join(work, 'dist/apps/ui'), { recursive: true })
+  // EOW_E2E_EXECUTABLE — exe упакованной программы (win-unpacked после package:portable):
+  // её папка копируется в путь с пробелом и кириллицей, база создаётся в data рядом с exe.
+  // Без него main хранит паспорт в ../../../private-data от dist/apps/desktop, поэтому копия
+  // сборки во временной папке не касается рабочих данных репозитория.
+  let executable, appArgs, dataDir
+  if (packaged) {
+    const appDir = join(work, 'Программа ППР')
+    await cp(dirname(resolve(packaged)), appDir, { recursive: true })
+    executable = join(appDir, basename(packaged))
+    appArgs = []
+    dataDir = join(appDir, 'data')
+  } else {
+    await cp(join(root, 'dist/apps/desktop'), join(work, 'dist/apps/desktop'), { recursive: true })
+    await cp(join(root, 'dist/apps/ui'), join(work, 'dist/apps/ui'), { recursive: true })
+    executable = require('electron')
+    // Папка приложения, как в сборке: имя и версию Electron берёт из её package.json.
+    appArgs = [join(work, 'dist/apps/desktop')]
+    dataDir = join(work, 'private-data', 'data')
+  }
   const fixtures = join(work, 'fixtures')
   execFileSync(process.execPath, [join(root, 'scripts/fixtures.mjs'), fixtures], {
     cwd: root,
@@ -167,13 +183,9 @@ try {
   delete env.EOW_DEV_SERVER_URL
   const launch = async () => {
     const started = await electron.launch({
-      executablePath: require('electron'),
+      executablePath: executable,
       // Chromium не запускается от root без отключения песочницы; в CI и у составителя root нет.
-      args: [
-        ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
-        // Папка приложения, как в сборке: имя и версию Electron берёт из её package.json.
-        join(work, 'dist/apps/desktop'),
-      ],
+      args: [...(process.getuid?.() === 0 ? ['--no-sandbox'] : []), ...appArgs],
       env,
       timeout: TIMEOUT,
     })
@@ -214,7 +226,7 @@ try {
     await page.locator('#draft-label').fill('Учебная редакция')
     await button('Создать черновик').click()
     await page.getByRole('cell', { name: 'Учебная редакция' }).waitFor()
-    await stat(join(work, 'private-data'))
+    await stat(join(dataDir, 'passport.sqlite'))
   })
   await step('импорт вымышленного комплекта 17 форм', async () => {
     await nav('Импорт выгрузок').click()
@@ -459,6 +471,7 @@ try {
     status: 'passed',
     version,
     platform: process.platform,
+    packaged: Boolean(packaged),
     steps,
     snapshots: { checked: snapshots.checked, missing: snapshots.missing },
   }

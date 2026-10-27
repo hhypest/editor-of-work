@@ -1,0 +1,80 @@
+name: Portable exe
+
+# Только ручной запуск владельцем (AGENTS.md): ни push, ни тег, ни расписание сборку не запускают.
+on:
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: 'Создать черновик Release с exe и SHA-256 (не публикуется)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    name: portable exe (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      NX_DAEMON: 'false'
+      NX_NO_CLOUD: 'true'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - name: SQLite and PDF in real Electron
+        run: npm run check:electron
+      - name: Build portable exe and SHA-256
+        run: npm run package:portable
+      - name: End-to-end scenario in the packaged program
+        timeout-minutes: 15
+        env:
+          EOW_E2E_EXECUTABLE: dist/release/win-unpacked/editor-of-work.exe
+        run: npm run test:e2e
+      - name: Portable exe starts without install and creates data next to it
+        timeout-minutes: 10
+        run: node scripts/smoke-portable.mjs
+      - name: Upload exe, SHA-256 and reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: portable-exe
+          path: |
+            dist/release/*-portable.exe
+            dist/release/*-portable.exe.sha256
+            test-results/e2e/
+            test-results/portable/
+          if-no-files-found: warn
+          retention-days: 30
+
+  draft-release:
+    name: draft release
+    needs: portable
+    if: ${{ inputs.draft_release }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v7
+        with:
+          name: portable-exe
+          path: release
+      - name: Draft release (not published)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          prerelease=$([[ "$version" == *-* ]] && echo --prerelease || true)
+          cd release/dist/release
+          sha256sum -c ./*.sha256
+          gh release create "v$version" ./*-portable.exe ./*.sha256 \
+            --draft $prerelease --target "$GITHUB_SHA" \
+            --title "editor-of-work $version" \
+            --notes "Переносной exe $version. Проверьте SHA-256 из файла .sha256. Черновик: публикует владелец вручную."

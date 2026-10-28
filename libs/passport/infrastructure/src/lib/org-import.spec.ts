@@ -192,6 +192,53 @@ describe('Запись оргструктуры в черновик паспор
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   })
 
+  it('длина км короче координаты из выгрузки — отказ с листом «Нестандартные километры» и минимальной длиной', async () => {
+    value(await store.applyOrgImport(id, fixture()))
+    const manual = async (kilometres: { km: number; length: number }[]) => {
+      const basis = value(await store.manualBasis(id))
+      return store.applyManualData(id, {
+        basisToken: basis.token,
+        date: basis.date,
+        data: {
+          ...basis.data,
+          kilometres: kilometres.map((k, i) => ({
+            id: `km-${i}`,
+            validFrom: null,
+            validTo: null,
+            line: 'УЧЕБНЫЙ I',
+            ...k,
+          })),
+        },
+        file: {
+          id: 'manual',
+          form: 'manual-data',
+          name: 'Учебная.xlsx',
+          importedAt: '2026-10-21T06:00:00Z',
+          sha256: 'a'.repeat(64),
+          rowCount: kilometres.length,
+          warnings: [],
+        },
+      })
+    }
+    // Граница ПД кончается на 11 км 1045 м: без строки книги 11 км считается стандартным.
+    // Строка о 10 км меняет книгу, иначе неизменённые данные принимаются без проверки.
+    expect(await manual([{ km: 10, length: 999 }])).toMatchObject({
+      ok: false,
+      error: {
+        message:
+          'Направление «УЧЕБНЫЙ I»: в паспорте есть координата 11 км 1045 м, а длина 11 км по книге — 1000 м. ' +
+          'Укажите на листе «Нестандартные километры» длину 11 км больше 1045 м ' +
+          'или исправьте выгрузку, из которой пришла координата.',
+      },
+    })
+    expect(
+      await manual([
+        { km: 10, length: 999 },
+        { km: 11, length: 1046 },
+      ]),
+    ).toEqual({ ok: true, value: undefined })
+  })
+
   it('читает контрольную сумму, число исходных строк и замечания после повторного открытия', async () => {
     const input = fixture()
     value(await store.applyOrgImport(id, input))

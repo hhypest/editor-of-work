@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { sql, type Kysely } from 'kysely'
 import { err, ok, chainage, KmLengths, type Result } from '@eow/shared/kernel'
 import {
+  MANUAL_SHEETS,
   validateManualData,
   type ManualBasis,
   type ManualData,
@@ -194,7 +195,14 @@ async function geometryError(
     for (const c of crossings) if (c.km !== null && c.m !== null) points.push({ km: c.km, m: c.m })
     const bad = points.find((p) => !chainage(p.km, p.m, lengths.value).ok)
     if (bad)
-      return `Направление «${line.name}»: после изменения длины км ранее сохранённая координата ${bad.km} км ${bad.m} м недопустима. Исправьте исходные данные.`
+      // Обычно это нестандартный километр, которого нет в книге: длина по умолчанию короче
+      // координаты из выгрузки. Сообщение называет лист и минимальную длину (импорт сам не правит).
+      return (
+        `Направление «${line.name}»: в паспорте есть координата ${bad.km} км ${bad.m} м, ` +
+        `а длина ${bad.km} км по книге — ${lengths.value.lengthOf(bad.km)} м. ` +
+        `Укажите на листе «${MANUAL_SHEETS.kilometres}» длину ${bad.km} км больше ${bad.m} м ` +
+        'или исправьте выгрузку, из которой пришла координата.'
+      )
   }
   return undefined
 }

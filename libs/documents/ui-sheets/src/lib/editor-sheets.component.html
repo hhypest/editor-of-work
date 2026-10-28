@@ -106,6 +106,9 @@
           Предыдущий лист
         </button>
         <span role="status">Лист {{ facade.index() + 1 }} из {{ document.pages.length }}</span>
+        @if (facade.prepareMs() !== null) {
+          <span class="timing">Подготовка листа: {{ facade.prepareMs() }} мс</span>
+        }
         <button
           type="button"
           [disabled]="facade.index() + 1 >= document.pages.length"

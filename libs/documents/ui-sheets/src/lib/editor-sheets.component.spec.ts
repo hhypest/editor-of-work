@@ -17,6 +17,7 @@ import {
   EDITOR_SHEET_CLIENT,
   EDITOR_PDF_CLIENT,
   EDITOR_PDF_BATCH_CLIENT,
+  SHEET_CLOCK,
   EditorSheetsFacade,
 } from './editor-sheets.facade'
 import { EditorSheetsComponent } from './editor-sheets.component'
@@ -48,9 +49,16 @@ const measurer: TextMeasurer = { width: (text, font) => mm(text.length * font.si
 const client = (): EditorSheetClient => ({
   source: vi.fn<EditorSheetClient['source']>(async () => ok(source)),
 })
+// Часы замеров: каждое обращение сдвигает время на 40 мс.
+let clock = 0
+const tick = () => (clock += 40)
+beforeEach(() => {
+  clock = 0
+})
 const providers = (port: EditorSheetClient, prepare = async () => measurer) => [
   { provide: EDITOR_SHEET_CLIENT, useValue: port },
   { provide: SHEET_MEASURER, useValue: prepare },
+  { provide: SHEET_CLOCK, useValue: tick },
 ]
 function deferred<T>() {
   let resolve!: (value: T) => void
@@ -118,8 +126,8 @@ describe('Пакетный PDF в редакторе плана', () => {
     expect(batch.finish).toHaveBeenCalledExactlyOnceWith('j', 1)
     expect(facade.pdfStatus()).toBe(
       mode === 'folder'
-        ? 'PDF сохранены: файлов 2, листов 2.'
-        : `PDF сохранён: листов ${pds.length}.`,
+        ? 'PDF сохранены: файлов 2, листов 2 за 0,0 с.'
+        : `PDF сохранён: листов ${pds.length} за 0,0 с.`,
     )
     expect(facade.exporting()).toBe(false)
   })
@@ -151,6 +159,22 @@ describe('Пакетный PDF в редакторе плана', () => {
 })
 
 describe('Лист в редакторе плана', () => {
+  it('показывает время подготовки листа после загрузки и смены масштаба, сбрасывает при новой ревизии', async () => {
+    const port = client()
+    const pending = deferred<Awaited<ReturnType<EditorSheetClient['source']>>>()
+    vi.mocked(port.source).mockReturnValueOnce(pending.promise)
+    const { facade: sheets } = facade(port)
+    const loading = sheets.sync(context)
+    expect(sheets.prepareMs()).toBeNull()
+    pending.resolve(ok(source))
+    await loading
+    // Начало загрузки и конец раскладки — два обращения к часам.
+    expect(sheets.prepareMs()).toBe(40)
+    sheets.setScale(25000)
+    expect(sheets.prepareMs()).toBe(40)
+    await sheets.sync({ ...context, busy: true })
+    expect(sheets.prepareMs()).toBeNull()
+  })
   it('экспортирует готовую текущую страницу без zoom, блокирует черновик, гонки и повторный клик', async () => {
     const pdf: EditorPdfClient = {
       export: vi.fn<EditorPdfClient['export']>(async () => ok('saved')),

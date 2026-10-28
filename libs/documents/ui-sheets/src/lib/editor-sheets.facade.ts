@@ -17,6 +17,15 @@ export const EDITOR_PDF_BATCH_CLIENT = new InjectionToken<PdfBatchClient>('Па�
 /** Какие листы сохранить пакетом: текущий ПД, все ПД в один файл или по файлам. */
 export type PdfBatchKind = 'pd' | 'all' | 'folder'
 export const EDITOR_SHEET_CLIENT = new InjectionToken<EditorSheetClient>('Листы редактора плана')
+/** Монотонные часы для замеров подготовки листа и пакетного PDF; в тестах подменяются. */
+export const SHEET_CLOCK = new InjectionToken<() => number>('Часы замеров листа', {
+  providedIn: 'root',
+  factory: () => () => performance.now(),
+})
+/** Секунды с одним знаком после запятой: «12,4 с». */
+function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1).replace('.', ',')} с`
+}
 @Injectable()
 export class EditorSheetsFacade {
   private readonly pdf = inject(EDITOR_PDF_CLIENT, { optional: true })
@@ -24,6 +33,7 @@ export class EditorSheetsFacade {
   private stopRequested = false
   private readonly client = inject(EDITOR_SHEET_CLIENT)
   private readonly prepare = inject(SHEET_MEASURER)
+  private readonly now = inject(SHEET_CLOCK)
   private generation = 0
   private key: string | null = null
   private source: PlanSheetData | null = null
@@ -40,6 +50,11 @@ export class EditorSheetsFacade {
   readonly pdfStatus = signal<string | null>(null)
   readonly pdfError = signal<string | null>(null)
   readonly busy = signal(false)
+  /**
+   * Время подготовки текущего листа после правки, смены ПД или масштаба, мс: данные плана из
+   * main и раскладка листов (критерий приёмки — быстрее 200 мс). Отрисовка SVG не входит.
+   */
+  readonly prepareMs = signal<number | null>(null)
   readonly error = signal<string | null>(null)
   private readonly readyContext = signal<{
     readonly revision: number
@@ -67,6 +82,7 @@ export class EditorSheetsFacade {
     this.document.set(null)
     this.error.set(null)
     this.busy.set(false)
+    this.prepareMs.set(null)
   }
   async sync(context: PlanPreviewContext | null): Promise<void> {
     if (!context?.hasPlan || !context.area.startsWith('pd:') || context.hasRecovery) {
@@ -95,6 +111,7 @@ export class EditorSheetsFacade {
     this.invalidate()
     this.key = key
     const generation = this.generation
+    const started = this.now()
     this.busy.set(true)
     try {
       const result = await this.client.source(context.revision, pd)
@@ -107,7 +124,7 @@ export class EditorSheetsFacade {
       if (generation !== this.generation) return
       this.measurer = measurer
       this.source = result.value
-      this.rebuild()
+      this.rebuild(started)
       this.readyContext.set({ revision: context.revision, area: context.area })
     } catch {
       if (generation === this.generation)
@@ -201,6 +218,8 @@ export class EditorSheetsFacade {
     this.batchStoppable.set(true)
     this.pdfError.set(null)
     this.pdfStatus.set('Выбор файла PDF…')
+    // Время пакета считается от первого шага после диалога выбора файла или папки.
+    let started: number | undefined
     try {
       const result = await exportPdBatch({
         client: this.batch,
@@ -211,6 +230,7 @@ export class EditorSheetsFacade {
         pds,
         stopped: () => this.stopRequested,
         progress: (step) => {
+          started ??= this.now()
           if (step.phase === 'print') {
             this.batchStoppable.set(false)
             this.pdfStatus.set(`Печать и сохранение PDF: листов ${step.pages}…`)
@@ -233,12 +253,14 @@ export class EditorSheetsFacade {
             ? `Сохранение PDF остановлено. Сохранено файлов: ${result.value.files}.`
             : 'Сохранение PDF отменено.',
         )
-      else
+      else {
+        const took = started === undefined ? '' : ` за ${seconds(this.now() - started)}`
         this.pdfStatus.set(
           kind === 'folder'
-            ? `PDF сохранены: файлов ${result.value.files}, листов ${result.value.pages}.`
-            : `PDF сохранён: листов ${result.value.pages}.`,
+            ? `PDF сохранены: файлов ${result.value.files}, листов ${result.value.pages}${took}.`
+            : `PDF сохранён: листов ${result.value.pages}${took}.`,
         )
+      }
     } catch {
       this.pdfError.set('Не удалось сохранить PDF. Повторите попытку.')
       this.pdfStatus.set(null)
@@ -263,7 +285,7 @@ export class EditorSheetsFacade {
     if (this.busy() || (value !== 25000 && value !== 50000 && value !== 100000)) return
     this.scale.set(value)
     this.index.set(0)
-    this.rebuild()
+    this.rebuild(this.now())
   }
   setZoom(value: number): void {
     if (Number.isFinite(value) && value >= 0.3 && value <= 1.5) this.zoom.set(value)
@@ -273,11 +295,12 @@ export class EditorSheetsFacade {
     if (!this.busy() && index >= 0 && index < (this.document()?.pages.length ?? 0))
       this.index.set(index)
   }
-  private rebuild(): void {
+  private rebuild(started: number): void {
     if (!this.source || !this.measurer) return
     const result = buildPdSheets(this.source, this.selected(), this.scale(), this.measurer)
     this.document.set(result.ok ? result.value : null)
     this.error.set(result.ok ? null : result.error.message)
+    this.prepareMs.set(result.ok ? Math.round(this.now() - started) : null)
     if (result.ok)
       this.index.set(Math.min(this.index(), Math.max(0, result.value.pages.length - 1)))
   }

@@ -21,6 +21,11 @@ const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'
 const output = join(root, 'test-results/e2e')
 const TIMEOUT = 60_000
 const packaged = process.env['EOW_E2E_EXECUTABLE']
+// Замеры для отчёта и пороги только крупной регрессии: цели приёмки (лист < 200 мс, 30 листов
+// PDF < 30 с) проверяются на рабочем ПК, а машины CI медленнее и нестабильнее.
+const timings = { sheetPrepareMs: {}, batchPdf: null }
+const MAX_SHEET_PREPARE_MS = 2000
+const MAX_PDF_SECONDS_PER_SHEET = 3
 
 // Состав шагов мастера по файлам генератора фикстур (scripts/fixtures.mjs).
 const STEPS = [
@@ -350,8 +355,16 @@ try {
     await button('Все ПД в один PDF').click()
     const saved = status(/PDF сохранён: листов \d+/u)
     await saved.waitFor()
-    const pages = Number(/листов (\d+)/u.exec(await saved.innerText())?.[1])
+    const text = await saved.innerText()
+    const pages = Number(/листов (\d+)/u.exec(text)?.[1])
     assert.ok(pages >= 4, `Листов ${pages}, а ПД в плане четыре`)
+    const seconds = Number(/за (\d+,\d) с/u.exec(text)?.[1]?.replace(',', '.'))
+    assert.ok(Number.isFinite(seconds), `Нет времени пакета в «${text}»`)
+    timings.batchPdf = { pages, seconds }
+    assert.ok(
+      seconds <= pages * MAX_PDF_SECONDS_PER_SHEET,
+      `PDF ${pages} листов за ${seconds} с — больше ${MAX_PDF_SECONDS_PER_SHEET} с на лист`,
+    )
     await assertA3(all, pages)
     const folder = join(files, 'По ПД')
     await mkdir(folder)
@@ -454,6 +467,11 @@ try {
     for (const [i, pd] of pds.entries()) {
       await page.locator('#plan-area').selectOption(pd)
       await page.locator('#editor-sheet-zoom').fill('0.6')
+      const timing = page.locator('.timing').first()
+      await timing.waitFor()
+      const ms = Number(/(\d+) мс/u.exec(await timing.innerText())?.[1])
+      timings.sheetPrepareMs[pd] = ms
+      assert.ok(ms <= MAX_SHEET_PREPARE_MS, `Подготовка листа ${pd} — ${ms} мс`)
       await pages(`pd-${i + 1}`, pd)
     }
     await nav('Схема А3').click()
@@ -474,6 +492,7 @@ try {
     packaged: Boolean(packaged),
     steps,
     snapshots: { checked: snapshots.checked, missing: snapshots.missing },
+    timings,
   }
   await writeFile(join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n')
   console.log(JSON.stringify(report, null, 2))

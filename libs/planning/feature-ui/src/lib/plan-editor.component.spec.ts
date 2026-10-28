@@ -864,6 +864,34 @@ describe('Редактор плана', () => {
     expect(facade.view()?.year).toBe(2027)
     expect(vi.mocked(port.send).mock.calls.filter(([c]) => c.kind === 'create')).toHaveLength(0)
   })
+  it('при возврате в раздел перечитывает загруженные редакции: номер мог сменить смысл после восстановления базы', async () => {
+    const { facade, port } = await setup()
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'editions',
+      editions: [{ id: 7, number: 7, date: '2027-01-01', label: 'Прежняя', status: 'active' }],
+    })
+    await facade.loadEditions()
+    vi.mocked(port.send).mockResolvedValueOnce({
+      kind: 'editions',
+      editions: [{ id: 7, number: 7, date: '2027-02-01', label: 'Другая', status: 'draft' }],
+    })
+    // Подтверждение создания, оставленное открытым перед уходом в паспорт, не переживает возврат.
+    facade.state.set({ ...state, dirty: true })
+    facade.newYear.set('2028')
+    await facade.create()
+    expect(facade.pendingOpen()).toEqual({ kind: 'create', editionId: 7, year: 2028 })
+    await facade.initialize()
+    expect(facade.pendingOpen()).toBeNull()
+    expect(facade.editions().map((e) => e.label)).toEqual(['Другая'])
+    expect(facade.editionsLoaded()).toBe(true)
+    // Ошибка перечитывания не оставляет устаревший список доступным для создания плана.
+    vi.mocked(port.send).mockRejectedValueOnce(new Error('Нет доступа к паспорту'))
+    await facade.initialize()
+    expect(facade.editionsLoaded()).toBe(false)
+    facade.newYear.set('2028')
+    await facade.create()
+    expect(facade.pendingOpen()).toBeNull()
+  })
   it('ошибка повторной загрузки редакций отключает создание и сохраняет ввод', async () => {
     const { facade, port, fixture, element } = await setup()
     vi.mocked(port.send).mockResolvedValueOnce({ kind: 'editions', editions: [] })

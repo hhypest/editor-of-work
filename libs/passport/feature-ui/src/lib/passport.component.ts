@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core'
 import { fieldLabel } from './passport-view'
 import { PASSPORT_TEXT, PassportFacade, type PassportMode } from './passport.facade'
+import { PassportBackupsComponent } from './passport-backups.component'
 
 @Component({
   selector: 'eow-passport',
+  imports: [PassportBackupsComponent],
   providers: [PassportFacade],
   templateUrl: './passport.component.html',
   styleUrl: './passport.component.css',
@@ -34,6 +36,10 @@ export class PassportComponent {
   }
   protected inputLabel(event: Event): void {
     if (event.target instanceof HTMLInputElement) this.draftLabel.set(event.target.value)
+  }
+  /** После восстановления копии база другая: редакции и выбранная редакция перечитываются. */
+  protected reload(): void {
+    void this.facade.load()
   }
   protected createDraft(): void {
     void this.facade.createDraft(this.draftDate(), this.draftLabel())

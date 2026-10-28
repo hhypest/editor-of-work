@@ -31,6 +31,17 @@ export function passportClient(api: EowApi | undefined): PassportClient {
       if (!api) return unavailable()
       return editions(await api.passport({ action: 'activate', id }))
     },
+    async backups() {
+      if (!api) return unavailable()
+      const response = await api.passport({ action: 'backups' })
+      return response.status === 'ok'
+        ? ok(response.backups ?? [])
+        : err({ kind: 'storage' as const, message: response.message })
+    },
+    async restoreBackup(id) {
+      if (!api) return unavailable()
+      return editions(await api.passport({ action: 'restoreBackup', id }))
+    },
     async editionData(editionId) {
       if (!api) return unavailable()
       const response = await api.passportData({ editionId })

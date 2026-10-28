@@ -1,0 +1,72 @@
+<details (toggle)="toggle($event)">
+  <summary>
+    <h3 id="backups-title">{{ text.title }}</h3>
+  </summary>
+  <section aria-labelledby="backups-title" [attr.aria-busy]="facade.busy()">
+    <p>{{ text.intro }}</p>
+    <button type="button" [disabled]="facade.busy()" (click)="facade.load()">
+      {{ facade.backups() ? text.refresh : text.show }}
+    </button>
+    @if (facade.status(); as status) {
+      <p role="status">{{ status }}</p>
+    }
+    @if (facade.error(); as error) {
+      <p role="alert">{{ error }}</p>
+    }
+    @if (facade.confirming(); as backup) {
+      <div role="alertdialog" class="confirm" aria-labelledby="restore-question">
+        <p id="restore-question">
+          Заменить базу паспорта копией от {{ time(backup.createdAt) }}? Редакции, созданные или
+          изменённые после неё, пропадут из базы, но текущая база сначала будет сохранена копией «{{
+            text.reasons.restore
+          }}» — к ней можно вернуться. Файлы планов не меняются.
+        </p>
+        <button type="button" [disabled]="facade.busy()" (click)="confirm()">
+          {{ text.confirm }}
+        </button>
+        <button type="button" [disabled]="facade.busy()" (click)="facade.cancel()">
+          {{ text.cancel }}
+        </button>
+      </div>
+    }
+    @if (facade.backups(); as backups) {
+      @if (!backups.length) {
+        <p>{{ text.empty }}</p>
+      } @else {
+        <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="text.title">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">{{ text.created }}</th>
+                <th scope="col">{{ text.reason }}</th>
+                <th scope="col">{{ text.editions }}</th>
+                <th scope="col">{{ text.size }}</th>
+                <th scope="col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (backup of backups; track backup.id) {
+                <tr>
+                  <td>{{ time(backup.createdAt) }}</td>
+                  <td>{{ text.reasons[backup.reason] }}</td>
+                  <td>{{ backup.problem ?? (editions(backup) || '—') }}</td>
+                  <td>{{ size(backup.bytes) }}</td>
+                  <td class="actions">
+                    <button
+                      type="button"
+                      [disabled]="facade.busy() || !!backup.problem || !!facade.confirming()"
+                      [attr.aria-label]="text.restore + ' копию от ' + time(backup.createdAt)"
+                      (click)="facade.request(backup)"
+                    >
+                      {{ text.restore }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    }
+  </section>
+</details>

@@ -1,7 +1,6 @@
 import { backup, DatabaseSync } from 'node:sqlite'
-import { mkdir, stat, rm } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { copyFile, mkdir, rename, rm, stat } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import { sql, type Kysely } from 'kysely'
 import { z } from 'zod'
 import { err, ok, type Result } from '@eow/shared/kernel'
@@ -13,6 +12,9 @@ import type {
   PassportEditionData,
   PassportError,
   PassportStore,
+  PassportBackup,
+  PassportBackupReason,
+  PassportBackups,
   RepairReportSource,
   RepairSnapshot,
   PassportPlanningSource,
@@ -38,7 +40,8 @@ import {
 } from '@eow/passport/import-api'
 import { sqliteQueries } from './sqlite-dialect'
 import { editionTables } from './edition-tables'
-import { loadPassportMigrations, migratePassport } from './migrations'
+import { loadPassportMigrations, migratePassport, type PassportMigration } from './migrations'
+import { backupName, listBackups, parseBackupName, pruneBackups } from './passport-backups'
 import { passportLocation, type PassportLocationChooser } from './passport-location'
 import { orgFileSchema, orgImportSchema } from './org-import-schema'
 import { writeOrgImport, type PassportSchema as Schema } from './org-import-storage'
@@ -95,21 +98,73 @@ export interface PassportDatabase
     PassportOrgImport,
     PassportSegmentImport,
     PassportStationImport,
-    PassportManualData {
+    PassportManualData,
+    PassportBackups {
   readonly path: string
   close(): Promise<void>
 }
 
-async function copyDatabase(database: DatabaseSync, path: string, reason: string): Promise<void> {
+/** Копия базы в backups рядом с ней; затем лишние старые копии удаляются (ADR-0043). */
+async function copyDatabase(
+  database: DatabaseSync,
+  path: string,
+  reason: PassportBackupReason,
+  protect: readonly string[] = [],
+): Promise<string> {
   const directory = join(dirname(path), 'backups')
   await mkdir(directory, { recursive: true })
-  const timestamp = new Date().toISOString().replaceAll(':', '-')
-  const destination = join(directory, `passport-${reason}-${timestamp}-${randomUUID()}.sqlite`)
+  const name = backupName(reason, new Date())
+  const destination = join(directory, name)
   try {
     await backup(database, destination)
   } catch (error) {
     await rm(destination, { force: true }).catch(() => undefined)
     throw error
+  }
+  // Очистка не должна срывать изменение, ради которого сделана копия.
+  await pruneBackups(directory, [name, ...protect]).catch(() => undefined)
+  return name
+}
+
+/** Открытие файла базы: настройки, миграции с копией до них, WAL, адаптер Kysely. */
+async function connect(
+  path: string,
+  migrations: readonly PassportMigration[],
+  existing: boolean,
+): Promise<{ readonly database: DatabaseSync; readonly queries: Kysely<Schema> }> {
+  const database = new DatabaseSync(path)
+  try {
+    database.exec(
+      'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;',
+    )
+    await migratePassport(database, migrations, async () => {
+      if (existing) await copyDatabase(database, path, 'migration')
+    })
+    // Режим журнала меняет файл: только после проверки совместимости и копии до миграции.
+    database.exec('PRAGMA journal_mode = WAL')
+    const queries = sqliteQueries<Schema>(database)
+    // Инициализируем драйвер до передачи владения close() адаптеру.
+    await sql`SELECT 1`.execute(queries)
+    return { database, queries }
+  } catch (error) {
+    database.close()
+    throw error
+  }
+}
+
+const backupError = (message: string): PassportError => ({ kind: 'not-found', message })
+
+/** PRAGMA integrity_check копии, открытой только для чтения. */
+function integrityOk(path: string): boolean {
+  let database: DatabaseSync | undefined
+  try {
+    database = new DatabaseSync(path, { readOnly: true })
+    const rows = database.prepare('PRAGMA integrity_check').all() as { integrity_check: string }[]
+    return rows.length === 1 && rows[0]?.integrity_check === 'ok'
+  } catch {
+    return false
+  } finally {
+    database?.close()
   }
 }
 
@@ -118,11 +173,77 @@ class SqlitePassportStore implements PassportDatabase {
   private closing = false
   private closed: Promise<void> | undefined
 
+  // Восстановление копии заменяет соединение; остальные операции ждут его в общей очереди.
+  private database: DatabaseSync
+  private queries: Kysely<Schema>
+
   constructor(
     readonly path: string,
-    private readonly database: DatabaseSync,
-    private readonly queries: Kysely<Schema>,
-  ) {}
+    connection: { readonly database: DatabaseSync; readonly queries: Kysely<Schema> },
+    private readonly migrations: readonly PassportMigration[],
+  ) {
+    this.database = connection.database
+    this.queries = connection.queries
+  }
+
+  private get backupDirectory(): string {
+    return join(dirname(this.path), 'backups')
+  }
+
+  backups(): Promise<Result<readonly PassportBackup[], PassportError>> {
+    return this.operation(async () =>
+      ok(await listBackups(this.backupDirectory, this.migrations.length)),
+    )
+  }
+
+  /**
+   * Замена базы копией: сначала копия текущей базы (повод restore), затем файл копии
+   * подменяет базу и открывается с миграциями. При сбое возвращается прежняя база.
+   */
+  restoreBackup(id: string): Promise<Result<void, PassportError>> {
+    return this.operation(async () => {
+      if (basename(id) !== id || !parseBackupName(id))
+        return err(backupError('Резервная копия не найдена.'))
+      const listed = (await listBackups(this.backupDirectory, this.migrations.length)).find(
+        (backup) => backup.id === id,
+      )
+      if (!listed) return err(backupError('Резервная копия не найдена.'))
+      if (listed.problem) return err({ kind: 'invalid-edition', message: listed.problem })
+      // Список читает только редакции; повреждение других таблиц видно лишь полной проверкой.
+      if (!integrityOk(join(this.backupDirectory, id)))
+        return err({
+          kind: 'invalid-edition',
+          message: 'Копия повреждена: проверка целостности SQLite не пройдена. База не изменена.',
+        })
+      const current = await copyDatabase(this.database, this.path, 'restore', [id])
+      const staged = `${this.path}.restoring`
+      await copyFile(join(this.backupDirectory, id), staged)
+      await this.queries.destroy()
+      try {
+        await rm(`${this.path}-wal`, { force: true })
+        await rm(`${this.path}-shm`, { force: true })
+        await rename(staged, this.path)
+        this.replace(await connect(this.path, this.migrations, true))
+        return ok(undefined)
+      } catch {
+        await rm(staged, { force: true }).catch(() => undefined)
+        await copyFile(join(this.backupDirectory, current), this.path)
+        this.replace(await connect(this.path, this.migrations, true))
+        return err({
+          kind: 'storage',
+          message: 'Не удалось восстановить копию. Прежняя база паспорта оставлена без изменений.',
+        })
+      }
+    })
+  }
+
+  private replace(connection: {
+    readonly database: DatabaseSync
+    readonly queries: Kysely<Schema>
+  }): void {
+    this.database = connection.database
+    this.queries = connection.queries
+  }
 
   /** Backup API асинхронен: очередь не даёт другому запросу изменить его исходное состояние. */
   private operation<T>(
@@ -578,24 +699,7 @@ export async function openPassportDatabase(
       throw error
     })
   const migrations = await loadPassportMigrations(migrationsDirectory)
-  const database = new DatabaseSync(path)
-  try {
-    database.exec(
-      'PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON; PRAGMA synchronous = FULL;',
-    )
-    await migratePassport(database, migrations, async () => {
-      if (existing) await copyDatabase(database, path, 'migration')
-    })
-    // Режим журнала меняет файл: только после проверки совместимости и копии до миграции.
-    database.exec('PRAGMA journal_mode = WAL')
-    const queries = sqliteQueries<Schema>(database)
-    // Инициализируем драйвер до передачи владения close() адаптеру.
-    await sql`SELECT 1`.execute(queries)
-    return new SqlitePassportStore(path, database, queries)
-  } catch (error) {
-    database.close()
-    throw error
-  }
+  return new SqlitePassportStore(path, await connect(path, migrations, existing), migrations)
 }
 
 export async function openPortablePassport(options: {

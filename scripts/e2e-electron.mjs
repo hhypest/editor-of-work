@@ -468,8 +468,8 @@ try {
   })
   await step('восстановление базы паспорта из копии до ввода редакции', async () => {
     await nav('Паспорт').click()
+    // Открытие раздела само загружает список копий.
     await page.getByText('Резервные копии базы').click()
-    await button('Показать копии').click()
     const copy = page
       .getByRole('region', { name: 'Резервные копии базы' })
       .getByRole('row')

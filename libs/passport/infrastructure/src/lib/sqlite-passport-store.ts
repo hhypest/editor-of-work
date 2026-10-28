@@ -154,6 +154,20 @@ async function connect(
 
 const backupError = (message: string): PassportError => ({ kind: 'not-found', message })
 
+/** PRAGMA integrity_check копии, открытой только для чтения. */
+function integrityOk(path: string): boolean {
+  let database: DatabaseSync | undefined
+  try {
+    database = new DatabaseSync(path, { readOnly: true })
+    const rows = database.prepare('PRAGMA integrity_check').all() as { integrity_check: string }[]
+    return rows.length === 1 && rows[0]?.integrity_check === 'ok'
+  } catch {
+    return false
+  } finally {
+    database?.close()
+  }
+}
+
 class SqlitePassportStore implements PassportDatabase {
   private tail: Promise<unknown> = Promise.resolve()
   private closing = false
@@ -195,6 +209,12 @@ class SqlitePassportStore implements PassportDatabase {
       )
       if (!listed) return err(backupError('Резервная копия не найдена.'))
       if (listed.problem) return err({ kind: 'invalid-edition', message: listed.problem })
+      // Список читает только редакции; повреждение других таблиц видно лишь полной проверкой.
+      if (!integrityOk(join(this.backupDirectory, id)))
+        return err({
+          kind: 'invalid-edition',
+          message: 'Копия повреждена: проверка целостности SQLite не пройдена. База не изменена.',
+        })
       const current = await copyDatabase(this.database, this.path, 'restore', [id])
       const staged = `${this.path}.restoring`
       await copyFile(join(this.backupDirectory, id), staged)

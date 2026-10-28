@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { copyFile, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, open, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -129,6 +129,29 @@ describe('Восстановление базы паспорта из копии
     // Отказ ничего не меняет: та же база, новых копий нет.
     expect(value(await store.list())).toMatchObject([{ label: 'Первая', status: 'active' }])
     expect((await readdir(backups)).filter((n) => n.includes('-restore-'))).toEqual([])
+  })
+
+  it('копия с повреждённой таблицей вне редакций не подменяет базу', async () => {
+    const first = value(await store.createDraft({ date: '2026-10-22', label: 'Первая' }))
+    value(await store.activate(first.id))
+    const [copy] = value(await store.backups())
+    const file = join(root, 'backups', copy!.id)
+    // Портим корневую страницу таблицы line: редакции читаются, полная проверка — нет.
+    const database = new DatabaseSync(file)
+    const { rootpage } = database
+      .prepare("SELECT rootpage FROM sqlite_master WHERE name = 'line'")
+      .get() as { rootpage: number }
+    const { page_size } = database.prepare('PRAGMA page_size').get() as { page_size: number }
+    database.close()
+    const handle = await open(file, 'r+')
+    await handle.write(Buffer.alloc(page_size, 0xff), 0, page_size, (rootpage - 1) * page_size)
+    await handle.close()
+    expect(value(await store.backups()).find((b) => b.id === copy!.id)?.problem).toBeUndefined()
+    expect(await store.restoreBackup(copy!.id)).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining('проверка целостности') },
+    })
+    expect(value(await store.list())).toMatchObject([{ label: 'Первая', status: 'active' }])
   })
 
   it('без папки копий список пуст', async () => {

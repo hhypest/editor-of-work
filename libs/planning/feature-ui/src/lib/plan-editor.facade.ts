@@ -130,6 +130,13 @@ export class PlanEditorFacade {
   }
   async initialize(): Promise<void> {
     if (!this.state() && (await this.run({ kind: 'state' }))) this.resetAll()
+    // Список редакций мог устареть, пока открыт другой раздел: например, после восстановления
+    // копии базы паспорта номер редакции указывает уже на другую. Без свежего списка план
+    // из редакции не создаётся (create требует editionsLoaded).
+    if (this.editionsLoaded()) {
+      this.editionsLoaded.set(false)
+      await this.loadEditions()
+    }
   }
   async loadEditions(): Promise<void> {
     if (this.busy()) return

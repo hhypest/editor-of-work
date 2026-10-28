@@ -875,7 +875,13 @@ describe('Редактор плана', () => {
       kind: 'editions',
       editions: [{ id: 7, number: 7, date: '2027-02-01', label: 'Другая', status: 'draft' }],
     })
+    // Подтверждение создания, оставленное открытым перед уходом в паспорт, не переживает возврат.
+    facade.state.set({ ...state, dirty: true })
+    facade.newYear.set('2028')
+    await facade.create()
+    expect(facade.pendingOpen()).toEqual({ kind: 'create', editionId: 7, year: 2028 })
     await facade.initialize()
+    expect(facade.pendingOpen()).toBeNull()
     expect(facade.editions().map((e) => e.label)).toEqual(['Другая'])
     expect(facade.editionsLoaded()).toBe(true)
     // Ошибка перечитывания не оставляет устаревший список доступным для создания плана.

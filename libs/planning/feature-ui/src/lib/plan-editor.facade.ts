@@ -135,6 +135,9 @@ export class PlanEditorFacade {
     // из редакции не создаётся (create требует editionsLoaded).
     if (this.editionsLoaded()) {
       this.editionsLoaded.set(false)
+      // Отложенное создание выбрано по прежнему списку: после возврата его нужно подтвердить
+      // заново, иначе saveAndOpen/discardAndOpen создали бы план из устаревшего номера.
+      if (this.pendingOpen()?.kind === 'create') this.pendingOpen.set(null)
       await this.loadEditions()
     }
   }

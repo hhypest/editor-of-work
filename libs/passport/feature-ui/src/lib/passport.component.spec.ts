@@ -47,6 +47,8 @@ function client(): PassportClient {
     editionData: vi.fn<PassportClient['editionData']>(async (id) =>
       ok(editionData(id, id === 1 ? '3' : '4')),
     ),
+    backups: vi.fn<PassportClient['backups']>(async () => ok([])),
+    restoreBackup: vi.fn<PassportClient['restoreBackup']>(async () => ok(null)),
   }
 }
 

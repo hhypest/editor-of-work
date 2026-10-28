@@ -37,6 +37,33 @@ describe('Порт паспорта через preload', () => {
     })
     expect(await client.activate(1)).toMatchObject({ ok: false })
     expect(await client.editionData(1)).toMatchObject({ ok: false })
+    expect(await client.backups()).toMatchObject({ ok: false })
+    expect(await client.restoreBackup('x.sqlite')).toMatchObject({ ok: false })
+  })
+  it('получает копии базы и восстанавливает копию по имени файла', async () => {
+    const eow = api()
+    const backup = {
+      id: 'passport-activation-2026-10-28T07-05-09.123Z-00000000-0000-4000-8000-000000000000.sqlite',
+      reason: 'activation' as const,
+      createdAt: '2026-10-28T07:05:09.123Z',
+      bytes: 4096,
+      editions: [],
+    }
+    vi.mocked(eow.passport).mockResolvedValueOnce({
+      status: 'ok',
+      editions: [data.edition],
+      backups: [backup],
+    })
+    const client = passportClient(eow)
+    expect(await client.backups()).toEqual({ ok: true, value: [backup] })
+    expect(eow.passport).toHaveBeenLastCalledWith({ action: 'backups' })
+    expect(await client.restoreBackup(backup.id)).toEqual({ ok: true, value: null })
+    expect(eow.passport).toHaveBeenLastCalledWith({ action: 'restoreBackup', id: backup.id })
+    vi.mocked(eow.passport).mockResolvedValueOnce({ status: 'error', message: 'Учебный отказ' })
+    expect(await client.restoreBackup(backup.id)).toMatchObject({
+      ok: false,
+      error: { message: 'Учебный отказ' },
+    })
   })
   it('передаёт действия редакций и принимает DTO данных', async () => {
     const eow = api()

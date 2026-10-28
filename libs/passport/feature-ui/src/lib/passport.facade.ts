@@ -3,6 +3,7 @@ import {
   compareEditionData,
   type EditionData,
   type EditionDiff,
+  type PassportBackup,
   type PassportEdition,
   type PassportError,
 } from '@eow/passport/application'
@@ -14,6 +15,9 @@ export interface PassportClient {
   createDraft(input: { date: string; label: string }): Promise<Result<null, PassportError>>
   activate(id: number): Promise<Result<null, PassportError>>
   editionData(editionId: number): Promise<Result<EditionData, PassportError>>
+  backups(): Promise<Result<readonly PassportBackup[], PassportError>>
+  /** Заменяет базу копией; текущая база перед этим сама сохраняется копией. */
+  restoreBackup(id: string): Promise<Result<null, PassportError>>
 }
 export const PASSPORT_CLIENT = new InjectionToken<PassportClient>('Паспорт')
 

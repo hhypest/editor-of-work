@@ -466,6 +466,33 @@ try {
         `  Эталонов для ${process.platform} нет (${snapshots.missing.length}); снимки — в test-results/e2e/snapshots`,
       )
   })
+  await step('восстановление базы паспорта из копии до ввода редакции', async () => {
+    await nav('Паспорт').click()
+    await page.getByText('Резервные копии базы').click()
+    await button('Показать копии').click()
+    const copy = page
+      .getByRole('region', { name: 'Резервные копии базы' })
+      .getByRole('row')
+      .filter({ hasText: 'Перед вводом редакции' })
+      .first()
+    await copy.getByText('Учебная редакция — черновик').waitFor()
+    await copy.getByRole('button').click()
+    await button('Восстановить базу').click()
+    await status(/База восстановлена из копии/u).waitFor()
+    // В копии редакция ещё черновик; прежняя база сохранена копией «перед восстановлением».
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Учебная редакция' })
+      .getByText('Черновик')
+      .first()
+      .waitFor()
+    await page.getByRole('row').filter({ hasText: 'Перед восстановлением' }).first().waitFor()
+    const copies = (await readdir(join(dataDir, 'backups'))).filter((n) => n.endsWith('.sqlite'))
+    assert.ok(
+      copies.some((n) => n.startsWith('passport-restore-')),
+      'Нет копии перед восстановлением',
+    )
+  })
   await mkdir(output, { recursive: true })
   const report = {
     status: 'passed',

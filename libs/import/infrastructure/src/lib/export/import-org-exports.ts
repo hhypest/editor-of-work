@@ -6,6 +6,7 @@ import {
   parseTrackPd,
   prepareOrgImport,
   type ExportFile,
+  type ExportStep,
   type OrgSourceFile,
   type OrgSources,
 } from '@eow/import/application'
@@ -26,6 +27,7 @@ const invalid = (message: string): Result<never, OrgImportError> =>
 export async function readOrgExports(
   files: readonly ExportFile[],
   importedAt: string,
+  step?: ExportStep,
 ): Promise<
   Result<{ readonly sources: OrgSources; readonly files: readonly OrgSourceFile[] }, OrgImportError>
 > {
@@ -39,7 +41,8 @@ export async function readOrgExports(
   const metadata: OrgSourceFile[] = []
   if (new Set(files.map((f) => f.name)).size !== files.length)
     return invalid('Имена выбранных файлов повторяются. Выберите однозначный набор выгрузок.')
-  for (const file of files) {
+  for (const [index, file] of files.entries()) {
+    await step?.(index, files.length, file.name)
     const read = await readExportFile(source, file)
     if (!read.ok) return invalid(describeExportError(read.error))
     const counts = new Map<OrgSourceFile['form'], number>()
@@ -85,6 +88,9 @@ export async function readOrgExports(
         sha256: read.value.sha256,
       })
   }
+  // Все файлы разобраны: дальше сверка с паспортом без чтения файлов.
+  await step?.(files.length, files.length, '')
+
   return { ok: true, value: { sources, files: metadata } }
 }
 

@@ -49,7 +49,18 @@
     </button>
   }
   @if (facade.busy()) {
-    <p role="status">{{ text.busy }}</p>
+    @if (facade.progress(); as progress) {
+      <p role="status">
+        {{ progress.cancelling ? text.stopping : progressText(progress) }}
+      </p>
+      @if (progress.cancellable) {
+        <button type="button" [disabled]="progress.cancelling" (click)="facade.stop()">
+          {{ text.stop }}
+        </button>
+      }
+    } @else {
+      <p role="status">{{ text.busy }}</p>
+    }
   }
   @if (facade.error(); as error) {
     <p role="alert" class="error">{{ error }}</p>

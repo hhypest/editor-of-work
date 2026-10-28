@@ -52,6 +52,8 @@ function client(): ExportWizardClient {
             ? { status: 'applied' }
             : { status: 'discarded' },
     ),
+    progress: vi.fn<ExportWizardClient['progress']>(async () => null),
+    cancel: vi.fn<ExportWizardClient['cancel']>(async () => undefined),
   }
 }
 async function setup(port = client()) {
@@ -182,5 +184,78 @@ describe('Мастер выгрузок в интерфейсе', () => {
     await facade.run('choose')
     expect(facade.locked()).toBe(false)
     expect(facade.error()).toContain('выберите файлы заново')
+  })
+  it('во время чтения показывает ход по файлам, останавливается кнопкой и сообщает, что ничего не записано', async () => {
+    const port = client()
+    const { facade, fixture, element } = await setup(port)
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      let finish!: (value: ExportWizardOutcome) => void
+      vi.mocked(port.run).mockImplementationOnce(
+        () => new Promise<ExportWizardOutcome>((done) => (finish = done)),
+      )
+      vi.mocked(port.progress).mockResolvedValue({
+        stage: 'parsing',
+        done: 2,
+        total: 17,
+        file: '90000103.xls',
+        cancellable: true,
+        cancelling: false,
+      })
+      const running = facade.run('choose')
+      fixture.detectChanges()
+      expect(element.textContent).toContain(text.busy)
+      await vi.advanceTimersByTimeAsync(450)
+      fixture.detectChanges()
+      expect(element.textContent).toContain('Разбор форм: 3 из 17 — 90000103.xls')
+      button(element, text.stop).click()
+      await vi.advanceTimersByTimeAsync(0)
+      fixture.detectChanges()
+      expect(port.cancel).toHaveBeenCalledOnce()
+      expect(element.textContent).toContain(text.stopping)
+      expect(button(element, text.stop).disabled).toBe(true)
+      finish({ status: 'cancelled' })
+      await running
+      fixture.detectChanges()
+      expect(facade.message()).toBe(text.stopped)
+      expect(facade.progress()).toBeNull()
+      // Опрос хода прекращается вместе с операцией.
+      const polls = vi.mocked(port.progress).mock.calls.length
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(port.progress).toHaveBeenCalledTimes(polls)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it('запись нельзя остановить: кнопки нет, отмена диалога выбора файлов — без сообщения', async () => {
+    const port = client()
+    const { facade, fixture, element } = await setup(port)
+    vi.useFakeTimers({ toFake: ['setTimeout'] })
+    try {
+      let finish!: (value: ExportWizardOutcome) => void
+      vi.mocked(port.run).mockImplementationOnce(
+        () => new Promise<ExportWizardOutcome>((done) => (finish = done)),
+      )
+      vi.mocked(port.progress).mockResolvedValue({
+        stage: 'saving',
+        done: 0,
+        total: 0,
+        file: null,
+        cancellable: false,
+        cancelling: false,
+      })
+      const running = facade.run('choose')
+      await vi.advanceTimersByTimeAsync(450)
+      fixture.detectChanges()
+      expect(element.textContent).toContain('Запись в базу паспорта…')
+      expect(button(element, text.stop)).toBeUndefined()
+      await facade.stop()
+      expect(port.cancel).not.toHaveBeenCalled()
+      finish({ status: 'cancelled' })
+      await running
+      expect(facade.message()).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

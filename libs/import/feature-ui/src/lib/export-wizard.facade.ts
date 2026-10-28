@@ -4,9 +4,21 @@ import {
   type ExportWizardOutcome,
   type ExportWizardAction,
   type ExportGroup,
+  type ExportProgress,
   type ExportReview,
   type ManualTemplateEdition,
 } from '@eow/import/application'
+
+/** Как часто спрашивать main о ходе операции, мс. */
+const PROGRESS_INTERVAL = 400
+
+/** «Чтение файлов: 3 из 17 — 90000103.xls» или название этапа без счётчика. */
+export function progressText(progress: ExportProgress): string {
+  const stage = EXPORT_TEXT.stages[progress.stage]
+  if (!progress.total) return stage
+  const file = progress.file ? ` — ${progress.file}` : ''
+  return `${stage}: ${Math.min(progress.done + 1, progress.total)} из ${progress.total}${file}`
+}
 
 export const EXPORT_WIZARD_CLIENT = new InjectionToken<ExportWizardClient>(
   'Импорт выгрузок паспорта',
@@ -59,6 +71,15 @@ export const EXPORT_TEXT = {
   apply: 'Подтвердить замену пакета',
   cancel: 'Отменить импорт',
   busy: 'Чтение и проверка выгрузок…',
+  stop: 'Остановить',
+  stopping: 'Остановка после текущего файла…',
+  stopped: 'Импорт остановлен до записи. Ничего не сохранено, файлы можно выбрать заново.',
+  stages: {
+    reading: 'Чтение файлов',
+    parsing: 'Разбор форм',
+    checking: 'Сверка с паспортом и подготовка отчёта…',
+    saving: 'Запись в базу паспорта…',
+  },
   success: 'Пакет сохранён. Данные и отчёт записаны вместе. Можно перейти к следующему шагу.',
 } as const
 
@@ -69,6 +90,9 @@ export class ExportWizardFacade {
   readonly editionId = signal<number | null>(null)
   readonly group = signal<ExportGroup>('org')
   readonly busy = signal(false)
+  /** Ход текущей операции main; null — ход ещё не пришёл. */
+  readonly progress = signal<ExportProgress | null>(null)
+  private stopRequested = false
   readonly error = signal<string | null>(null)
   readonly message = signal<string | null>(null)
   readonly choices = signal<Extract<ExportWizardOutcome, { status: 'choices' }> | null>(null)
@@ -138,6 +162,19 @@ export class ExportWizardFacade {
     this.busy.set(true)
     this.error.set(null)
     this.message.set(null)
+    this.progress.set(null)
+    this.stopRequested = false
+    const watching = action === 'choose' || action === 'apply'
+    let running = true
+    const poll = async (): Promise<void> => {
+      while (running) {
+        await new Promise((done) => setTimeout(done, PROGRESS_INTERVAL))
+        if (!running) return
+        const current = await this.client.progress().catch(() => null)
+        if (running && current) this.progress.set(current)
+      }
+    }
+    if (watching) void poll()
     try {
       const result = await this.client.run(request)
       if (result.status === 'error') {
@@ -153,13 +190,24 @@ export class ExportWizardFacade {
       else if (result.status === 'applied') {
         this.clear()
         this.message.set(EXPORT_TEXT.success)
-      }
+      } else if (result.status === 'cancelled' && this.stopRequested)
+        this.message.set(EXPORT_TEXT.stopped)
     } catch {
       this.clear()
       this.error.set('Операция прервана. Проверьте данные паспорта и выберите файлы заново.')
     } finally {
+      running = false
+      this.progress.set(null)
       this.busy.set(false)
     }
+  }
+  /** Остановка подготовки: main прерывает её перед следующим файлом; запись не останавливается. */
+  async stop(): Promise<void> {
+    if (!this.busy() || !this.progress()?.cancellable || this.progress()?.cancelling) return
+    this.stopRequested = true
+    const current = this.progress()
+    if (current) this.progress.set({ ...current, cancelling: true })
+    await this.client.cancel().catch(() => undefined)
   }
   private clear(): void {
     this.choices.set(null)

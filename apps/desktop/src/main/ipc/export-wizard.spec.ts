@@ -173,6 +173,24 @@ describe('Мастер выгрузок: файлы → предпросмотр
     const basis = value(await passportPlanView(store).basis(id))
     expect(basis.pds.map((pd) => pd.name)).toEqual(['ПД-1', 'ПД-2', 'ПД-3', 'ПД-4'])
   })
+  it('остановка на сверке с паспортом тоже не создаёт сеанс и ничего не пишет', async () => {
+    await apply('org')
+    const before = value(await store.editionData(id))
+    const choosing = invoke({ action: 'choose', editionId: id, group: 'segments' })
+    const stages: string[] = []
+    let cancelled: unknown
+    for (let i = 0; i < 2000 && !cancelled; i++) {
+      await new Promise((done) => setImmediate(done))
+      const reply = await invoke({ action: 'progress' })
+      if (reply.status !== 'progress') continue
+      stages.push(reply.progress.stage)
+      if (reply.progress.stage === 'checking') cancelled = await invoke({ action: 'cancel' })
+    }
+    expect(stages.at(-1)).toBe('checking')
+    expect(cancelled).toMatchObject({ status: 'progress', progress: { cancelling: true } })
+    expect(await choosing).toEqual({ status: 'cancelled' })
+    expect(value(await store.editionData(id))).toEqual(before)
+  })
   it.each(['org', 'segments', 'stations'] as const)(
     'шаг %s показывает ход по файлам, останавливается до записи и не держит мастер занятым',
     async (group) => {

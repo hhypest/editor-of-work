@@ -78,6 +78,14 @@ export function registerExportWizardHandlers(
 ): void {
   let pending: Session | undefined
   let busy = false
+  /**
+   * Сверка с паспортом идёт без передышек: запрос остановки, пришедший во время неё, ждёт
+   * в очереди. Перед созданием сеанса main отдаёт очередь и только потом проверяет остановку.
+   */
+  async function stopIfRequested(): Promise<void> {
+    await yieldToIpc()
+    if (cancelling) throw new ImportCancelled()
+  }
   let progress: Omit<ExportProgress, 'cancelling'> | undefined
   let cancelling = false
   /** Шаг этапа чтения или разбора: ход, точка остановки и передышка для IPC. */
@@ -193,8 +201,7 @@ export function registerExportWizardHandlers(
     const importedAt = now().toISOString()
     if (request.group === 'org') {
       const org = await readOrgExports(files, importedAt, parsing)
-      // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
-      if (cancelling) throw new ImportCancelled()
+      await stopIfRequested()
       if (!org.ok) return failure(org.error.message)
       // Проверка комплектности и неоднозначных кодов до выбора действующих.
       const valid = prepareOrgImport(
@@ -219,8 +226,7 @@ export function registerExportWizardHandlers(
     const input = { editionId: request.editionId, files, importedAt, step: parsing }
     if (request.group === 'segments') {
       const prepared = await prepareSegmentExports(store, input)
-      // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
-      if (cancelling) throw new ImportCancelled()
+      await stopIfRequested()
       return prepared.ok
         ? preview(
             session,
@@ -233,8 +239,7 @@ export function registerExportWizardHandlers(
         : failure(prepared.error.message)
     }
     const prepared = await prepareStationExports(store, input)
-    // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
-    if (cancelling) throw new ImportCancelled()
+    await stopIfRequested()
     return prepared.ok
       ? preview(
           session,

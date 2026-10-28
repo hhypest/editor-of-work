@@ -7,7 +7,7 @@ import json
 from fontTools.ttLib import TTFont
 
 root = Path(__file__).resolve().parent.parent
-alphabet = ''.join(chr(c) for c in [*range(32, 127), *range(0x400, 0x460), 0xab, 0xbb, 0xb7, 0x2013, 0x2014, 0x2026, 0x2116])
+alphabet = ''.join(chr(c) for c in [*range(32, 127), *range(0x400, 0x460), 0xab, 0xbb, 0xb7, 0x2013, 0x2014, 0x2026, 0x2116, 0x2212])
 metrics = {}
 hashes = {}
 for family, prefix in [('pt-sans', 'sans'), ('pt-sans-narrow', 'narrow')]:

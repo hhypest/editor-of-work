@@ -26,6 +26,7 @@
       "@eow/documents/infrastructure": ["./libs/documents/infrastructure/src/index.ts"],
       "@eow/import/infrastructure": ["./libs/import/infrastructure/src/index.ts"],
       "@eow/documents/application": ["./libs/documents/application/src/index.ts"],
+      "@eow/documents/application/testing": ["./libs/documents/application/src/testing.ts"],
       "@eow/import/application": ["./libs/import/application/src/index.ts"],
       "@eow/ipc/contracts": ["./libs/ipc/contracts/src/index.ts"],
       "@eow/passport/feature-ui": ["./libs/passport/feature-ui/src/index.ts"],

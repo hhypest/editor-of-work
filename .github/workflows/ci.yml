@@ -31,6 +31,17 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Sheet preparation on fictional plans
+        timeout-minutes: 10
+        run: npm run test:perf
+      - name: Sheet preparation report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: perf-${{ matrix.os }}
+          path: test-results/perf/report.json
+          if-no-files-found: warn
+          retention-days: 14
       - name: SQLite and PDF in real Electron
         if: runner.os == 'Windows'
         run: npm run check:electron

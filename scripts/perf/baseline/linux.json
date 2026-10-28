@@ -1,0 +1,46 @@
+{
+  "version": "0.5.0-beta.1",
+  "engine": {
+    "node": "24.22.0",
+    "v8": "15.2.124.43-electron.0",
+    "electron": "44.9.0"
+  },
+  "profiles": {
+    "small": {
+      "pages": 10,
+      "openMs": 3.5,
+      "sheetMs": 2.4,
+      "editMs": 1.1,
+      "afterEditMs": 1.4,
+      "batchMs": 2.9,
+      "saveMs": 4.1
+    },
+    "typical": {
+      "pages": 67,
+      "openMs": 9.6,
+      "sheetMs": 2,
+      "editMs": 3.1,
+      "afterEditMs": 1.7,
+      "batchMs": 19.4,
+      "saveMs": 12.9
+    },
+    "limit": {
+      "pages": 627,
+      "openMs": 149.4,
+      "sheetMs": 10.1,
+      "editMs": 40.1,
+      "afterEditMs": 10.7,
+      "batchMs": 301,
+      "saveMs": 158.7
+    },
+    "sheets30": {
+      "pages": 30,
+      "openMs": 3,
+      "sheetMs": 1.1,
+      "editMs": 1,
+      "afterEditMs": 1.1,
+      "batchMs": 5.8,
+      "saveMs": 5.6
+    }
+  }
+}

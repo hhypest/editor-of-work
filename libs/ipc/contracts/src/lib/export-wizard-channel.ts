@@ -31,12 +31,31 @@ export const exportWizard = defineChannel(
       .strict(),
     z.object({ action: z.literal('apply'), editionId, token }).strict(),
     z.object({ action: z.literal('discard'), editionId, token }).strict(),
+    // Ход и остановка текущей операции; обслуживаются, пока она идёт (ADR-0044).
+    z.object({ action: z.literal('progress') }).strict(),
+    z.object({ action: z.literal('cancel') }).strict(),
   ]),
   z.discriminatedUnion('status', [
     z.object({ status: z.literal('cancelled') }).strict(),
     z.object({ status: z.literal('applied') }).strict(),
     z.object({ status: z.literal('discarded') }).strict(),
     z.object({ status: z.literal('error'), message: z.string() }).strict(),
+    z.object({ status: z.literal('idle') }).strict(),
+    z
+      .object({
+        status: z.literal('progress'),
+        progress: z
+          .object({
+            stage: z.enum(['reading', 'parsing', 'checking', 'saving']),
+            done: count,
+            total: count,
+            file: z.string().nullable(),
+            cancellable: z.boolean(),
+            cancelling: z.boolean(),
+          })
+          .strict(),
+      })
+      .strict(),
     z.object({ status: z.literal('choices'), token, editionId, choices: z.array(choice) }).strict(),
     z
       .object({

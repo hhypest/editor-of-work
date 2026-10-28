@@ -3,6 +3,7 @@ import {
   parseSegments,
   prepareSegmentImport,
   type ExportFile,
+  type ExportStep,
   type ParsedSegment,
 } from '@eow/import/application'
 import type {
@@ -21,6 +22,8 @@ export async function prepareSegmentExports(
     readonly editionId: number
     readonly files: readonly ExportFile[]
     readonly importedAt: string
+    /** Перед каждым файлом: ход операции и точка остановки (ADR-0044). */
+    readonly step?: ExportStep
   },
 ): Promise<Result<SegmentPreview, OrgImportError>> {
   const basis = await store.segmentBasis(request.editionId)
@@ -30,7 +33,8 @@ export async function prepareSegmentExports(
   const files: Omit<SegmentImportFile, 'id' | 'warnings'>[] = []
   if (new Set(request.files.map((f) => f.name)).size !== request.files.length)
     return err({ kind: 'invalid-import', message: 'Имена выбранных файлов повторяются.' })
-  for (const file of request.files) {
+  for (const [index, file] of request.files.entries()) {
+    await request.step?.(index, request.files.length, file.name)
     const read = await readExportFile(source, file)
     if (!read.ok) return err({ kind: 'invalid-import', message: describeExportError(read.error) })
     const counts = new Map<ParsedSegment['form'], number>()
@@ -68,6 +72,9 @@ export async function prepareSegmentExports(
         sha256: read.value.sha256,
       })
   }
+  // Все файлы разобраны: дальше сверка с паспортом без чтения файлов.
+  await request.step?.(request.files.length, request.files.length, '')
+
   const preview = prepareSegmentImport(parsed, files, basis.value)
   if (!preview.ok) return preview
   return preview

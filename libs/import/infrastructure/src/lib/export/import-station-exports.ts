@@ -7,6 +7,7 @@ import {
   parseOkato,
   prepareStationImport,
   type ExportFile,
+  type ExportStep,
   type ExportError,
   type ExportTable,
   type StationSourcesForImport,
@@ -29,6 +30,8 @@ export async function prepareStationExports(
     readonly editionId: number
     readonly files: readonly ExportFile[]
     readonly importedAt: string
+    /** Перед каждым файлом: ход операции и точка остановки (ADR-0044). */
+    readonly step?: ExportStep
   },
 ): Promise<Result<StationPreview, OrgImportError>> {
   const basis = await store.stationBasis(request.editionId)
@@ -38,7 +41,8 @@ export async function prepareStationExports(
   const source = new PassportExportSource(),
     files: StationSourceFile[] = []
   const tables = new Map<StationForm, ExportTable[]>()
-  for (const file of request.files) {
+  for (const [index, file] of request.files.entries()) {
+    await request.step?.(index, request.files.length, file.name)
     const read = await readExportFile(source, file)
     if (!read.ok) return err({ kind: 'invalid-import', message: describeExportError(read.error) })
     const counts = new Map<StationForm, { count: number; sheets: string[] }>()
@@ -64,6 +68,9 @@ export async function prepareStationExports(
         sheets: data.sheets,
       })
   }
+  // Все файлы разобраны: дальше сверка с паспортом без чтения файлов.
+  await request.step?.(request.files.length, request.files.length, '')
+
   if (STATION_FORMS.some((f) => !tables.has(f)))
     return err({
       kind: 'invalid-import',

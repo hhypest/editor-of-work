@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FORM_TITLES, PASSPORT_FORMS } from '@eow/import/application'
-import { ExportWizardFacade, EXPORT_TEXT, EXPORT_STEPS } from './export-wizard.facade'
+import { ExportWizardFacade, EXPORT_TEXT, EXPORT_STEPS, progressText } from './export-wizard.facade'
 
 @Component({
   selector: 'eow-export-wizard',
@@ -13,6 +13,7 @@ export class ExportWizardComponent {
   protected readonly facade = inject(ExportWizardFacade)
   protected readonly text = EXPORT_TEXT
   protected readonly steps = EXPORT_STEPS
+  protected readonly progressText = progressText
   constructor() {
     void this.facade.load()
   }

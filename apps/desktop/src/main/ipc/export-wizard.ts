@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto'
+import { basename } from 'node:path'
 import { channels, type RequestOf, type ResponseOf } from '@eow/ipc/contracts'
 import {
   prepareOrgImport,
   subdivisionChoices,
   describeLocation,
   type ExportFile,
+  type ExportProgress,
   type OrgSources,
   type OrgSourceFile,
   type ExportGroup,
@@ -51,6 +53,10 @@ interface Session {
   readonly command?: Command
 }
 const failure = (message: string): Outcome => ({ status: 'error', message })
+/** Остановка по запросу пользователя: подготовка прерывается до записи, сеанс не создаётся. */
+class ImportCancelled extends Error {}
+/** Отдать очередь событий: между файлами main отвечает на запросы хода и остановки. */
+const yieldToIpc = (): Promise<void> => new Promise((done) => setImmediate(done))
 const remarkText = (r: OrgImportRemark): string =>
   r.at
     ? `${describeLocation({
@@ -72,6 +78,20 @@ export function registerExportWizardHandlers(
 ): void {
   let pending: Session | undefined
   let busy = false
+  let progress: Omit<ExportProgress, 'cancelling'> | undefined
+  let cancelling = false
+  /** Шаг этапа чтения или разбора: ход, точка остановки и передышка для IPC. */
+  const stage =
+    (name: 'reading' | 'parsing') =>
+    async (done: number, total: number, file: string): Promise<void> => {
+      if (cancelling) throw new ImportCancelled()
+      progress =
+        name === 'parsing' && done === total
+          ? { stage: 'checking', done: 0, total: 0, file: null, cancellable: true }
+          : { stage: name, done, total, file, cancellable: true }
+      await yieldToIpc()
+      if (cancelling) throw new ImportCancelled()
+    }
   function preview(
     session: Session,
     command: Command,
@@ -100,7 +120,9 @@ export function registerExportWizardHandlers(
       },
     }
   }
-  async function run(request: RequestOf<typeof channels.exportWizard>): Promise<Outcome> {
+  async function run(
+    request: Exclude<RequestOf<typeof channels.exportWizard>, { action: 'progress' | 'cancel' }>,
+  ): Promise<Outcome> {
     if (request.action === 'discard') {
       if (pending?.token === request.token && pending.editionId === request.editionId)
         pending = undefined
@@ -136,6 +158,7 @@ export function registerExportWizardHandlers(
         return failure('Сначала подтвердите выбор подразделений и просмотрите отчёт.')
       pending = undefined
       const command = session.command
+      progress = { stage: 'saving', done: 0, total: 0, file: null, cancellable: false }
       const saved =
         command.group === 'org'
           ? await store.applyOrgImport(request.editionId, command.data)
@@ -154,7 +177,12 @@ export function registerExportWizardHandlers(
     if (paths.length > 1000) return failure('За один шаг выберите не более 1000 частей выгрузок.')
     const files: ExportFile[] = []
     const budget = new ExportReadBudget()
-    for (const path of paths) files.push(await selectedExportFile(path, budget))
+    const reading = stage('reading'),
+      parsing = stage('parsing')
+    for (const [index, path] of paths.entries()) {
+      await reading(index, paths.length, basename(path))
+      files.push(await selectedExportFile(path, budget))
+    }
     const session: Session = {
       token: randomUUID(),
       editionId: request.editionId,
@@ -164,7 +192,9 @@ export function registerExportWizardHandlers(
     }
     const importedAt = now().toISOString()
     if (request.group === 'org') {
-      const org = await readOrgExports(files, importedAt)
+      const org = await readOrgExports(files, importedAt, parsing)
+      // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
+      if (cancelling) throw new ImportCancelled()
       if (!org.ok) return failure(org.error.message)
       // Проверка комплектности и неоднозначных кодов до выбора действующих.
       const valid = prepareOrgImport(
@@ -186,9 +216,11 @@ export function registerExportWizardHandlers(
         ).map((c) => ({ ...c, overlapsWith: [...c.overlapsWith] })),
       }
     }
-    const input = { editionId: request.editionId, files, importedAt }
+    const input = { editionId: request.editionId, files, importedAt, step: parsing }
     if (request.group === 'segments') {
       const prepared = await prepareSegmentExports(store, input)
+      // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
+      if (cancelling) throw new ImportCancelled()
       return prepared.ok
         ? preview(
             session,
@@ -201,6 +233,8 @@ export function registerExportWizardHandlers(
         : failure(prepared.error.message)
     }
     const prepared = await prepareStationExports(store, input)
+    // Остановка во время сверки: результат отбрасывается, сеанс не создаётся.
+    if (cancelling) throw new ImportCancelled()
     return prepared.ok
       ? preview(
           session,
@@ -213,19 +247,34 @@ export function registerExportWizardHandlers(
         )
       : failure(prepared.error.message)
   }
-  registerHandler(ipc, channels.exportWizard, async (request) => {
+  registerHandler(ipc, channels.exportWizard, async (request): Promise<Outcome> => {
+    // Ход и остановка отвечают и во время операции: это не новая операция.
+    if (request.action === 'progress')
+      return busy && progress
+        ? { status: 'progress', progress: { ...progress, cancelling } }
+        : { status: 'idle' }
+    if (request.action === 'cancel') {
+      if (!busy || !progress?.cancellable) return { status: 'idle' }
+      cancelling = true
+      return { status: 'progress', progress: { ...progress, cancelling } }
+    }
     if (busy) return failure('Дождитесь завершения операции импорта.')
     busy = true
+    cancelling = false
+    progress = undefined
     try {
       return await run(request)
     } catch (error) {
       pending = undefined
+      if (error instanceof ImportCancelled) return { status: 'cancelled' }
       if (error instanceof ExportReadLimitError) return failure(error.message)
       return failure(
         'Не удалось прочитать или записать выгрузки. Проверьте доступ к файлам и подготовьте импорт заново.',
       )
     } finally {
       busy = false
+      cancelling = false
+      progress = undefined
     }
   })
 }

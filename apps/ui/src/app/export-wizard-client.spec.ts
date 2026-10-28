@@ -34,4 +34,28 @@ describe('Клиент мастера через preload', () => {
     await client.run(request)
     expect(eow.exportWizard).toHaveBeenCalledWith(request)
   })
+  it('спрашивает ход и остановку; ответ хода на операцию считается ошибкой контракта', async () => {
+    const eow = api(),
+      client = exportWizardClient(eow)
+    const progress = {
+      stage: 'reading' as const,
+      done: 1,
+      total: 4,
+      file: '90000101.xls',
+      cancellable: true,
+      cancelling: false,
+    }
+    vi.mocked(eow.exportWizard).mockResolvedValueOnce({ status: 'progress', progress })
+    expect(await client.progress()).toEqual(progress)
+    expect(eow.exportWizard).toHaveBeenLastCalledWith({ action: 'progress' })
+    vi.mocked(eow.exportWizard).mockResolvedValueOnce({ status: 'idle' })
+    expect(await client.progress()).toBeNull()
+    await client.cancel()
+    expect(eow.exportWizard).toHaveBeenLastCalledWith({ action: 'cancel' })
+    vi.mocked(eow.exportWizard).mockResolvedValueOnce({ status: 'idle' })
+    expect(await client.run({ action: 'choose', editionId: 1, group: 'org' })).toMatchObject({
+      status: 'error',
+    })
+    expect(await exportWizardClient(undefined).progress()).toBeNull()
+  })
 })

@@ -174,6 +174,46 @@ describe('Мастер выгрузок: файлы → предпросмотр
     expect(basis.pds.map((pd) => pd.name)).toEqual(['ПД-1', 'ПД-2', 'ПД-3', 'ПД-4'])
   })
   it.each(['org', 'segments', 'stations'] as const)(
+    'шаг %s показывает ход по файлам, останавливается до записи и не держит мастер занятым',
+    async (group) => {
+      if (group !== 'org') await apply('org')
+      const before = value(await store.editionData(id))
+      expect(await invoke({ action: 'progress' })).toEqual({ status: 'idle' })
+      expect(await invoke({ action: 'cancel' })).toEqual({ status: 'idle' })
+      const choosing = invoke({ action: 'choose', editionId: id, group })
+      const seen: { stage: string; cancellable: boolean }[] = []
+      let stopAt: unknown, cancelReply: unknown
+      for (let i = 0; i < 500 && !stopAt; i++) {
+        await new Promise((done) => setImmediate(done))
+        const reply = await invoke({ action: 'progress' })
+        if (reply.status !== 'progress') continue
+        seen.push({ stage: reply.progress.stage, cancellable: reply.progress.cancellable })
+        // Останавливаем при первом же ответе хода — на любом этапе до записи.
+        if (!stopAt) {
+          stopAt = reply.progress
+          cancelReply = await invoke({ action: 'cancel' })
+        }
+      }
+      // Первый ход — чтение первого файла: этап, имя файла и общее число.
+      expect(stopAt).toMatchObject({
+        stage: 'reading',
+        done: 0,
+        total: groups[group].length,
+        file: expect.stringMatching(/\.xlsx?$/u),
+        cancellable: true,
+        cancelling: false,
+      })
+      expect(cancelReply).toMatchObject({ status: 'progress', progress: { cancelling: true } })
+      expect(seen.every((p) => p.cancellable)).toBe(true)
+      expect(await choosing).toEqual({ status: 'cancelled' })
+      expect(value(await store.editionData(id))).toEqual(before)
+      expect(await invoke({ action: 'progress' })).toEqual({ status: 'idle' })
+      // Остановленный шаг не оставляет сеанс: новый выбор работает с начала.
+      const again = await invoke({ action: 'choose', editionId: id, group })
+      expect(['choices', 'preview']).toContain(again.status)
+    },
+  )
+  it.each(['org', 'segments', 'stations'] as const)(
     'изменение паспорта после предпросмотра %s блокирует запись в транзакции',
     async (group) => {
       if (group !== 'org') await apply('org')

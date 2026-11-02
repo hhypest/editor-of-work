@@ -56,6 +56,12 @@ describe('Сверка схем станций с паспортом', () => {
     expect(remarks).toContain('«Схема_Озёрная.pdf»: путь 3: на схеме 412 м, в экспликации 400 м.')
   })
 
+  it('сверяет стрелку экспликации с суффиксом «р» со стрелкой схемы без него', () => {
+    const switches = basis().switches.map((x) => (x.number === '7' ? { ...x, number: '7р' } : x))
+    const remarks = texts(prepareSchemeImport([file()], basis({ switches }), AT))
+    expect(remarks.some((r) => r.includes('стрелка 7'))).toBe(false)
+  })
+
   it('не считает остряк из экспликации пропавшей стрелкой', () => {
     const remarks = texts(prepareSchemeImport([file()], basis(), AT))
     expect(remarks.some((r) => r.includes('стрелка 8СО'))).toBe(false)

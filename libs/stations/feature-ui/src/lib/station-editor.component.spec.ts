@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
 import type { StationLayout } from '@eow/stations/application'
-import { StationEditorComponent } from './station-editor.component'
+import { StationEditorComponent, stationEditorLeaveGuard } from './station-editor.component'
 import {
   STATION_EDITOR_CLIENT,
   STATION_TEXT,
@@ -114,6 +114,45 @@ describe('Редактор схемы станции', () => {
     key(sw, 'ArrowDown')
     fixture.detectChanges()
     expect(el.querySelector('.problem')?.textContent).toContain('только вдоль своего пути')
+  })
+
+  it('при отказе уйти от несохранённых правок оставляет станцию и её выбор в списке', async () => {
+    const port = client()
+    const { fixture, el } = await render(port)
+    const nodes = [...el.querySelectorAll('circle.node')]
+    key(
+      nodes.find((n) => n.getAttribute('cx') === '136')!,
+      'ArrowRight',
+    )
+    fixture.detectChanges()
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const select = el.querySelector<HTMLSelectElement>('#stations-station')!
+    select.value = 'st-a'
+    select.dispatchEvent(new Event('change'))
+    await fixture.whenStable()
+    expect(confirm).toHaveBeenCalledWith(STATION_TEXT.discard)
+    expect(select.value).toBe('st-b')
+    expect(port.load).toHaveBeenCalledTimes(1)
+    confirm.mockRestore()
+  })
+
+  it('не выпускает из раздела с несохранёнными правками без подтверждения', async () => {
+    const { fixture, el } = await render(client())
+    const component = fixture.componentInstance
+    const leave = () =>
+      TestBed.runInInjectionContext(() =>
+        stationEditorLeaveGuard(component, {} as never, {} as never, {} as never),
+      )
+    expect(leave()).toBe(true)
+    key(
+      [...el.querySelectorAll('circle.node')].find((n) => n.getAttribute('cx') === '136')!,
+      'ArrowRight',
+    )
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    expect(leave()).toBe(false)
+    confirm.mockReturnValue(true)
+    expect(leave()).toBe(true)
+    confirm.mockRestore()
   })
 
   it('в действующей редакции схему можно только смотреть', async () => {

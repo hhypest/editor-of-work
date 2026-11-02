@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core'
+import type { CanDeactivateFn } from '@angular/router'
 import { cellAt, type DrawingPoint, type DrawnNode } from '@eow/stations/application'
 import { STATION_TEXT, StationEditorFacade } from './station-editor.facade'
 
@@ -31,13 +32,24 @@ export class StationEditorComponent {
   }
 
   protected selectEdition(event: Event): void {
-    if (!(event.target instanceof HTMLSelectElement) || !this.leave()) return
-    void this.facade.selectEdition(Number(event.target.value))
+    const select = event.target
+    if (!(select instanceof HTMLSelectElement)) return
+    // Список уже показывает новый выбор: при отказе возвращаем текущую редакцию.
+    if (!this.canLeave()) {
+      select.value = String(this.facade.edition() ?? '')
+      return
+    }
+    void this.facade.selectEdition(Number(select.value))
   }
 
   protected selectStation(event: Event): void {
-    if (!(event.target instanceof HTMLSelectElement) || !this.leave()) return
-    void this.facade.selectStation(event.target.value)
+    const select = event.target
+    if (!(select instanceof HTMLSelectElement)) return
+    if (!this.canLeave()) {
+      select.value = this.facade.station() ?? ''
+      return
+    }
+    void this.facade.selectStation(select.value)
   }
 
   /** Одно перетаскивание — один шаг отмены: сдвиги идут с общим ключом. */
@@ -103,7 +115,12 @@ export class StationEditorComponent {
     event.preventDefault()
   }
 
-  private leave(): boolean {
+  /** Можно ли уйти со станции: без правок — сразу, с правками — после подтверждения. */
+  canLeave(): boolean {
     return !this.facade.dirty() || window.confirm(STATION_TEXT.discard)
   }
 }
+
+/** Переход в другой раздел не теряет несохранённые правки схемы молча. */
+export const stationEditorLeaveGuard: CanDeactivateFn<StationEditorComponent> = (component) =>
+  component.canLeave()

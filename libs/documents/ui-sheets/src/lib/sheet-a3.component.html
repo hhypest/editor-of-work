@@ -46,6 +46,11 @@
             [attr.font-family]="shape.font.family"
             [attr.font-size]="shape.font.size.value"
             [attr.font-weight]="shape.font.weight"
+            [attr.transform]="
+              shape.rotate
+                ? 'rotate(' + shape.rotate + ' ' + shape.x.value + ' ' + shape.y.value + ')'
+                : null
+            "
             fill="#111"
             stroke="none"
           >

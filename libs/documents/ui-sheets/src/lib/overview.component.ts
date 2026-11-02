@@ -20,6 +20,9 @@ export class OverviewComponent {
     if (event.target instanceof HTMLSelectElement)
       void this.facade.select(Number(event.target.value))
   }
+  protected variant(event: Event): void {
+    if (event.target instanceof HTMLSelectElement) this.facade.setVariant(event.target.value)
+  }
   protected scale(event: Event): void {
     if (event.target instanceof HTMLSelectElement) this.facade.setScale(Number(event.target.value))
   }

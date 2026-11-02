@@ -16,83 +16,128 @@ import {
   type OverviewLine,
   type OverviewSource,
   type SheetError,
+  type SheetFont,
   type SheetPage,
   type SheetPrimitive,
   type TextMeasurer,
 } from './sheet-model'
-import { bold, narrow, regular, textBlock } from './sheet-text'
-import {
-  moveShapes,
-  sheetLine as line,
-  sheetRect as rect,
-  sheetText as text,
-  sheetThickLine as thick,
-} from './sheet-drawing'
+import { bold, narrow, regular } from './sheet-text'
+import { moveShapes, sheetLine as line, sheetThickLine as thick } from './sheet-drawing'
 
 /**
- * Схема дистанции, вариант A (#33, ADR-0050): каждое направление — одна линия в общем для
- * листа масштабе. Масштаб — самый крупный из ряда, при котором самое длинное направление
- * помещается в ширину листа. Длины считаются по таблице нестандартных километров.
+ * Схема дистанции, вариант A (#33, ADR-0050) по согласованному образцу: каждое направление —
+ * линия в общем для листа масштабе по главному пути, станции по осям с числом путей и
+ * стрелок, полосы ПД и ПЧУ с руководителями, красные границы участков с координатами.
+ * Короткие направления встают в ряд рядом друг с другом.
  */
-export const DISTRICT_SCALES = [
-  10_000, 20_000, 25_000, 50_000, 100_000, 150_000, 200_000, 250_000, 300_000, 400_000, 500_000,
-  750_000, 1_000_000, 1_500_000, 2_000_000,
-] as const
-export type DistrictScale = (typeof DISTRICT_SCALES)[number]
-
 export interface DistrictDocument extends OverviewDocument {
-  readonly scale: DistrictScale
+  /** Километров в одном сантиметре листа: «1 см ≈ 3,9 км». */
+  readonly kmPerCm: number
 }
 
+export const DISTRICT_RED = '#c8102e'
+const GRAY = '#9a9a9a'
+const CAPTION = '#555555'
+const PD_FILLS = ['#ececec', '#d4d4d4'] as const
+const PCHU_FILLS = ['#141414', '#4b4b4b', '#2f2f2f', '#626262', '#7a7a7a'] as const
+const WHITE = '#ffffff'
+
 const LEFT = 15,
-  RIGHT = 405,
-  TRACK_LEFT = 25,
-  TRACK_RIGHT = 395
-/** Разрыв протяжения (чужая дистанция) рисуется отрезком постоянной длины, мм. */
-const GAP = 10
-const TOP = 34,
-  BOTTOM = 252
-const MAX_PAGES = 200
-const MAX_LANES = 12
-const LANE = 4
-const BAND = 5
-const LABEL = narrow(2.5)
-const KM_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500] as const
+  RIGHT = 405
+/** Ширина, в которую вписывается самое длинное направление, мм. */
+const FIT_WIDTH = 355
+/** Разрыв протяжения (чужая дистанция) рисуется пунктиром постоянной длины, мм. */
+const GAP = 12
+/** Расстояние между направлениями одного ряда, мм. */
+const BLOCK_GAP = 24
+/** Отступ ряда слева: подписи первой станции и координаты могут выходить левее линии. */
+const INDENT = 8
+const TOP = 36,
+  BOTTOM = 276
+const MAX_PAGES = 50
+/** Столбец станции: название над линией и сведения под ней, мм. */
+const COLUMN = 5.6
+const NAME = bold(2.6)
+const INFO = narrow(2.4)
+const BAND = 5.6
+const LABEL = bold(2.6)
+const COORD = regular(2.4)
+const EPS = 0.001
+
+/** Разряды через обычный пробел: в таблице ширин шрифта нет неразрывного пробела. */
+const grouped = (digits: string): string => digits.replace(/\B(?=(\d{3})+(?!\d))/gu, ' ')
+/** Метры в километрах с тремя знаками: «1 234,567». */
+export const kmText = (meters: number): string => {
+  const [whole = '0', fraction = '000'] = (meters / 1000).toFixed(3).split('.')
+  return `${grouped(whole)},${fraction}`
+}
+/** «1 станция», «3 станции», «5 станций». */
+export function plural(count: number, one: string, few: string, many: string): string {
+  const tens = count % 100,
+    units = count % 10
+  const word =
+    tens >= 11 && tens <= 14 ? many : units === 1 ? one : units >= 2 && units <= 4 ? few : many
+  return `${grouped(String(count))} ${word}`
+}
+
+interface TextOptions {
+  readonly color?: string
+  readonly rotate?: -90
+  readonly anchor?: 'middle'
+}
+const text = (
+  value: string,
+  x: number,
+  y: number,
+  font: SheetFont,
+  options: TextOptions = {},
+): SheetPrimitive => ({
+  kind: 'text',
+  text: value,
+  x: mm(x),
+  y: mm(y),
+  font,
+  ...(options.color ? { color: options.color } : {}),
+  ...(options.rotate ? { rotate: options.rotate } : {}),
+  ...(options.anchor ? { anchor: options.anchor } : {}),
+})
+const fillRect = (x: number, y: number, width: number, height: number, fill: string) =>
+  ({
+    kind: 'rect',
+    x: mm(x),
+    y: mm(y),
+    width: mm(width),
+    height: mm(height),
+    shade: false,
+    border: false,
+    fill,
+  }) as const satisfies SheetPrimitive
+const colored = (shape: SheetPrimitive, color: string): SheetPrimitive =>
+  shape.kind === 'line' ? { ...shape, color } : shape
 
 interface Part {
   readonly from: Chainage
   readonly to: Chainage
   readonly meters: number
-  /** Левый край части на листе, мм. */
-  readonly left: number
 }
-interface PreparedLine {
+interface Prepared {
   readonly line: OverviewLine
   readonly lengths: KmLengths
-  readonly parts: readonly Omit<Part, 'left'>[]
-}
-interface Interval {
-  readonly from: number
-  readonly to: number
+  readonly parts: readonly Part[]
+  readonly meters: number
 }
 
-/** «300 000»: разряды через пробел, без неразрывных пробелов локали. */
-const grouped = (value: number): string => String(value).replace(/\B(?=(\d{3})+(?!\d))/gu, ' ')
-
-const overlaps = (a: Interval, b: Interval, margin: number): boolean =>
-  a.from < b.to + margin && b.from < a.to + margin
-
-function prepareLines(source: OverviewSource): Result<readonly PreparedLine[], SheetError> {
+function prepareLines(source: OverviewSource): Result<readonly Prepared[], SheetError> {
   if (source.lines.length > 1000 || source.axes.length > 50000 || source.boundaries.length > 50000)
     return err({ message: 'Слишком много объектов для одного документа.' })
   const ids = new Set<string>()
-  const prepared: PreparedLine[] = []
+  const prepared: Prepared[] = []
   for (const current of source.lines) {
     if (ids.has(current.id)) return err({ message: 'Повторяется идентификатор направления.' })
     ids.add(current.id)
     const lengths = KmLengths.of(current.kmLengths)
     if (!lengths.ok) return err({ message: describeChainageError(lengths.error) })
-    const parts: Omit<Part, 'left'>[] = []
+    const parts: Part[] = []
     let previous: Chainage | undefined
     for (const span of current.extents.toSorted((a, b) => compareChainage(a.from, b.from))) {
       const a = chainage(span.from.km, span.from.m, lengths.value),
@@ -104,216 +149,186 @@ function prepareLines(source: OverviewSource): Result<readonly PreparedLine[], S
       if (previous && compareChainage(previous, a.value) > 0)
         return err({ message: `${current.name}: части протяжения перекрываются.` })
       previous = b.value
-      parts.push({
-        from: a.value,
-        to: b.value,
-        meters: distance(a.value, b.value, lengths.value),
-      })
+      parts.push({ from: a.value, to: b.value, meters: distance(a.value, b.value, lengths.value) })
     }
-    if (parts.length) prepared.push({ line: current, lengths: lengths.value, parts })
+    if (parts.length)
+      prepared.push({
+        line: current,
+        lengths: lengths.value,
+        parts,
+        meters: parts.reduce((n, p) => n + p.meters, 0),
+      })
   }
   return ok(prepared)
 }
 
-const drawnWidth = (line: PreparedLine, scale: number): number =>
-  line.parts.reduce((sum, p) => sum + (p.meters * 1000) / scale, 0) + GAP * (line.parts.length - 1)
-
-/** Самый крупный масштаб ряда, при котором каждое направление помещается в ширину листа. */
-export function districtScale(lines: readonly PreparedLine[]): Result<DistrictScale, SheetError> {
-  const found = DISTRICT_SCALES.find((scale) =>
-    lines.every((l) => drawnWidth(l, scale) <= TRACK_RIGHT - TRACK_LEFT),
-  )
-  return found
-    ? ok(found)
-    : err({ message: 'Направление длиннее 740 км не помещается на лист А3 даже в 1:2 000 000.' })
-}
-
-interface Label {
-  readonly text: string
-  /** Точка привязки на линии направления. */
-  readonly x: number
-  readonly width: number
-}
-interface Placed extends Label {
-  readonly lane: number
-  readonly left: number
-}
-
 /**
- * Подписи в полосах лесенкой: подпись начинается у своей оси и идёт вправо, поэтому
- * подписи ставятся справа налево — левая станция плотной группы уходит в полосу выше.
- * Подпись не перекрывает подписи своей полосы, её выноска не проходит через подписи
- * нижних полос, а сама подпись не закрывает выноски верхних.
+ * Масштаб по главному пути: километров в сантиметре с одним знаком после запятой, при котором
+ * самое длинное направление помещается в ширину листа.
  */
-function placeLabels(labels: readonly Label[]): readonly Placed[] | undefined {
-  const placed: Placed[] = []
-  for (const label of labels.toSorted((a, b) => b.x - a.x || a.text.localeCompare(b.text))) {
-    const left = Math.max(LEFT, Math.min(label.x - 0.8, RIGHT - label.width))
-    const span = { from: left, to: left + label.width }
-    let lane = 0
-    for (; lane < MAX_LANES; lane++) {
-      const free = placed.every((p) => {
-        const other = { from: p.left, to: p.left + p.width }
-        if (p.lane === lane) return !overlaps(span, other, 1.5)
-        if (p.lane < lane && label.x >= other.from - 0.8 && label.x <= other.to + 0.8) return false
-        if (p.lane > lane && p.x >= span.from - 0.8 && p.x <= span.to + 0.8) return false
-        return true
-      })
-      if (free) break
-    }
-    if (lane === MAX_LANES) return undefined
-    placed.push({ ...label, lane, left })
-  }
-  return placed
+export function districtKmPerCm(lines: readonly { readonly meters: number }[]): number {
+  const longest = Math.max(1, ...lines.map((l) => l.meters))
+  return Math.max(0.1, Math.ceil((longest / 1000 / (FIT_WIDTH / 10)) * 10 - 1e-9) / 10)
 }
 
-interface Column extends Label {
-  /** Середина столбца подписи на листе. */
+interface Station {
+  readonly x: number
+  readonly name: string
+  readonly info: readonly [string, string]
+}
+interface Column extends Station {
   readonly column: number
 }
-/** Ширина столбца вертикальной подписи и высота выноски над линией, мм. */
-const COLUMN = 3
-const LIFT = 4
 
-/**
- * Столбцы вертикальных подписей станций: не ближе ширины столбца друг к другу; тесные
- * группы раздвигаются вправо, у правого края — влево. undefined — подписи не помещаются
- * в ширину листа.
- */
-function placeColumns(labels: readonly Label[]): readonly Column[] | undefined {
-  const sorted = labels.toSorted((a, b) => a.x - b.x || a.text.localeCompare(b.text))
-  const columns = sorted.map((l) => l.x)
+/** Столбцы станций не ближе COLUMN; тесные группы раздвигаются вправо, у края — влево. */
+function placeColumns(
+  stations: readonly Station[],
+  left: number,
+  right: number,
+): readonly Column[] | undefined {
+  const sorted = stations.toSorted((a, b) => a.x - b.x || a.name.localeCompare(b.name, 'ru'))
+  const columns = sorted.map((s) => s.x)
   for (let i = 1; i < columns.length; i++)
     columns[i] = Math.max(columns[i] ?? 0, (columns[i - 1] ?? 0) + COLUMN)
   const last = columns.length - 1
-  if (last >= 0) columns[last] = Math.min(columns[last] ?? 0, RIGHT - COLUMN / 2)
+  if (last >= 0) columns[last] = Math.min(columns[last] ?? 0, right)
   for (let i = last - 1; i >= 0; i--)
     columns[i] = Math.min(columns[i] ?? 0, (columns[i + 1] ?? 0) - COLUMN)
-  if (columns.length && (columns[0] ?? 0) < LEFT + COLUMN / 2) return undefined
-  return sorted.map((label, i) => ({ ...label, column: columns[i] ?? label.x }))
+  if (columns.length && (columns[0] ?? 0) < left) return undefined
+  return sorted.map((s, i) => ({ ...s, column: columns[i] ?? s.x }))
 }
 
-interface Row {
+interface Block {
+  readonly width: number
   readonly height: number
   readonly shapes: readonly SheetPrimitive[]
 }
 
-/** Ряд направления в координатах от его верхнего края. */
-function drawLine(
-  prepared: PreparedLine,
-  source: OverviewSource,
-  scale: DistrictScale,
-  measurer: TextMeasurer,
-): Result<Row, SheetError> {
-  const { line: current, lengths } = prepared
-  const shapes: SheetPrimitive[] = []
-  const title = textBlock(current.name, LEFT, 4, RIGHT - LEFT, 1, bold(3), measurer)
-  if (!title.ok) return title
-  shapes.push(...title.value)
-  let cursor = TRACK_LEFT
-  const parts: Part[] = prepared.parts.map((p) => {
-    const part = { ...p, left: cursor }
-    cursor += (p.meters * 1000) / scale + GAP
-    return part
-  })
+interface Span {
+  readonly from: number
+  readonly to: number
+  readonly code: string
+  readonly pchu: string | undefined
+  readonly start: Chainage
+  readonly end: Chainage
+}
+
+/** Общие для листа сведения, которые нужны каждому направлению. */
+interface Context {
+  readonly source: OverviewSource
+  readonly measurer: TextMeasurer
+  readonly mmPerMeter: number
+  readonly unbound: ReadonlySet<string>
+  /** Порядок ПЧУ задаёт их заливку одинаково на всех направлениях. */
+  readonly pchuOrder: readonly string[]
+  /** Станции, уже подписанные числом путей и стрелок на другом направлении. */
+  readonly counted: Set<string>
+}
+
+function drawBlock(prepared: Prepared, context: Context): Result<Block, SheetError> {
+  const { source, measurer, mmPerMeter } = context
+  const { line: current, lengths, parts } = prepared
+  const back: SheetPrimitive[] = [],
+    front: SheetPrimitive[] = []
+  const starts: number[] = []
+  let cursor = 0
+  for (const p of parts) {
+    starts.push(cursor)
+    cursor += p.meters * mmPerMeter + GAP
+  }
+  const trackWidth = cursor - GAP
   const xOf = (at: Chainage): number | undefined => {
-    const part = parts.find(
+    const index = parts.findIndex(
       (p) => compareChainage(p.from, at) <= 0 && compareChainage(at, p.to) <= 0,
     )
-    return part && part.left + (distance(part.from, at, lengths) * 1000) / scale
+    const part = parts[index]
+    return part && (starts[index] ?? 0) + distance(part.from, at, lengths) * mmPerMeter
   }
-  const right = (p: Part) => p.left + (p.meters * 1000) / scale
-  // Подписи станций над линией.
-  const axes = source.axes.filter((a) => a.lineId === current.id && xOf(a.at) !== undefined)
-  const labels: Label[] = []
-  for (const axis of axes) {
+  // Заголовок: направление, длина главного пути, части вне дистанции.
+  const gaps = parts
+    .slice(1)
+    .map(
+      (p, i) =>
+        `км ${formatPlus(parts[i]?.to ?? p.from)} — ${formatPlus(p.from)} не входит в дистанцию`,
+    )
+  const tail = ` · ${[`${kmText(prepared.meters)} км`, ...gaps].join(' · ')}`
+  const nameWidth = measurer.width(current.name, bold(3)).value
+  const titleWidth = nameWidth + measurer.width(tail, regular(3)).value
+  front.push(text(current.name, 0, 3, bold(3)), text(tail, nameWidth, 3, regular(3)))
+  // Станции: только привязанные к ПД; непривязанные названы в примечании листа.
+  const stations: Station[] = []
+  for (const axis of source.axes) {
+    if (axis.lineId !== current.id || context.unbound.has(axis.name)) continue
     const at = chainage(axis.at.km, axis.at.m, lengths)
     if (!at.ok) return err({ message: `${axis.name}: ${describeChainageError(at.error)}` })
-    const width = measurer.width(axis.name, LABEL).value
-    if (width > RIGHT - LEFT)
-      return err({ message: `Название станции «${axis.name.slice(0, 60)}» шире листа.` })
-    labels.push({ text: axis.name, x: xOf(at.value) ?? 0, width })
+    const x = xOf(at.value)
+    if (x === undefined) continue
+    const stats = source.stationStats?.[axis.name]
+    const repeated = context.counted.has(axis.name)
+    if (stats) context.counted.add(axis.name)
+    stations.push({
+      x,
+      name: axis.name,
+      info: [
+        `км ${formatPlus(at.value)}`,
+        repeated ? 'учтена выше' : stats ? `${stats.tracks} п. · ${stats.switches} стр.` : '',
+      ],
+    })
   }
-  const placed = placeColumns(labels)
+  const placed = placeColumns(stations, -COLUMN, trackWidth + COLUMN)
   if (!placed)
     return err({
       message: `${current.name}: станции стоят слишком часто, их названия не помещаются над линией.`,
     })
-  const tallest = Math.max(0, ...placed.map((p) => p.width))
-  // Названия станций читаются снизу вверх над своей осью; при тесноте столбец подписи
-  // сдвигается вбок, выноска ведёт от оси к подписи.
-  const lineY = 9 + tallest + LIFT + 2
-  const labelShapes: SheetPrimitive[] = []
-  for (const p of placed) {
-    const foot = lineY - LIFT
-    shapes.push(line(p.x, lineY - 0.9, p.x, lineY - 1.6), line(p.x, lineY - 1.6, p.column, foot))
-    labelShapes.push({
-      kind: 'text',
-      text: p.text,
-      x: mm(p.column + COLUMN / 2 - 0.5),
-      y: mm(foot - 0.3),
-      font: LABEL,
-      rotate: -90,
-    })
-  }
-  // Линия направления, разрывы и километры.
-  const kmMm = (1_000_000 / scale) * 1
-  const step = KM_STEPS.find((k) => k * kmMm >= 9) ?? 500
-  const tickY = lineY + 4
-  // Координаты концов частей подписываются всегда: если не помещаются в строку отметок,
-  // уходят в следующую строку. Номера километров ставятся только в свободные места первой.
-  const coordinateRows: Interval[][] = [[]]
-  const placeCoordinate = (value: string, left: number): void => {
-    const w = measurer.width(value, LABEL).value
-    const x = Math.max(LEFT, Math.min(left, RIGHT - w))
-    const span = { from: x, to: x + w }
-    let row = coordinateRows.findIndex((used) => used.every((u) => !overlaps(u, span, 1.5)))
-    if (row < 0) row = coordinateRows.push([]) - 1
-    coordinateRows[row]?.push(span)
-    shapes.push(text(value, x, tickY + 2.5 + row * 3.5, LABEL))
-  }
+  const tallest = Math.max(0, ...placed.map((p) => measurer.width(p.name, NAME).value))
+  const lineY = 11 + tallest
+  const infoHeight = Math.max(
+    0,
+    ...placed.flatMap((p) => p.info.map((t) => measurer.width(t, INFO).value)),
+  )
+  const pdY = lineY + 5 + infoHeight + 3,
+    pchuY = pdY + BAND + 0.6,
+    coordY = pchuY + BAND + 3.4
+  // Главный путь и разрывы протяжения.
   for (const [i, part] of parts.entries()) {
-    shapes.push(thick(part.left, lineY, right(part), lineY, 0.8))
-    const next = parts[i + 1]
-    if (next) {
-      shapes.push(
-        line(right(part) + 1, lineY, next.left - 1, lineY, true),
-        line(right(part) + 1, lineY + 1.5, right(part) + 3, lineY - 1.5),
-        line(next.left - 3, lineY + 1.5, next.left - 1, lineY - 1.5),
-      )
-    }
-    for (const x of [part.left, right(part)]) shapes.push(line(x, lineY - 1.2, x, lineY + 1.2))
-    placeCoordinate(formatPlus(part.from), part.left)
-    const endLabel = formatPlus(part.to)
-    placeCoordinate(endLabel, right(part) - measurer.width(endLabel, LABEL).value)
+    const x0 = starts[i] ?? 0,
+      x1 = x0 + part.meters * mmPerMeter
+    back.push(
+      thick(x0, lineY, x1, lineY, 0.8),
+      thick(x0, lineY - 1.6, x0, lineY + 1.6, 0.5),
+      thick(x1, lineY - 1.6, x1, lineY + 1.6, 0.5),
+    )
+    if (i + 1 < parts.length)
+      back.push(colored(thick(x1 + 1.5, lineY, x1 + GAP - 1.5, lineY, 0.8, { dashed: true }), GRAY))
   }
-  for (const part of parts)
-    for (let km = Math.ceil(part.from.km / step) * step; km <= part.to.km; km += step) {
-      const at = { km, m: 0 }
-      if (compareChainage(at, part.from) <= 0 || compareChainage(at, part.to) >= 0) continue
-      const x = xOf(at)
-      if (x === undefined) continue
-      shapes.push(line(x, lineY - 0.8, x, lineY + 0.8))
-      const value = String(km)
-      const w = measurer.width(value, LABEL).value
-      const span = { from: x - w / 2, to: x + w / 2 }
-      const first = coordinateRows[0] ?? []
-      if (first.some((u) => overlaps(u, span, 1.5))) continue
-      first.push(span)
-      shapes.push(text(value, span.from, tickY + 2.5, LABEL))
+  // Станции: квадрат на оси, название над ним, координата и число путей и стрелок под ним.
+  for (const p of placed) {
+    const top = lineY - 1.6,
+      bottom = lineY + 1.6
+    if (Math.abs(p.column - p.x) > EPS)
+      back.push(line(p.x, top, p.column, top - 1.4), line(p.x, bottom, p.column, bottom + 1.4))
+    front.push(
+      {
+        kind: 'rect',
+        x: mm(p.x - 1.4),
+        y: mm(lineY - 1.4),
+        width: mm(2.8),
+        height: mm(2.8),
+        shade: false,
+        border: true,
+      },
+      text(p.name, p.column + 0.9, top - 2, NAME, { rotate: -90 }),
+    )
+    for (const [i, info] of p.info.entries()) {
+      if (!info) continue
+      const w = measurer.width(info, INFO).value
+      front.push(text(info, p.column - 0.3 + i * 2.5, bottom + 2 + w, INFO, { rotate: -90 }))
     }
-  for (const p of placed) shapes.push({ kind: 'circle', x: mm(p.x), y: mm(lineY), radius: mm(0.9) })
-  // Полосы ПД и ПЧУ под линией: ПД — белые, ПЧУ — серые, подпись внутри или в полосе подписей.
-  const pdY = tickY + 5 + (coordinateRows.length - 1) * 3.5,
-    pchuY = pdY + BAND + 1
-  interface Span extends Interval {
-    readonly code: string
-    readonly pchu: string | undefined
   }
+  // Полосы ПД по пересечению границ с частями протяжения.
   const spans: Span[] = []
   for (const b of source.boundaries) {
     if (b.lineId !== current.id) continue
-    // Граница проверяется по длинам километров так же, как на общей схеме.
     if (
       !chainage(b.from.km, b.from.m, lengths).ok ||
       !chainage(b.to.km, b.to.m, lengths).ok ||
@@ -321,72 +336,214 @@ function drawLine(
     )
       return err({ message: `${b.code}: недопустимая граница ПД.` })
     for (const part of parts) {
-      const from = compareChainage(b.from, part.from) < 0 ? part.from : b.from
-      const to = compareChainage(b.to, part.to) > 0 ? part.to : b.to
-      if (compareChainage(from, to) >= 0) continue
-      const left = xOf(from),
-        rightX = xOf(to)
-      if (left === undefined || rightX === undefined) continue
-      spans.push({ from: left, to: rightX, code: b.code, pchu: b.pchu })
+      const start = compareChainage(b.from, part.from) < 0 ? part.from : b.from
+      const end = compareChainage(b.to, part.to) > 0 ? part.to : b.to
+      if (compareChainage(start, end) >= 0) continue
+      const from = xOf(start),
+        to = xOf(end)
+      if (from === undefined || to === undefined) continue
+      spans.push({ from, to, code: b.code, pchu: b.pchu, start, end })
     }
   }
   spans.sort((a, b) => a.from - b.from)
   for (const [i, s] of spans.entries())
-    if (i > 0 && s.from < (spans[i - 1]?.to ?? s.from) - 0.001)
+    if (i > 0 && s.from < (spans[i - 1]?.to ?? s.from) - EPS)
       return err({ message: `${current.name}: границы ПД перекрываются; проверьте оргструктуру.` })
-  const outside: Label[] = []
-  const bandLabel = (code: string, s: Interval, y: number): void => {
-    const width = measurer.width(code, LABEL).value
-    if (width <= s.to - s.from - 1)
-      shapes.push(text(code, (s.from + s.to - width) / 2, y + BAND - 1.4, LABEL))
-    else outside.push({ text: code, x: (s.from + s.to) / 2, width })
-  }
+  const heads = source.heads ?? {}
+  const caption = (code: string): string => (heads[code] ? `${code} · ${heads[code]}` : code)
+  /** Подпись полосы: с руководителем, без него или никакой, если полоса узкая. */
+  const fitted = (code: string, width: number): string | undefined =>
+    [caption(code), code].find((v) => measurer.width(v, LABEL).value <= width - 1.5)
+  let previousCode: string | undefined,
+    shade = 0
   for (const s of spans) {
-    shapes.push(rect(s.from, pdY, s.to - s.from, BAND))
-    bandLabel(s.code, s, pdY)
+    if (previousCode !== undefined && previousCode !== s.code) shade++
+    previousCode = s.code
+    back.push(fillRect(s.from, pdY, s.to - s.from, BAND, PD_FILLS[shade % PD_FILLS.length] ?? ''))
+    const value = fitted(s.code, s.to - s.from)
+    if (value)
+      front.push(text(value, (s.from + s.to) / 2, pdY + BAND - 1.7, LABEL, { anchor: 'middle' }))
   }
-  // ПЧУ: подряд идущие участки ПД одного ПЧУ без разрыва сливаются.
-  const pchus: (Interval & { code: string })[] = []
+  // ПЧУ: подряд идущие ПД одного ПЧУ без разрыва дают одну полосу.
+  const pchus: { from: number; to: number; code: string }[] = []
   for (const s of spans) {
     if (s.pchu === undefined) continue
     const last = pchus.at(-1)
-    if (last && last.code === s.pchu && Math.abs(last.to - s.from) < 0.001)
-      pchus[pchus.length - 1] = { ...last, to: s.to }
+    if (last && last.code === s.pchu && Math.abs(last.to - s.from) < EPS) last.to = s.to
     else pchus.push({ from: s.from, to: s.to, code: s.pchu })
   }
   for (const p of pchus) {
-    shapes.push(rect(p.from, pchuY, p.to - p.from, BAND, true))
-    bandLabel(p.code, p, pchuY)
-  }
-  let height = pchuY + BAND + 3
-  // Узкие участки подписываются под полосами, как станции над линией, но сверху вниз.
-  if (outside.length) {
-    const below = placeLabels(outside)
-    if (!below)
-      return err({ message: `${current.name}: подписи узких участков ПД и ПЧУ не помещаются.` })
-    const top = pchuY + BAND
-    for (const p of below) {
-      const baseline = top + 4 + p.lane * LANE
-      shapes.push(line(p.x, top - 0.2, p.x, baseline - 2.4))
-      labelShapes.push(
-        rect(p.left - 0.4, baseline - 2.2, p.width + 0.8, 2.9, false, false),
-        text(p.text, p.left, baseline, LABEL),
+    const index = Math.max(0, context.pchuOrder.indexOf(p.code))
+    back.push(
+      fillRect(p.from, pchuY, p.to - p.from, BAND, PCHU_FILLS[index % PCHU_FILLS.length] ?? ''),
+    )
+    const value = fitted(p.code, p.to - p.from)
+    if (value)
+      front.push(
+        text(value, (p.from + p.to) / 2, pchuY + BAND - 1.7, LABEL, {
+          color: WHITE,
+          anchor: 'middle',
+        }),
       )
-    }
-    height = top + 4 + (Math.max(...below.map((p) => p.lane)) + 1) * LANE
   }
-  return ok({ height: height + 3, shapes: [...shapes, ...labelShapes] })
+  // Границы: ПЧУ и края участков — сплошная красная, ПД — красный пунктир; координаты под полосами.
+  const edges: { x: number; at: Chainage; solid: boolean }[] = []
+  for (const [i, s] of spans.entries()) {
+    const prev = spans[i - 1]
+    const joined = prev !== undefined && Math.abs(prev.to - s.from) < EPS
+    edges.push({ x: s.from, at: s.start, solid: !joined || prev.pchu !== s.pchu })
+    const next = spans[i + 1]
+    if (!(next && Math.abs(next.from - s.to) < EPS)) edges.push({ x: s.to, at: s.end, solid: true })
+  }
+  const used: { from: number; to: number }[] = []
+  for (const edge of edges) {
+    back.push(
+      colored(
+        edge.solid
+          ? thick(edge.x, lineY - 5, edge.x, pchuY + BAND + 0.6, 0.7)
+          : thick(edge.x, lineY - 4, edge.x, pchuY + BAND + 0.6, 0.35, { dashed: true }),
+        DISTRICT_RED,
+      ),
+    )
+    const value = `км ${formatPlus(edge.at)}`
+    const w = measurer.width(value, COORD).value
+    const x = Math.max(edge.x - w / 2, (used.at(-1)?.to ?? -Infinity) + 1.5)
+    used.push({ from: x, to: x + w })
+    front.push(text(value, x, coordY, COORD, { color: DISTRICT_RED }))
+  }
+  const width = Math.max(trackWidth + COLUMN, titleWidth, ...used.map((u) => u.to))
+  return ok({ width, height: coordY + 5, shapes: [...back, ...front] })
 }
 
-/** Листы варианта A: направления сверху вниз, переполнение начинает новый лист. */
+/**
+ * «Учебная дистанция пути» → «Схема Учебной дистанции пути». Другие формы названия не
+ * склоняются: «Схема дистанции: …».
+ */
+export function genitiveTitle(name: string | undefined): string {
+  const trimmed = name?.trim()
+  if (!trimmed) return 'Схема дистанции'
+  const match = /^(\S+?)ая\s+дистанция(\s.*)?$/iu.exec(trimmed)
+  return match ? `Схема ${match[1]}ой дистанции${match[2] ?? ''}` : `Схема дистанции: ${trimmed}`
+}
+
+const shiftX = (shape: SheetPrimitive, dx: number): SheetPrimitive =>
+  shape.kind === 'line'
+    ? { ...shape, x1: mm(shape.x1.value + dx), x2: mm(shape.x2.value + dx) }
+    : { ...shape, x: mm(shape.x.value + dx) }
+
+/** Сводка листа: итоги, станции примыкания, станции без привязки к ПД. */
+interface Summary {
+  readonly totals: string
+  readonly notes: string
+}
+
+function summarize(
+  source: OverviewSource,
+  prepared: readonly Prepared[],
+  unbound: ReadonlySet<string>,
+  kmPerCm: number,
+): Summary {
+  const mainMeters = prepared.reduce((n, l) => n + l.meters, 0)
+  const shown = new Set(prepared.map((p) => p.line.id))
+  const drawn = [
+    ...new Set(
+      source.axes.filter((a) => shown.has(a.lineId) && !unbound.has(a.name)).map((a) => a.name),
+    ),
+  ]
+  const stats = drawn.map((n) => source.stationStats?.[n])
+  const stationMeters = stats.reduce((n, s) => n + (s?.meters ?? 0), 0)
+  const switches = stats.reduce((n, s) => n + (s?.switches ?? 0), 0)
+  const junctions = drawn.flatMap((name) => {
+    const lines = [...new Set(source.axes.filter((a) => a.name === name).map((a) => a.lineId))].map(
+      (id) => source.lines.find((l) => l.id === id)?.name ?? id,
+    )
+    return lines.length > 1 ? [`${name} — станция примыкания направлений ${lines.join(', ')}.`] : []
+  })
+  return {
+    totals: [
+      `Всего: главный путь ${kmText(mainMeters)} км`,
+      ...(source.stationStats ? [`станционные пути ${kmText(stationMeters)} км`] : []),
+      ...(source.stationStats
+        ? [plural(switches, 'стрелочный перевод', 'стрелочных перевода', 'стрелочных переводов')]
+        : []),
+      plural(drawn.length, 'станция', 'станции', 'станций'),
+    ].join(' · '),
+    notes: [
+      `Масштаб по главному пути: 1 см ≈ ${String(kmPerCm).replace('.', ',')} км.`,
+      ...junctions,
+      ...(unbound.size ? [`Не входят в привязку к ПД: ${[...unbound].join(', ')}.`] : []),
+    ].join(' '),
+  }
+}
+
+function frame(
+  source: OverviewSource,
+  summary: Summary,
+  number: number,
+  warnings: number,
+  measurer: TextMeasurer,
+): SheetPrimitive[] {
+  const right = (value: string, y: number, font: SheetFont, options: TextOptions = {}) =>
+    text(value, RIGHT - measurer.width(value, font).value, y, font, options)
+  const district = source.district?.trim()
+  return [
+    text(`ОАО «РЖД»${district ? ` · ${district.toUpperCase()}` : ''}`, LEFT, 12, regular(2.6), {
+      color: CAPTION,
+    }),
+    text(genitiveTitle(district), LEFT, 20.5, bold(6)),
+    text(
+      'Линейная схема в масштабе по километрам: главные пути, станции по осям, линейные (ПД) и эксплуатационные (ПЧУ) участки',
+      LEFT,
+      26.5,
+      regular(2.8),
+    ),
+    right('Начальник дистанции __________ / __________ /', 12, regular(2.8)),
+    right('«__» __________ 20__ г.', 18, regular(2.8)),
+    colored(thick(LEFT, 30, RIGHT, 30, 0.8), DISTRICT_RED),
+    thick(LEFT, 280, RIGHT, 280, 0.3),
+    {
+      kind: 'rect',
+      x: mm(LEFT),
+      y: mm(282.6),
+      width: mm(2.8),
+      height: mm(2.8),
+      shade: false,
+      border: true,
+    },
+    text('станция (ось)', LEFT + 4.5, 285, regular(2.6)),
+    colored(thick(42, 282.4, 42, 285.8, 0.35, { dashed: true }), DISTRICT_RED),
+    text('граница ПД', 44, 285, regular(2.6)),
+    colored(thick(64, 282.4, 64, 285.8, 0.7), DISTRICT_RED),
+    text('граница ПЧУ', 66, 285, regular(2.6)),
+    text('«3 п. · 10 стр.» — станционных путей / стрелочных переводов', 88, 285, regular(2.6)),
+    right(summary.totals, 285, bold(2.6)),
+    text(summary.notes, LEFT, 290, regular(2.4)),
+    ...(warnings
+      ? [
+          right(`Замечаний: ${warnings}; список — в предпросмотре.`, 290, regular(2.4), {
+            color: DISTRICT_RED,
+          }),
+        ]
+      : []),
+    text(
+      `Редакция от ${source.edition.date.split('-').reverse().join('.')} · Лист ${number}`,
+      LEFT,
+      294.5,
+      regular(2.2),
+      { color: CAPTION },
+    ),
+  ]
+}
+
+/** Листы варианта A по образцу: направления рядами, короткие — рядом друг с другом. */
 export function buildDistrictSchemeA(
   source: OverviewSource,
   measurer: TextMeasurer,
 ): Result<DistrictDocument, SheetError> {
   const prepared = prepareLines(source)
   if (!prepared.ok) return prepared
-  const scale = districtScale(prepared.value)
-  if (!scale.ok) return scale
+  const kmPerCm = districtKmPerCm(prepared.value)
+  const unbound = new Set(source.unboundStations ?? [])
   const warnings = [...source.warnings]
   for (const axis of source.axes)
     if (
@@ -403,77 +560,74 @@ export function buildDistrictSchemeA(
       )
   if (source.boundaries.some((b) => b.pchu === undefined))
     warnings.push('У части ПД не найдено ПЧУ в оргструктуре: их участки без полосы ПЧУ.')
-  const pages: SheetPage[] = []
-  let shapes: SheetPrimitive[] = [],
-    y = TOP
-  const flush = (): Result<null, SheetError> => {
-    if (pages.length >= MAX_PAGES) return err({ message: 'Документ превышает 200 листов.' })
-    const header = textBlock(
-      `Схема дистанции · ${source.edition.label}`,
-      LEFT,
-      19,
-      240,
-      1,
-      bold(4),
-      measurer,
-    )
-    if (!header.ok) return header
-    pages.push({
-      width: mm(420),
-      height: mm(297),
-      number: pages.length + 1,
-      primitives: [
-        rect(10, 10, 400, 277),
-        ...header.value,
-        text('Вариант A — линейная в масштабе', LEFT, 26, regular(2.8)),
-        ...shapes,
-        thick(LEFT, 265, LEFT + 12, 265, 0.8),
-        text('Главный путь', LEFT + 15, 266),
-        { kind: 'circle', x: mm(80), y: mm(265), radius: mm(0.9) },
-        text('Ось станции', 84, 266),
-        rect(130, 263, 12, BAND - 1),
-        text('ПД', 145, 266),
-        rect(165, 263, 12, BAND - 1, true),
-        text('ПЧУ', 180, 266),
-        line(205, 265, 217, 265, true),
-        text('Чужая дистанция (разрыв без масштаба)', 220, 266),
-        ...(warnings.length
-          ? [
-              text(
-                `Замечаний: ${warnings.length}. Проверьте список в предпросмотре.`,
-                LEFT,
-                274,
-                regular(2.6),
-              ),
-            ]
-          : []),
-        text(
-          `Редакция от ${source.edition.date} · Масштаб 1:${grouped(scale.value)} · Лист ${pages.length + 1}`,
-          LEFT,
-          281,
-          regular(2.8),
-        ),
-      ],
-    })
-    shapes = []
-    y = TOP
-    return ok(null)
+  if (source.heads) {
+    const missing = [
+      ...new Set(source.boundaries.flatMap((b) => [b.code, ...(b.pchu ? [b.pchu] : [])])),
+    ].filter((code) => !source.heads?.[code])
+    if (missing.length)
+      warnings.push(
+        `Нет руководителя на листе «Руководители» шаблона ручных данных: ${missing.join(', ')}.`,
+      )
   }
+  if (!source.district?.trim())
+    warnings.push('Нет названия дистанции: заполните строку «Дистанция» листа «Руководители».')
+  const context: Context = {
+    source,
+    measurer,
+    mmPerMeter: 10 / (kmPerCm * 1000),
+    unbound,
+    pchuOrder: [...new Set(source.boundaries.flatMap((b) => (b.pchu ? [b.pchu] : [])))].toSorted(
+      (a, b) => a.localeCompare(b, 'ru', { numeric: true }),
+    ),
+    counted: new Set(),
+  }
+  const blocks: Block[] = []
   for (const current of prepared.value) {
-    const row = drawLine(current, source, scale.value, measurer)
-    if (!row.ok) return row
-    if (TOP + row.value.height > BOTTOM)
+    const block = drawBlock(current, context)
+    if (!block.ok) return block
+    if (TOP + block.value.height > BOTTOM)
       return err({ message: `${current.line.name}: направление не помещается на лист по высоте.` })
-    if (y + row.value.height > BOTTOM) {
-      const saved = flush()
-      if (!saved.ok) return saved
+    blocks.push(block.value)
+  }
+  // Ряды: направление встаёт правее предыдущего, если ряд вмещает его целиком.
+  const rows: Block[][] = []
+  for (const block of blocks) {
+    const row = rows.at(-1)
+    const used = row?.reduce((n, b) => n + b.width + BLOCK_GAP, 0) ?? 0
+    if (row?.length && LEFT + INDENT + used + block.width <= RIGHT) row.push(block)
+    else rows.push([block])
+  }
+  const bodies: SheetPrimitive[][] = [[]]
+  let y = TOP
+  for (const row of rows) {
+    const height = Math.max(...row.map((b) => b.height))
+    if (y + height > BOTTOM && y > TOP) {
+      if (bodies.length >= MAX_PAGES) return err({ message: 'Документ превышает 50 листов.' })
+      bodies.push([])
+      y = TOP
     }
-    shapes.push(...moveShapes(row.value.shapes, y))
-    y += row.value.height
+    let x = LEFT + INDENT
+    for (const block of row) {
+      bodies.at(-1)?.push(
+        ...moveShapes(
+          block.shapes.map((s) => shiftX(s, x)),
+          y,
+        ),
+      )
+      x += block.width + BLOCK_GAP
+    }
+    y += height + 3
   }
   if (!prepared.value.length)
-    shapes.push(text('Нет направлений. Загрузите оргструктуру паспорта.', LEFT, y + 10))
-  const saved = flush()
-  if (!saved.ok) return saved
-  return ok({ pages, warnings, scale: scale.value })
+    bodies[0]?.push(
+      text('Нет направлений. Загрузите оргструктуру паспорта.', LEFT, TOP + 10, regular()),
+    )
+  const summary = summarize(source, prepared.value, unbound, kmPerCm)
+  const pages: SheetPage[] = bodies.map((body, i) => ({
+    width: mm(420),
+    height: mm(297),
+    number: i + 1,
+    primitives: [...frame(source, summary, i + 1, warnings.length, measurer), ...body],
+  }))
+  return ok({ pages, warnings, kmPerCm })
 }

@@ -1,11 +1,18 @@
 import type { OverviewLine, OverviewSource } from '@eow/documents/application'
-import type { OrgData, StationRow } from '@eow/passport/import-api'
+import {
+  DISTRICT_ROW,
+  headOn,
+  type ManualHead,
+  type OrgData,
+  type StationRow,
+} from '@eow/passport/import-api'
 
 export interface PassportOverviewData {
   readonly edition: OverviewSource['edition']
   readonly lines: readonly OverviewLine[]
   readonly org: OrgData
   readonly stations: readonly StationRow[]
+  readonly manual?: { readonly heads: readonly ManualHead[] } | undefined
 }
 const valid = (
   row: { readonly validFrom: string | null; readonly validTo: string | null },
@@ -65,5 +72,42 @@ export function passportOverviewSource(data: PassportOverviewData): OverviewSour
         to: boundary.to,
       })
   }
-  return { edition: data.edition, lines: data.lines, axes, boundaries, warnings }
+  const heads: Record<string, string> = {}
+  for (const unit of active.values()) {
+    const head = headOn(data.manual?.heads ?? [], unit.code, date)?.head
+    if (head) heads[unit.code] = head
+  }
+  // Станционные пути — все, кроме главных, по полной длине; стрелки — все стрелки станции.
+  const stationStats: Record<string, { tracks: number; meters: number; switches: number }> = {}
+  const statsOf = (station: string) =>
+    (stationStats[station] ??= { tracks: 0, meters: 0, switches: 0 })
+  for (const row of data.stations) {
+    if (!valid(row, date)) continue
+    if (row.form === 'station-tracks' && row.values.purpose.trim().toLowerCase() !== 'главный') {
+      const s = statsOf(row.values.station)
+      s.tracks++
+      s.meters += row.values.fullLength ?? 0
+    }
+    if (row.form === 'switches') statsOf(row.values.station).switches++
+  }
+  const bound = new Set(
+    data.org.stations
+      .filter((b) => valid(b, date) && units.has(b.subdivisionId))
+      .map((b) => b.station),
+  )
+  const unboundStations = [
+    ...new Set(axes.map((a) => a.name).filter((name) => !bound.has(name))),
+  ].toSorted((a, b) => a.localeCompare(b, 'ru'))
+  const district = headOn(data.manual?.heads ?? [], DISTRICT_ROW, date)?.title ?? undefined
+  return {
+    edition: data.edition,
+    lines: data.lines,
+    axes,
+    boundaries,
+    warnings,
+    heads,
+    stationStats,
+    unboundStations,
+    ...(district ? { district } : {}),
+  }
 }

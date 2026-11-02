@@ -117,4 +117,91 @@ describe('Проекция паспорта для схемы', () => {
     }
     expect(passportOverviewSource(loop).boundaries[0]?.pchu).toBeUndefined()
   })
+  it('добавляет руководителей, название дистанции, пути и стрелки станций и станции без ПД', () => {
+    const track = (
+      id: string,
+      purpose: string,
+      fullLength: number | null,
+      validTo = '9999-12-31',
+    ) =>
+      ({
+        ...common,
+        validTo,
+        id,
+        form: 'station-tracks',
+        values: {
+          station: 'УЧЕБНАЯ',
+          purpose,
+          park: null,
+          number: id,
+          from: null,
+          via: [],
+          to: null,
+          fullLength,
+          usefulLength: null,
+          railType: null,
+          ballastType: null,
+          sleeperType: null,
+          lastRepairYear: null,
+          lastRepairKind: null,
+          classCode: null,
+        },
+      }) as const
+    const switchRow = (id: string) =>
+      ({
+        ...common,
+        id,
+        form: 'switches',
+        values: {
+          station: 'УЧЕБНАЯ',
+          number: id,
+          park: null,
+          purpose: null,
+          track: null,
+          side: null,
+          laidDate: null,
+          control: null,
+          railType: null,
+          frogMark: null,
+          frogKind: null,
+          frogs: 1,
+          sleeperType: null,
+        },
+      }) as const
+    const period = { validFrom: null, validTo: null }
+    const full: PassportOverviewData = {
+      ...data,
+      org: {
+        ...data.org,
+        stations: [{ ...common, id: 'b', station: 'УЧЕБНАЯ', subdivisionId: 'pd' }],
+      },
+      stations: [
+        ...data.stations,
+        {
+          ...data.stations[0]!,
+          id: 'free',
+          values: { ...data.stations[0]!.values, station: 'ВНЕ ПД' },
+        },
+        track('1', 'Главный', 1200),
+        track('3', 'Приёмо-отправочный', 850),
+        track('5', 'Вытяжной', null),
+        track('7', 'Погрузочно-выгрузочный', 300, '2026-12-31'),
+        switchRow('1'),
+        switchRow('2'),
+      ],
+      manual: {
+        heads: [
+          { ...period, id: 'd', subdivision: 'Дистанция', title: 'Учебная дистанция', head: null },
+          { ...period, id: 'h', subdivision: 'ПД-1', title: null, head: 'Учебный И.И.' },
+          { ...period, id: 'o', subdivision: 'ПД-старый', title: null, head: 'Прежний П.П.' },
+        ],
+      },
+    }
+    const source = passportOverviewSource(full)
+    expect(source.district).toBe('Учебная дистанция')
+    expect(source.heads).toEqual({ 'ПД-1': 'Учебный И.И.' })
+    expect(source.stationStats).toEqual({ УЧЕБНАЯ: { tracks: 2, meters: 850, switches: 2 } })
+    expect(source.unboundStations).toEqual(['ВНЕ ПД'])
+    expect(passportOverviewSource(data).district).toBeUndefined()
+  })
 })

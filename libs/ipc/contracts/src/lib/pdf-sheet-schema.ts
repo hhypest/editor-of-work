@@ -5,6 +5,10 @@ const mm = (max: number) =>
   z.object({ unit: z.literal('mm'), value: z.number().min(0).max(max) }).strict()
 const x = mm(420),
   y = mm(297)
+const color = z
+  .string()
+  .regex(/^#[0-9a-f]{6}$/u)
+  .optional()
 const primitive = z.discriminatedUnion('kind', [
   z
     .object({
@@ -16,6 +20,7 @@ const primitive = z.discriminatedUnion('kind', [
       dashed: z.boolean(),
       weight: mm(5).optional(),
       shade: z.boolean().optional(),
+      color,
     })
     .strict(),
   z
@@ -27,6 +32,7 @@ const primitive = z.discriminatedUnion('kind', [
       height: y,
       shade: z.boolean(),
       border: z.boolean(),
+      fill: color,
     })
     .strict(),
   z
@@ -46,6 +52,8 @@ const primitive = z.discriminatedUnion('kind', [
         })
         .strict(),
       rotate: z.literal(-90).optional(),
+      color,
+      anchor: z.literal('middle').optional(),
     })
     .strict(),
 ])

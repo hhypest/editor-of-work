@@ -2,8 +2,8 @@ import type { OverviewSource } from '../sheet-model'
 
 /**
  * Вымышленная дистанция для схем дистанции (ADR-0008): три направления, одно с разрывом
- * протяжения и нестандартными километрами, станции через 5–12 км, ПД двух ПЧУ.
- * Названия учебные.
+ * протяжения и нестандартными километрами, станции через 5–12 км, ПД двух ПЧУ, станция
+ * примыкания двух направлений и станция без привязки к ПД. Названия и ФИО учебные.
  */
 export function fictionalDistrict(): OverviewSource {
   const names = [
@@ -29,6 +29,15 @@ export function fictionalDistrict(): OverviewSource {
     station('L1', km, 300)
   for (const km of [12, 20, 31, 38, 61, 70, 79]) station('L2', km, 0)
   for (const km of [3, 9, 15]) station('L3', km, 500)
+  const stationStats = Object.fromEntries(
+    axes.map((a, i) => [
+      a.name,
+      { tracks: 2 + (i % 4), meters: 1500 + i * 250, switches: 4 + (i % 5) },
+    ]),
+  )
+  // Ветвь примыкает к первой станции главного хода; разъезд не привязан ни к одному ПД.
+  axes.push({ id: 'junction', lineId: 'L3', name: axes[0]?.name ?? '', at: { km: 0, m: 300 } })
+  axes.push({ id: 'unbound', lineId: 'L2', name: 'Учебный разъезд', at: { km: 25, m: 0 } })
   return {
     edition: { id: 1, date: '2027-01-01', label: 'Учебная редакция' },
     lines: [
@@ -68,5 +77,18 @@ export function fictionalDistrict(): OverviewSource {
       { lineId: 'L3', code: 'ПД-7', pchu: 'ПЧУ-2', from: { km: 1, m: 0 }, to: { km: 18, m: 0 } },
     ],
     warnings: [],
+    district: 'Учебная дистанция инфраструктуры',
+    heads: {
+      'ПД-1': 'Учебный А.А.',
+      'ПД-2': 'Пробный Б.Б.',
+      'ПД-3': 'Условный В.В.',
+      'ПД-4': 'Модельный Г.Г.',
+      'ПД-5': 'Образцов Д.Д.',
+      'ПД-7': 'Примерный Е.Е.',
+      'ПЧУ-1': 'Тестовый Ж.Ж.',
+      'ПЧУ-2': 'Макетный З.З.',
+    },
+    stationStats,
+    unboundStations: ['Учебный разъезд'],
   }
 }

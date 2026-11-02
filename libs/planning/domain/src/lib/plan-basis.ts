@@ -4,6 +4,7 @@ import {
   spansOverlap,
   type KmLengths,
   type Result,
+  type StationLayout,
   type TrackSpan,
 } from '@eow/shared/kernel'
 import type { BasisPart, PlanError } from './plan-error'
@@ -39,6 +40,8 @@ export interface BasisLine {
 export interface BasisStation {
   /** Координаты сетки прототипа, а не метры пути или мм листа. */
   readonly legacyLayout?: LegacyStationLayout
+  /** Раскладка схемы станции из паспорта на дату редакции (ADR-0046); нет — схема не загружена. */
+  readonly layout?: StationLayout
   readonly id: string
   readonly name: string
   /** Номера станционных путей. */
@@ -124,22 +127,43 @@ function index<T>(
   return ok(map)
 }
 
-function ownStation(station: BasisStation): BasisStation {
-  if (!station.legacyLayout) return station
+function ownLayout(layout: StationLayout): StationLayout {
+  const own = <T extends object>(items: readonly T[]): readonly T[] =>
+    Object.freeze(items.map((item) => Object.freeze({ ...item })))
   return Object.freeze({
-    ...station,
-    legacyLayout: Object.freeze({
-      tracks: Object.freeze(
-        station.legacyLayout.tracks.map((t) =>
-          Object.freeze({
-            ...t,
-            left: Object.freeze({ ...t.left }),
-            right: Object.freeze({ ...t.right }),
+    version: layout.version,
+    nodes: own(layout.nodes),
+    tracks: Object.freeze(
+      layout.tracks.map((t) => Object.freeze({ ...t, nodes: Object.freeze([...t.nodes]) })),
+    ),
+    switches: own(layout.switches),
+    derailers: own(layout.derailers),
+    bridges: own(layout.bridges),
+    crossings: own(layout.crossings),
+  })
+}
+
+function ownStation(station: BasisStation): BasisStation {
+  const { legacyLayout, layout, ...rest } = station
+  return Object.freeze({
+    ...rest,
+    ...(layout === undefined ? {} : { layout: ownLayout(layout) }),
+    ...(legacyLayout === undefined
+      ? {}
+      : {
+          legacyLayout: Object.freeze({
+            tracks: Object.freeze(
+              legacyLayout.tracks.map((t) =>
+                Object.freeze({
+                  ...t,
+                  left: Object.freeze({ ...t.left }),
+                  right: Object.freeze({ ...t.right }),
+                }),
+              ),
+            ),
+            objects: Object.freeze(legacyLayout.objects.map((o) => Object.freeze({ ...o }))),
           }),
-        ),
-      ),
-      objects: Object.freeze(station.legacyLayout.objects.map((o) => Object.freeze({ ...o }))),
-    }),
+        }),
   })
 }
 

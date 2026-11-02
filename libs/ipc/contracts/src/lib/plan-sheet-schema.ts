@@ -1,9 +1,19 @@
 import { z } from 'zod'
+import { stationLayoutDto } from './station-layout-channel'
 
 const point = z
   .object({ km: z.number().int().nonnegative(), m: z.number().int().nonnegative() })
   .strict()
 const span = z.object({ line: z.string(), from: point, to: point }).strict()
+const table = z
+  .object({
+    title: z.string(),
+    columns: z.array(z.object({ title: z.string(), width: z.number().positive() }).strict()),
+    rows: z.array(z.array(z.string())),
+    workIds: z.array(z.string().min(1)).optional(),
+    groupColumn: z.number().int().nonnegative().optional(),
+  })
+  .strict()
 export const planSheetDataSchema = z
   .object({
     year: z.number().int(),
@@ -47,16 +57,30 @@ export const planSheetDataSchema = z
               })
               .strict(),
           ),
-          tables: z.array(
+          tables: z.array(table),
+          stations: z.array(
             z
               .object({
-                title: z.string(),
-                columns: z.array(
-                  z.object({ title: z.string(), width: z.number().positive() }).strict(),
+                id: z.string(),
+                name: z.string(),
+                layout: stationLayoutDto.nullable(),
+                works: z.array(
+                  z
+                    .object({
+                      id: z.string(),
+                      name: z.string(),
+                      object: z
+                        .object({ kind: z.enum(['track', 'switch']), number: z.string() })
+                        .strict()
+                        .nullable(),
+                      volume: z.number().nonnegative(),
+                      unit: z.string(),
+                      note: z.string(),
+                      callout: z.boolean(),
+                    })
+                    .strict(),
                 ),
-                rows: z.array(z.array(z.string())),
-                workIds: z.array(z.string().min(1)).optional(),
-                groupColumn: z.number().int().nonnegative().optional(),
+                tables: z.array(table),
               })
               .strict(),
           ),

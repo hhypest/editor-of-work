@@ -1,5 +1,5 @@
 <section aria-labelledby="editor-sheet-title" [attr.aria-busy]="facade.busy()">
-  <h3 id="editor-sheet-title">Текущий лист ПД</h3>
+  <h3 id="editor-sheet-title">Текущий лист ПД или станции</h3>
   <div class="controls">
     <button type="button" [disabled]="!facade.canExport(context())" (click)="exportPdf()">
       Сохранить текущий лист в PDF
@@ -32,8 +32,9 @@
     }
   </div>
   <p>
-    Пакет печатает листы в масштабе, сохранённом в плане у каждого ПД. По файлам — один PDF на ПД в
-    выбранной папке; существующие файлы не перезаписываются.
+    Пакет печатает листы в масштабе, сохранённом в плане у каждого ПД; листы станций идут после
+    листов своего ПД. По файлам — один PDF на ПД в выбранной папке; существующие файлы не
+    перезаписываются.
   </p>
   @if (facade.pdfStatus(); as status) {
     <p role="status">{{ status }}</p>
@@ -43,9 +44,18 @@
   }
   @if (context()?.hasRecovery) {
     <p>Сначала восстановите автокопию или откажитесь от неё.</p>
-  } @else if (!context()?.hasPlan || !context()?.area?.startsWith('pd:')) {
-    <p>Для предпросмотра выберите ПД в области работ и таблиц.</p>
+  } @else if (
+    !context()?.hasPlan ||
+    !(context()?.area?.startsWith('pd:') || context()?.area?.startsWith('station:'))
+  ) {
+    <p>Для предпросмотра выберите ПД или станцию в области работ и таблиц.</p>
   } @else {
+    @if (facade.stationMissing()) {
+      <p role="status">
+        У станции нет листа: она не относится к ПД, у неё нет схемы и работ или листы станций скрыты
+        в составе листов ПД.
+      </p>
+    }
     <p>
       Листы показывают применённые изменения. Итоги таблиц относятся ко всему ПД. В списке работ
       можно выбрать весь ПД или только текущий лист, включая строки ведомости на нём.
@@ -54,32 +64,34 @@
       <p role="status">Есть незавершённый ввод. Примените его, чтобы увидеть изменения на листе.</p>
     }
     <div class="controls">
-      <label for="editor-sheet-scale">Масштаб схемы</label>
-      <select
-        id="editor-sheet-scale"
-        [value]="facade.scale()"
-        [disabled]="facade.busy()"
-        (change)="scale($event)"
-      >
-        <option value="25000">1:25 000</option>
-        <option value="50000">1:50 000</option>
-        <option value="100000">1:100 000</option>
-      </select>
-      <span>В плане: 1:{{ facade.savedScale() }}</span>
-      <button
-        type="button"
-        [disabled]="
-          facade.busy() ||
-          context()?.busy ||
-          context()?.pending ||
-          !facade.selection() ||
-          facade.scale() === facade.savedScale()
-        "
-        (click)="save()"
-      >
-        Сохранить масштаб в плане
-      </button>
-      <span>Переключатель меняет предпросмотр; кнопка применяет масштаб к плану.</span>
+      @if (context()?.area?.startsWith('pd:')) {
+        <label for="editor-sheet-scale">Масштаб схемы</label>
+        <select
+          id="editor-sheet-scale"
+          [value]="facade.scale()"
+          [disabled]="facade.busy()"
+          (change)="scale($event)"
+        >
+          <option value="25000">1:25 000</option>
+          <option value="50000">1:50 000</option>
+          <option value="100000">1:100 000</option>
+        </select>
+        <span>В плане: 1:{{ facade.savedScale() }}</span>
+        <button
+          type="button"
+          [disabled]="
+            facade.busy() ||
+            context()?.busy ||
+            context()?.pending ||
+            !facade.selection() ||
+            facade.scale() === facade.savedScale()
+          "
+          (click)="save()"
+        >
+          Сохранить масштаб в плане
+        </button>
+        <span>Переключатель меняет предпросмотр; кнопка применяет масштаб к плану.</span>
+      }
       <label for="editor-sheet-zoom">Просмотр: {{ (facade.zoom() * 100).toFixed(0) }}%</label>
       <input
         id="editor-sheet-zoom"

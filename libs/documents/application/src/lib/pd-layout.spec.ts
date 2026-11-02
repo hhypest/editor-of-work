@@ -16,7 +16,15 @@ const source: PlanSheetData = {
     { id: 'l', name: 'УЧЕБНОЕ', extents: [span(10, 25), span(30, 40)], kmLengths: [[20, 964]] },
   ],
   pds: [
-    { id: 'before', name: 'ПД-1', pchu: 'ПЧУ-1', segments: [span(10, 18)], works: [], tables: [] },
+    {
+      id: 'before',
+      name: 'ПД-1',
+      pchu: 'ПЧУ-1',
+      segments: [span(10, 18)],
+      works: [],
+      tables: [],
+      stations: [],
+    },
     {
       id: 'pd',
       name: 'ПД-2',
@@ -45,8 +53,17 @@ const source: PlanSheetData = {
           rows: [['Длина главных путей, м', '3964']],
         },
       ],
+      stations: [],
     },
-    { id: 'after', name: 'ПД-3', pchu: 'ПЧУ-1', segments: [span(21, 25)], works: [], tables: [] },
+    {
+      id: 'after',
+      name: 'ПД-3',
+      pchu: 'ПЧУ-1',
+      segments: [span(21, 25)],
+      works: [],
+      tables: [],
+      stations: [],
+    },
   ],
 }
 const texts = (shapes: readonly SheetPrimitive[]) =>

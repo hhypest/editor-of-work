@@ -376,7 +376,7 @@ class SqlitePassportStore implements PassportDatabase {
     return this.operation(() =>
       this.queries.transaction().execute(async (db) => {
         const data = await readPlanningData(db, id)
-        return data ? ok(data) : err(absent())
+        return data ?? err(absent())
       }),
     )
   }

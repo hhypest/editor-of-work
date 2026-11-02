@@ -51,6 +51,7 @@ export class EditorSheetsComponent {
     const selected = this.facade.selection()
     if (
       !context?.hasPlan ||
+      !context.area.startsWith('pd:') ||
       context.busy ||
       context.pending ||
       context.hasRecovery ||

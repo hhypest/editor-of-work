@@ -104,7 +104,10 @@ export interface EditorView {
     readonly label: string
     readonly visible: boolean
   }[]
+  /** Масштаб листов ПД области; у станции — масштаб её ПД. */
   readonly pdScale: 25000 | 50000 | 100000 | null
+  /** ПД, листы которого показывает предпросмотр: ПД области или ПД станции. */
+  readonly sheetPd: string | null
   readonly indicators: readonly {
     readonly id: string
     readonly name: string

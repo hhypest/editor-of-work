@@ -43,6 +43,7 @@ const source: PlanSheetData = {
     segments: [],
     works: [],
     tables: [],
+    stations: [],
   })),
 }
 const measurer: TextMeasurer = { width: (text, font) => mm(text.length * font.size.value * 0.5) }
@@ -299,7 +300,70 @@ describe('Лист в редакторе плана', () => {
     await fixture.whenStable()
     expect(element.querySelector('svg')).toBeNull()
     expect(selections.at(-1)).toBeNull()
-    expect(element.textContent).toContain('выберите ПД')
+    expect(element.textContent).toContain('У станции нет листа')
+    fixture.componentRef.setInput('context', { ...context, area: 'district' })
+    await fixture.whenStable()
+    expect(element.textContent).toContain('выберите ПД или станцию')
+  })
+  it('открывает лист станции в составе листов её ПД и сохраняет PDF по ПД', async () => {
+    const withStation: PlanSheetData = {
+      ...source,
+      pds: source.pds.map((pd) =>
+        pd.id !== 'a'
+          ? pd
+          : {
+              ...pd,
+              stations: [
+                {
+                  id: 's',
+                  name: 'Учебная',
+                  layout: null,
+                  works: [
+                    {
+                      id: 'w',
+                      name: 'Учебная работа',
+                      object: null,
+                      volume: 1,
+                      unit: 'шт',
+                      note: '',
+                      callout: false,
+                    },
+                  ],
+                  tables: [],
+                },
+              ],
+            },
+      ),
+    }
+    const port: EditorSheetClient = {
+      source: vi.fn<EditorSheetClient['source']>(async () => ok(withStation)),
+    }
+    const pdf: EditorPdfClient = {
+      export: vi.fn<EditorPdfClient['export']>(async () => ok('saved')),
+    }
+    await TestBed.configureTestingModule({
+      imports: [EditorSheetsComponent],
+      providers: [...providers(port), { provide: EDITOR_PDF_CLIENT, useValue: pdf }],
+    }).compileComponents()
+    const fixture = TestBed.createComponent(EditorSheetsComponent)
+    const selections: (PlanPageSelection | null)[] = []
+    fixture.componentInstance.pageSelection.subscribe((selection) => selections.push(selection))
+    const station = { ...context, area: 'station:s', sheetPd: 'a' }
+    fixture.componentRef.setInput('context', station)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    expect(port.source).toHaveBeenCalledExactlyOnceWith(1, 'a')
+    expect(element.querySelector('svg')?.textContent).toContain('станция Учебная')
+    expect(element.textContent).toContain('Лист 2 из 2')
+    expect(element.textContent).not.toContain('Масштаб схемы')
+    expect(element.textContent).not.toContain('У станции нет листа')
+    expect(selections.at(-1)).toEqual({ revision: 1, area: 'station:s', page: 2, workIds: [] })
+    fixture.componentInstance.exportPdf()
+    await fixture.whenStable()
+    expect(pdf.export).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ revision: 1, pd: 'a' }),
+    )
   })
   it.each(['load', 'fonts'] as const)(
     'ответ прежнего ПД во время ожидания %s не заменяет новый лист',

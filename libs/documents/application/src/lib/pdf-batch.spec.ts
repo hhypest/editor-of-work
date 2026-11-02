@@ -24,8 +24,17 @@ const source: PlanSheetData = {
       segments: [span(10, 20)],
       works: [],
       tables: [],
+      stations: [],
     },
-    { id: 'b', name: 'ПД-2', pchu: 'ПЧУ', segments: [span(20, 30)], works: [], tables: [] },
+    {
+      id: 'b',
+      name: 'ПД-2',
+      pchu: 'ПЧУ',
+      segments: [span(20, 30)],
+      works: [],
+      tables: [],
+      stations: [],
+    },
   ],
 }
 function setup(overrides: Partial<PdfBatchClient> = {}) {

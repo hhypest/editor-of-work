@@ -1,10 +1,13 @@
 import { createHash } from 'node:crypto'
 import type { Kysely } from 'kysely'
 import type { EditionData, PlanningEditionData } from '@eow/passport/application'
+import type { PassportError } from '@eow/passport/domain'
+import { err, ok, type Result } from '@eow/shared/kernel'
 import { readManualBasis } from './manual-data-storage'
 import { readOrgData, type PassportSchema } from './org-import-storage'
 import { readSegmentData } from './segment-import-storage'
 import { readStationBasis, readStationData } from './station-import-storage'
+import { stationLayoutSchema } from './station-scheme-schema'
 
 const current = (
   row: { valid_from: string | null; valid_to: string | null },
@@ -83,11 +86,14 @@ export async function readEditionData(
   }
 }
 
-/** Вызывается в одной транзакции. Исключённые станции не возвращаются в план. */
+/**
+ * Вызывается в одной транзакции. Исключённые станции не возвращаются в план.
+ * Раскладка схемы проверяется так же, как при записи: повреждённая не уходит в план молча.
+ */
 export async function readPlanningData(
   db: Kysely<PassportSchema>,
   editionId: number,
-): Promise<PlanningEditionData | undefined> {
+): Promise<Result<PlanningEditionData, PassportError> | undefined> {
   const data = await readEditionData(db, editionId, true)
   if (!data) return undefined
   const basis = await readStationBasis(db, editionId)
@@ -110,24 +116,52 @@ export async function readPlanningData(
     .where('edition_id', '=', editionId)
     .orderBy('id')
     .execute()
+  const layoutRows = await db
+    .selectFrom('station_layout')
+    .select(['station_id', 'layout'])
+    .where('edition_id', '=', editionId)
+    .execute()
+  const layouts = new Map(layoutRows.map((r) => [r.station_id, r.layout]))
   const date = data.edition.date
-  return {
+  const result: PlanningEditionData['stations'][number][] = []
+  for (const s of stations) {
+    if (!current(s, date) || excluded.has(s.name)) continue
+    const json = layouts.get(s.id)
+    let layout = null
+    if (json !== undefined) {
+      const parsed = parseLayout(json)
+      if (!parsed)
+        return err({
+          kind: 'invalid-import',
+          message: `Сохранённая раскладка станции «${s.name}» повреждена. Загрузите схему станции заново.`,
+        })
+      layout = parsed
+    }
+    result.push({
+      id: s.id,
+      name: s.name,
+      tracks: tracks.filter((t) => t.station_id === s.id && current(t, date)).map((t) => t.number),
+      switches: switches
+        .filter((t) => t.station_id === s.id && current(t, date))
+        .map((t) => t.number),
+      layout,
+    })
+  }
+  return ok({
     edition: data.edition,
     lines: data.lines,
     org: data.org,
     manual: data.manual,
-    stations: stations
-      .filter((s) => current(s, date) && !excluded.has(s.name))
-      .map((s) => ({
-        id: s.id,
-        name: s.name,
-        tracks: tracks
-          .filter((t) => t.station_id === s.id && current(t, date))
-          .map((t) => t.number),
-        switches: switches
-          .filter((t) => t.station_id === s.id && current(t, date))
-          .map((t) => t.number),
-      })),
+    stations: result,
+  })
+}
+
+function parseLayout(json: string) {
+  try {
+    const parsed = stationLayoutSchema.safeParse(JSON.parse(json))
+    return parsed.success ? parsed.data : undefined
+  } catch {
+    return undefined
   }
 }
 

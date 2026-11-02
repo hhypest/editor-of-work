@@ -1,3 +1,5 @@
+import type { LayoutTrack, StationLayout } from '@eow/shared/kernel'
+
 /**
  * Раскладка путевого развития станции в таблице `station_layout` (JSON, версия 1).
  * Координаты — целые клетки сетки: ряд — междупутье, колонка — половина междупутья.
@@ -8,77 +10,18 @@ export const STATION_LAYOUT_VERSION = 1
 /** Колонок в одном междупутье: наклон съезда 1 : 2 выглядит как обычный стрелочный угол. */
 export const LAYOUT_COLUMNS_PER_ROW = 2
 
-export type LayoutNodeKind = 'switch' | 'end' | 'bend' | 'crossing'
-export type LayoutTrackKind = 'main' | 'station' | 'connector' | 'siding'
-export type LayoutTrackState = 'normal' | 'closed' | 'conserved'
-
-export interface LayoutNode {
-  readonly id: string
-  readonly col: number
-  readonly row: number
-  readonly kind: LayoutNodeKind
-  /** У конца пути: упор или выход за пределы схемы. */
-  readonly end?: 'stop' | 'open' | undefined
-}
-
-export interface LayoutTrack {
-  readonly id: string
-  /** Номер как на схеме; null — съезд или путь без номера. */
-  readonly number: string | null
-  readonly kind: LayoutTrackKind
-  readonly state: LayoutTrackState
-  /** Узлы слева направо. */
-  readonly nodes: readonly string[]
-  /** Полная длина и вместимость — подписи схемы, а не экспликация. */
-  readonly fullLength: number | null
-  readonly capacity: string | null
-}
-
-export interface LayoutSwitch {
-  readonly id: string
-  readonly number: string | null
-  readonly node: string
-  /** Путь, по которому проходит прямое направление: на нём лежит стрелка. */
-  readonly track: string
-  /** Путь или съезд, который начинается или заканчивается в узле стрелки. */
-  readonly branch: string
-}
-
-export interface LayoutDerailer {
-  readonly id: string
-  readonly number: string
-  readonly track: string
-  readonly col: number
-}
-
-export interface LayoutBridge {
-  readonly id: string
-  readonly label: string | null
-  readonly track: string
-  readonly fromCol: number
-  readonly toCol: number
-}
-
-export interface LayoutCrossing {
-  readonly id: string
-  /** Подпись схемы: «переезд 51км». */
-  readonly label: string
-  readonly km: number | null
-  readonly pk: number | null
-  readonly col: number
-  readonly fromRow: number
-  readonly toRow: number
-}
-
-export interface StationLayout {
-  readonly version: typeof STATION_LAYOUT_VERSION
-  readonly nodes: readonly LayoutNode[]
-  readonly tracks: readonly LayoutTrack[]
-  readonly switches: readonly LayoutSwitch[]
-  readonly derailers: readonly LayoutDerailer[]
-  readonly bridges: readonly LayoutBridge[]
-  readonly crossings: readonly LayoutCrossing[]
-}
+export type {
+  LayoutNodeKind,
+  LayoutTrackKind,
+  LayoutTrackState,
+  LayoutNode,
+  LayoutTrack,
+  LayoutSwitch,
+  LayoutDerailer,
+  LayoutBridge,
+  LayoutCrossing,
+  StationLayout,
+} from '@eow/shared/kernel'
 
 /** Колонки, которые занимает путь: от самой левой до самой правой вершины. */
 export function trackColumns(

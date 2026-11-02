@@ -6,7 +6,18 @@ const mm = (max: number) =>
 const x = mm(420),
   y = mm(297)
 const primitive = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('line'), x1: x, x2: x, y1: y, y2: y, dashed: z.boolean() }).strict(),
+  z
+    .object({
+      kind: z.literal('line'),
+      x1: x,
+      x2: x,
+      y1: y,
+      y2: y,
+      dashed: z.boolean(),
+      weight: mm(5).optional(),
+      shade: z.boolean().optional(),
+    })
+    .strict(),
   z
     .object({
       kind: z.literal('rect'),
@@ -18,7 +29,9 @@ const primitive = z.discriminatedUnion('kind', [
       border: z.boolean(),
     })
     .strict(),
-  z.object({ kind: z.literal('circle'), x, y, radius: mm(100) }).strict(),
+  z
+    .object({ kind: z.literal('circle'), x, y, radius: mm(100), shade: z.boolean().optional() })
+    .strict(),
   z
     .object({
       kind: z.literal('text'),

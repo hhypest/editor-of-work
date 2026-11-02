@@ -1,6 +1,6 @@
 import type { PassportEdition, PassportError } from '@eow/passport/domain'
 import type { ManualData, OrgData, SegmentRow, StationRow } from '@eow/passport/import-api'
-import type { Chainage, Result } from '@eow/shared/kernel'
+import type { Chainage, Result, StationLayout } from '@eow/shared/kernel'
 
 /** Направление редакции с протяжением и длинами нестандартных километров. */
 export interface EditionLine {
@@ -38,6 +38,8 @@ export interface PlanningEditionData extends Pick<
     readonly name: string
     readonly tracks: readonly string[]
     readonly switches: readonly string[]
+    /** Раскладка схемы станции (ADR-0046); null — схема не загружена. */
+    readonly layout: StationLayout | null
   }[]
 }
 export interface PassportPlanningSource {

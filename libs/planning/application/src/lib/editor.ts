@@ -30,6 +30,7 @@ import {
   ITEM_TABLE_KINDS,
   ITEM_TABLE_TITLES,
   pdScaleOf,
+  pdOfStation,
   setPdScale,
   setPdHiddenTables,
   hiddenPdTablesOf,
@@ -325,6 +326,12 @@ export function editorView(
     area = editorArea(key)
   if (!area || !areaExists(area, plan.basis))
     return err([issue('Выберите область из среза плана.')])
+  const sheetPd =
+    area.kind === 'pd'
+      ? area.pd
+      : area.kind === 'station'
+        ? (pdOfStation(plan.basis, area.station) ?? null)
+        : null
   const boundaries = [...plan.basis.pds.values()].reduce((n, p) => n + p.segments.length, 0)
   const items = plan.works.reduce(
     (n, w) => n + (w.place.kind === 'line' ? w.place.spec.items.length : 1),
@@ -339,7 +346,8 @@ export function editorView(
     canUndo: canUndoPlan(session),
     canRedo: canRedoPlan(session),
     area: key,
-    pdScale: area.kind === 'pd' ? pdScaleOf(plan, area.pd) : null,
+    pdScale: sheetPd === null ? null : pdScaleOf(plan, sheetPd),
+    sheetPd,
     pdTables:
       area.kind === 'pd'
         ? PD_TABLE_KINDS.map((key) => ({
@@ -353,6 +361,7 @@ export function editorView(
               works: 'Ведомость работ ПД',
               indicators: 'Ручные показатели ПД',
               expected: 'Ожидаемые показатели',
+              stations: 'Листы станций',
               ...ITEM_TABLE_TITLES,
             }[key],
             visible: !hiddenPdTablesOf(plan, area.pd).includes(key),

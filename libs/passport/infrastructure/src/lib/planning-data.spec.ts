@@ -40,7 +40,21 @@ describe('Срез паспорта для создания плана', () => {
     ).run(id)
     const data = value(await store.planningData(id))
     expect(data.stations).toEqual([
-      { id: 'row', name: 'Вымышленная станция', tracks: ['1'], switches: ['2'] },
+      {
+        id: 'row',
+        name: 'Вымышленная станция',
+        tracks: ['1'],
+        switches: ['2'],
+        layout: {
+          version: 1,
+          nodes: [],
+          tracks: [],
+          switches: [],
+          derailers: [],
+          bridges: [],
+          crossings: [],
+        },
+      },
     ])
     expect(data.lines[0]?.kmLengths).toEqual([[700, 1250]])
     expect(await store.planningData(999)).toMatchObject({ ok: false, error: { kind: 'not-found' } })
@@ -63,5 +77,45 @@ describe('Срез паспорта для создания плана', () => {
     expect(all.lines).toHaveLength(2)
     expect(all.lines.find((l) => l.id === 'row')?.extents).toHaveLength(2)
     expect(all.lines.find((l) => l.id === 'row')?.kmLengths).toHaveLength(2)
+  })
+  it('передаёт раскладку схемы станции и не пропускает повреждённую', async () => {
+    const layout = {
+      version: 1,
+      nodes: [
+        { id: 'a', col: 0, row: 0, kind: 'end', end: 'open' },
+        { id: 'b', col: 8, row: 0, kind: 'end', end: 'stop' },
+      ],
+      tracks: [
+        {
+          id: 't',
+          number: '1',
+          kind: 'station',
+          state: 'normal',
+          nodes: ['a', 'b'],
+          fullLength: 300,
+          capacity: null,
+        },
+      ],
+      switches: [],
+      derailers: [],
+      bridges: [],
+      crossings: [],
+    }
+    db.prepare('UPDATE station_layout SET layout = ? WHERE edition_id = ?').run(
+      JSON.stringify(layout),
+      id,
+    )
+    expect(value(await store.planningData(id)).stations[0]?.layout).toEqual(layout)
+    db.prepare('UPDATE station_layout SET layout = ? WHERE edition_id = ?').run(
+      JSON.stringify({
+        ...layout,
+        switches: [{ id: 'w', number: '1', node: 'a', track: 't', branch: 't' }],
+      }),
+      id,
+    )
+    expect(await store.planningData(id)).toMatchObject({
+      ok: false,
+      error: { message: expect.stringContaining('«Вымышленная станция» повреждена') },
+    })
   })
 })

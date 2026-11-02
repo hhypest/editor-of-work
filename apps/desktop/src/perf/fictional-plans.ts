@@ -7,6 +7,7 @@ import {
   setDatedIndicators,
   setExpectedIndicators,
   setPlanIndicators,
+  setPdHiddenTables,
   setPlanItems,
   workId,
   ITEM_TABLE_KINDS,
@@ -32,6 +33,8 @@ export interface PlanProfile {
   /** Строк в каждой таблице показателей и перечне ПД и дистанции. */
   readonly rows: number
   readonly seed: number
+  /** Листы станций после листов ПД; профиль «30 листов» меряет только листы ПД. */
+  readonly stationSheets?: false
 }
 
 /**
@@ -73,6 +76,7 @@ export const PLAN_PROFILES: readonly PlanProfile[] = [
   {
     id: 'sheets30',
     title: '30 листов',
+    stationSheets: false,
     lines: [90, 80, 70],
     pds: 6,
     stationsPerPd: 2,
@@ -328,6 +332,10 @@ export function fictionalPlan(profile: PlanProfile): AnnualPlan {
     plan = value(addWork(plan, workId(`w${index + 1}`), work), `работа ${index + 1}`)
   })
   plan = withTables(plan, { kind: 'district' }, profile.rows, next)
-  for (const pd of pds) plan = withTables(plan, { kind: 'pd', pd: pd.id }, profile.rows, next)
+  for (const pd of pds) {
+    plan = withTables(plan, { kind: 'pd', pd: pd.id }, profile.rows, next)
+    if (profile.stationSheets === false)
+      plan = value(setPdHiddenTables(plan, pd.id, ['stations']), `листы станций ${pd.id}`)
+  }
   return plan
 }

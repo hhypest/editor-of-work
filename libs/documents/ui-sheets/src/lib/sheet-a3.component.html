@@ -16,6 +16,9 @@
             [attr.x2]="shape.x2.value"
             [attr.y2]="shape.y2.value"
             [attr.stroke-dasharray]="shape.dashed ? '2 1' : null"
+            [attr.stroke-width]="shape.weight?.value ?? null"
+            [attr.stroke]="shape.shade ? '#bbb' : null"
+            [attr.stroke-linecap]="shape.weight ? 'round' : null"
           />
         }
         @case ('rect') {
@@ -33,7 +36,7 @@
             [attr.cx]="shape.x.value"
             [attr.cy]="shape.y.value"
             [attr.r]="shape.radius.value"
-            fill="white"
+            [attr.fill]="shape.shade ? '#bbb' : 'white'"
           />
         }
         @case ('text') {

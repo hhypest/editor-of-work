@@ -23,6 +23,10 @@ export type SheetPrimitive =
       readonly x2: SheetMm
       readonly y2: SheetMm
       readonly dashed: boolean
+      /** Толщина линии; без неё — тонкая линия листа 0,25 мм. */
+      readonly weight?: SheetMm | undefined
+      /** Серая линия: подсветка пути с работой под чёрной линией пути. */
+      readonly shade?: boolean | undefined
     }
   | {
       readonly kind: 'rect'
@@ -33,7 +37,14 @@ export type SheetPrimitive =
       readonly shade: boolean
       readonly border: boolean
     }
-  | { readonly kind: 'circle'; readonly x: SheetMm; readonly y: SheetMm; readonly radius: SheetMm }
+  | {
+      readonly kind: 'circle'
+      readonly x: SheetMm
+      readonly y: SheetMm
+      readonly radius: SheetMm
+      /** Серая заливка: подсветка стрелки с работой. */
+      readonly shade?: boolean | undefined
+    }
   | {
       readonly kind: 'text'
       readonly x: SheetMm

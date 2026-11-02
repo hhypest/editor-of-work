@@ -40,6 +40,10 @@ export class EditorSheetsFacade {
   private measurer: TextMeasurer | undefined
   private planEpoch: number | undefined
   readonly selected = signal('')
+  /** Станция области: предпросмотр открывает её лист в составе листов ПД. */
+  readonly station = signal<string | null>(null)
+  /** Лист станции не выводится: нет схемы и работ, листы станций скрыты или станция вне ПД. */
+  readonly stationMissing = signal(false)
   readonly scale = signal<OverviewScale>(50000)
   readonly savedScale = signal<OverviewScale>(50000)
   readonly zoom = signal(0.5)
@@ -85,18 +89,31 @@ export class EditorSheetsFacade {
     this.prepareMs.set(null)
   }
   async sync(context: PlanPreviewContext | null): Promise<void> {
-    if (!context?.hasPlan || !context.area.startsWith('pd:') || context.hasRecovery) {
+    const station = context?.area.startsWith('station:') ? context.area.slice(8) : null
+    const pd = context?.area.startsWith('pd:')
+      ? context.area.slice(3)
+      : station !== null
+        ? (context?.sheetPd ?? null)
+        : null
+    this.stationMissing.set(station !== null && pd === null)
+    if (!context?.hasPlan || pd === null || context.hasRecovery) {
       this.invalidate()
       this.selected.set('')
+      this.station.set(null)
       this.index.set(0)
       return
     }
-    const pd = context.area.slice(3)
     const savedScale = context.pdScale ?? 50000
     const epoch = context.planEpoch ?? 0
-    if (pd !== this.selected() || savedScale !== this.savedScale() || epoch !== this.planEpoch) {
+    if (
+      pd !== this.selected() ||
+      station !== this.station() ||
+      savedScale !== this.savedScale() ||
+      epoch !== this.planEpoch
+    ) {
       this.index.set(0)
       this.selected.set(pd)
+      this.station.set(station)
       this.scale.set(savedScale)
       this.savedScale.set(savedScale)
       this.planEpoch = epoch
@@ -106,7 +123,7 @@ export class EditorSheetsFacade {
       this.busy.set(true)
       return
     }
-    const key = JSON.stringify([context.revision, pd, savedScale, epoch])
+    const key = JSON.stringify([context.revision, pd, station, savedScale, epoch])
     if (key === this.key) return
     this.invalidate()
     this.key = key
@@ -125,6 +142,7 @@ export class EditorSheetsFacade {
       this.measurer = measurer
       this.source = result.value
       this.rebuild(started)
+      this.openStation()
       this.readyContext.set({ revision: context.revision, area: context.area })
     } catch {
       if (generation === this.generation)
@@ -149,7 +167,9 @@ export class EditorSheetsFacade {
   async exportPdf(context: PlanPreviewContext | null): Promise<void> {
     if (!this.canExport(context)) {
       if (!this.exporting())
-        this.pdfError.set('Выберите готовый лист ПД и примените или отмените незавершённый ввод.')
+        this.pdfError.set(
+          'Выберите готовый лист ПД или станции и примените или отмените незавершённый ввод.',
+        )
       return
     }
     const selected = this.selection(),
@@ -162,7 +182,7 @@ export class EditorSheetsFacade {
       if (!this.pdf) throw new Error('PDF недоступен')
       const result = await this.pdf.export({
         revision: selected.revision,
-        pd: selected.area.slice(3),
+        pd: this.selected(),
         page,
       })
       if (!result.ok) {
@@ -294,6 +314,15 @@ export class EditorSheetsFacade {
     const index = this.index() + delta
     if (!this.busy() && index >= 0 && index < (this.document()?.pages.length ?? 0))
       this.index.set(index)
+  }
+  /** У станции область открывается на её первом листе. */
+  private openStation(): void {
+    const station = this.station(),
+      document = this.document()
+    if (station === null || !document) return
+    const found = document.stations.find((s) => s.id === station)
+    this.stationMissing.set(!found)
+    if (found) this.index.set(found.page)
   }
   private rebuild(started: number): void {
     if (!this.source || !this.measurer) return

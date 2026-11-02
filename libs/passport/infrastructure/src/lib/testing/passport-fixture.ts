@@ -51,7 +51,11 @@ export function seedPassport(database: DatabaseSync, edition: number): void {
     station_track: { station_id: 'row', number: '1' },
     station_track_pd: { station_id: 'row', track_id: 'row', subdivision_id: 'row', whole_track: 1 },
     station_switch: { station_id: 'row', number: '2', track_id: 'row' },
-    station_layout: { station_id: 'row', layout: '{"version":1,"tracks":[]}' },
+    station_layout: {
+      station_id: 'row',
+      layout:
+        '{"version":1,"nodes":[],"tracks":[],"switches":[],"derailers":[],"bridges":[],"crossings":[]}',
+    },
     station_object: { station_id: 'row', type: 'building', label: 'Учебный объект', x: 1, y: 2 },
     crossing: {
       line_id: 'row',

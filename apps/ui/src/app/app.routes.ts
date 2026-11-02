@@ -3,6 +3,7 @@ import { ExportWizardComponent, ManualTemplateComponent } from '@eow/import/feat
 import { type Route } from '@angular/router'
 import { PassportComponent, RepairReportComponent } from '@eow/passport/feature-ui'
 
+import { StationEditorComponent, stationEditorLeaveGuard } from '@eow/stations/feature-ui'
 import { PlanWorkspaceComponent } from './plan-workspace.component'
 
 export const appRoutes: Route[] = [
@@ -12,5 +13,10 @@ export const appRoutes: Route[] = [
   { path: 'manual', component: ManualTemplateComponent },
   { path: 'sheets', component: OverviewComponent },
   { path: 'repairs', component: RepairReportComponent },
+  {
+    path: 'stations',
+    component: StationEditorComponent,
+    canDeactivate: [stationEditorLeaveGuard],
+  },
   { path: 'plan', component: PlanWorkspaceComponent },
 ]

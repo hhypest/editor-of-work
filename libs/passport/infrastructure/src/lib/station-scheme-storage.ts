@@ -5,6 +5,8 @@ import {
   STATION_SCHEME_FORM,
   type OrgImportError,
   type StationSchemeBasis,
+  type StationLayout,
+  type StationLayoutEntry,
   type StationSchemeImport,
 } from '@eow/passport/import-api'
 import { referenceId, type PassportSchema } from './org-import-storage'
@@ -115,4 +117,68 @@ export async function writeStationSchemeImport(
     )
     .execute()
   return ok(undefined)
+}
+
+const layoutVersion = (json: string): string => createHash('sha256').update(json).digest('hex')
+
+export async function readStationLayoutList(
+  db: Kysely<PassportSchema>,
+  editionId: number,
+): Promise<StationLayoutEntry[]> {
+  const stations = await db
+    .selectFrom('station')
+    .select(['id', 'name'])
+    .where('edition_id', '=', editionId)
+    .orderBy('name')
+    .execute()
+  const layouts = new Set(
+    (
+      await db
+        .selectFrom('station_layout')
+        .select('station_id')
+        .where('edition_id', '=', editionId)
+        .execute()
+    ).map((r) => r.station_id),
+  )
+  return stations.map((s) => ({ id: s.id, name: s.name, hasLayout: layouts.has(s.id) }))
+}
+
+export async function readStationLayout(
+  db: Kysely<PassportSchema>,
+  editionId: number,
+  stationId: string,
+): Promise<{ readonly json: string; readonly version: string } | undefined> {
+  const row = await db
+    .selectFrom('station_layout')
+    .select('layout')
+    .where('edition_id', '=', editionId)
+    .where('station_id', '=', stationId)
+    .executeTakeFirst()
+  return row ? { json: row.layout, version: layoutVersion(row.layout) } : undefined
+}
+
+/** Правка раскладки в черновике; ссылка на файл схемы, из которого она пришла, сохраняется. */
+export async function writeStationLayout(
+  db: Kysely<PassportSchema>,
+  editionId: number,
+  stationId: string,
+  layout: StationLayout,
+  version: string,
+): Promise<Result<{ readonly version: string }, OrgImportError>> {
+  const current = await readStationLayout(db, editionId, stationId)
+  if (!current)
+    return err({ kind: 'not-found', message: 'У станции нет раскладки. Загрузите схему станции.' })
+  if (current.version !== version)
+    return err({
+      kind: 'invalid-import',
+      message: 'Раскладку изменили после открытия. Откройте станцию заново.',
+    })
+  const json = JSON.stringify(layout)
+  await db
+    .updateTable('station_layout')
+    .set({ layout: json })
+    .where('edition_id', '=', editionId)
+    .where('station_id', '=', stationId)
+    .execute()
+  return ok({ version: layoutVersion(json) })
 }

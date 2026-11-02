@@ -25,6 +25,10 @@ import {
   STATION_FORMS,
   type PassportStationImport,
   type PassportStationSchemeImport,
+  type PassportStationLayouts,
+  type StationLayout,
+  type StationLayoutEntry,
+  type StoredStationLayout,
   type StationSchemeBasis,
   type StationSchemeImport,
   type StationBasis,
@@ -61,8 +65,14 @@ import {
   writeStationImport,
   writeStationExclusions,
 } from './station-import-storage'
-import { stationSchemeImportSchema } from './station-scheme-schema'
-import { readStationSchemeBasis, writeStationSchemeImport } from './station-scheme-storage'
+import { stationLayoutSchema, stationSchemeImportSchema } from './station-scheme-schema'
+import {
+  readStationLayout,
+  readStationLayoutList,
+  readStationSchemeBasis,
+  writeStationLayout,
+  writeStationSchemeImport,
+} from './station-scheme-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
 import { readEditionData, readPlanningData, editionTokenMatches } from './edition-data'
@@ -104,6 +114,7 @@ export interface PassportDatabase
     PassportSegmentImport,
     PassportStationImport,
     PassportStationSchemeImport,
+    PassportStationLayouts,
     PassportManualData,
     PassportBackups {
   readonly path: string
@@ -567,6 +578,71 @@ class SqlitePassportStore implements PassportDatabase {
         return err(stalePreview())
       return writeStationSchemeImport(db, id, parsed.data)
     })
+  }
+  stationLayoutList(id: number): Promise<Result<readonly StationLayoutEntry[], PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const edition = await db
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        return edition ? ok(await readStationLayoutList(db, id)) : err(absent())
+      }),
+    )
+  }
+  stationLayout(
+    id: number,
+    stationId: string,
+  ): Promise<Result<StoredStationLayout | null, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const edition = await db
+          .selectFrom('edition')
+          .select('status')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        if (!edition) return err(absent())
+        const stored = await readStationLayout(db, id, stationId)
+        if (!stored) return ok(null)
+        // Сохранённая раскладка проверяется так же, как при записи: в редактор попадает только верная.
+        const parsed = stationLayoutSchema.safeParse(JSON.parse(stored.json))
+        if (!parsed.success)
+          return err({
+            kind: 'invalid-import',
+            message: 'Сохранённая раскладка станции повреждена. Загрузите схему станции заново.',
+          })
+        return ok({
+          layout: parsed.data,
+          version: stored.version,
+          editable: edition.status === 'draft',
+        })
+      }),
+    )
+  }
+  saveStationLayout(
+    id: number,
+    stationId: string,
+    layout: StationLayout,
+    version: string,
+  ): Promise<Result<{ readonly version: string }, PassportError>> {
+    const parsed = stationLayoutSchema.safeParse(layout)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message:
+            parsed.error.issues.find((i) => i.code === 'custom')?.message ??
+            'Неверная раскладка станции.',
+        }),
+      )
+    let saved: { readonly version: string } | undefined
+    return this.stationDraft(id, async (db) => {
+      const result = await writeStationLayout(db, id, stationId, parsed.data, version)
+      if (!result.ok) return result
+      saved = result.value
+      return ok(undefined)
+    }).then((r) => (r.ok && saved ? ok(saved) : r.ok ? err(storageError()) : r))
   }
   setStationExclusions(
     id: number,

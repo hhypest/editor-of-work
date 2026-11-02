@@ -5,6 +5,7 @@ const api: EowApi = {
   appInfo: async () => ({ name: 'editor-of-work', version: '0', planFormat: 7 }),
   passport: async () => ({ status: 'ok', editions: [] }),
   passportData: async () => ({ status: 'error', message: 'unused' }),
+  stationLayouts: async () => ({ status: 'error', message: 'unused' }),
   repairs: async () => ({ status: 'error', message: 'unused' }),
   manualTemplate: async () => ({ status: 'cancelled' }),
   exportWizard: async () => ({ status: 'cancelled' }),

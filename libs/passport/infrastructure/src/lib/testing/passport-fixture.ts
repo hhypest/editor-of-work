@@ -82,16 +82,15 @@ export function seedPassport(database: DatabaseSync, edition: number): void {
     seg_sleeper: { line_id: 'row', base_type: 'fixture' },
     seg_ballast: { line_id: 'row', type: 'fixture' },
     seg_train_pairs: { line_id: 'row', freight: 10 },
+    subdivision_head: { subdivision: 'ПД-1', head: 'Учебный И.И.' },
   }
   database.exec('PRAGMA foreign_keys = ON; BEGIN')
   try {
     for (const table of editionTables) {
-      // Фикстура также используется для обновления схем до миграции 005.
+      // Фикстура также используется для обновления схем до миграций 005 и 008.
       if (
-        table === 'crossing_line' &&
-        !database
-          .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='crossing_line'")
-          .get()
+        (table === 'crossing_line' || table === 'subdivision_head') &&
+        !database.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table)
       )
         continue
       const characteristic = table.startsWith('seg_')

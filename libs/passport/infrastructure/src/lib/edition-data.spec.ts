@@ -97,6 +97,7 @@ describe('Данные редакции для просмотра', () => {
       tolerances: [],
       trainPairs: [],
       kilometres: [],
+      heads: [],
     })
     expect(data.org).toEqual({ subdivisions: [], boundaries: [], stations: [], tracks: [] })
   })

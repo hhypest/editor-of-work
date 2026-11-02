@@ -70,6 +70,9 @@ const data: ManualData = {
     },
   ],
   kilometres: [{ ...period, id: 'km', line: 'УЧЕБНОЕ', km: 10, length: 1045 }],
+  heads: [
+    { ...period, id: 'district', subdivision: 'Дистанция', title: 'Учебная дистанция', head: null },
+  ],
 }
 const adapter = new XlsxManualDataTemplate()
 const importedAt = '2026-10-21T00:00:00Z'
@@ -194,7 +197,7 @@ describe('Ручные данные: SQLite → xlsx → SQLite', () => {
       db.prepare("SELECT sha256,row_count,name FROM import_file WHERE form='manual-data'").get(),
     ).toMatchObject({
       sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
-      row_count: 5,
+      row_count: 6,
       name: 'изменение.xlsx',
     })
     expect(value(await store.manualImportReport(id))).toHaveLength(1)

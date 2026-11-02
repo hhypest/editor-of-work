@@ -352,6 +352,16 @@ function manualViews(data: EditionData): TableView[] {
         period(r.validFrom, r.validTo),
       ]),
     },
+    {
+      title: 'Руководители',
+      columns: ['Подразделение', 'Наименование', 'Руководитель', 'Период действия'],
+      rows: manual.heads.map((r) => [
+        r.subdivision,
+        r.title ?? '—',
+        r.head ?? '—',
+        period(r.validFrom, r.validTo),
+      ]),
+    },
   ]
 }
 

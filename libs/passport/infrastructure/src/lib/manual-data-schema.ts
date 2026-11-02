@@ -48,6 +48,13 @@ export const manualDataSchema = z.object({
   kilometres: z.array(
     period.extend({ line: text, km: z.number().int().nonnegative(), length: z.number().int() }),
   ),
+  heads: z.array(
+    period.extend({
+      subdivision: text.max(50),
+      title: text.max(200).nullable(),
+      head: text.max(100).nullable(),
+    }),
+  ),
 })
 export const manualFileSchema = orgFileSchema.extend({ form: z.literal('manual-data') })
 export const manualImportSchema = z.object({

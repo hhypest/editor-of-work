@@ -28,7 +28,14 @@ const base: EditionData = {
   lines: [{ id: 'line-1', name: 'ГЛАВНАЯ', extents: [], kmLengths: [] }],
   segments: [classRow('["class","f","s",1]', '3')],
   stations: [],
-  manual: { workKinds: [], repairNorms: [], tolerances: [], trainPairs: [], kilometres: [] },
+  manual: {
+    workKinds: [],
+    repairNorms: [],
+    tolerances: [],
+    trainPairs: [],
+    kilometres: [],
+    heads: [],
+  },
   org: { subdivisions: [], boundaries: [], stations: [], tracks: [] },
 }
 
@@ -89,6 +96,7 @@ describe('сравнение редакций', () => {
           },
         ],
         kilometres: [],
+        heads: [],
       },
     }
     const after: EditionData = {

@@ -10,7 +10,7 @@ import { MANUAL_SHEETS, type ManualBasis, type ManualIssue } from '@eow/passport
 import { cell, rowNumbers, type Sheet } from '../export/sheet'
 import { readXlsx } from '../export/xlsx-reader'
 import { MANUAL_COLUMNS, type MANUAL_KEYS, GROUP_LABELS } from './manual-layout'
-import { writeManualXlsx } from './manual-xlsx-writer'
+import { MANUAL_TEMPLATE_VERSION, writeManualXlsx } from './manual-xlsx-writer'
 
 class Reader {
   constructor(
@@ -93,7 +93,14 @@ export class XlsxManualDataTemplate implements ManualDataTemplate {
         })
     }
     const meta = book.value.find((s) => s.name === '_Шаблон')
-    if (!meta || cell(meta, 1, 1) !== 'editor-of-work/manual-data' || cell(meta, 1, 2) !== 1)
+    const version = meta ? cell(meta, 1, 2) : null
+    // Книга версии 1 выдана до листа «Руководители»: его отсутствие не стирает данные.
+    const keepHeads = version === 1 && !book.value.some((s) => s.name === MANUAL_SHEETS.heads)
+    if (
+      !meta ||
+      cell(meta, 1, 1) !== 'editor-of-work/manual-data' ||
+      (version !== 1 && version !== MANUAL_TEMPLATE_VERSION)
+    )
       issues.push({
         sheet: '_Шаблон',
         row: 1,
@@ -120,9 +127,11 @@ export class XlsxManualDataTemplate implements ManualDataTemplate {
       tolerances: [] as number[],
       trainPairs: [] as number[],
       kilometres: [] as number[],
+      heads: [] as number[],
     }
     const read = <T>(key: (typeof MANUAL_KEYS)[number], parse: (r: Reader) => T): T[] => {
       const sheet = book.value.find((s) => s.name === MANUAL_SHEETS[key])
+      if (!sheet && key === 'heads' && keepHeads) return []
       if (!sheet) {
         issues.push({
           sheet: MANUAL_SHEETS[key],
@@ -227,9 +236,21 @@ export class XlsxManualDataTemplate implements ManualDataTemplate {
         km: r.number('Км', true, true) ?? 0,
         length: r.number('Длина, м', true, true) ?? 0,
       })),
+      heads: read('heads', (r) => ({
+        ...period(r),
+        subdivision: (r.text('Подразделение', true) ?? '').trim(),
+        title: r.text('Наименование')?.trim() || null,
+        head: r.text('Руководитель')?.trim() || null,
+      })),
     }
     return issues.length
       ? err(issues)
-      : ok({ date: String(date), basisToken: String(basisToken), data, sourceRows })
+      : ok({
+          date: String(date),
+          basisToken: String(basisToken),
+          data,
+          sourceRows,
+          ...(keepHeads ? { keepHeads } : {}),
+        })
   }
 }

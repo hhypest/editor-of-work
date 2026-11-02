@@ -98,6 +98,7 @@ function data(): PassportPlanData {
       tolerances: [],
       trainPairs: [],
       kilometres: [],
+      heads: [],
     },
   }
 }

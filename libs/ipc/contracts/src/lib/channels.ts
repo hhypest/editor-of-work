@@ -7,6 +7,7 @@ import { exportWizard } from './export-wizard-channel'
 import { manualTemplate } from './manual-template-channel'
 import { printHost } from './pdf-sheet-schema'
 import { repairs } from './repair-report-channel'
+import { stationLayouts } from './station-layout-channel'
 
 /**
  * Сведения о программе для диагностики: имя, версия продукта из package.json
@@ -34,6 +35,7 @@ export const channels = {
   repairs,
   manualTemplate,
   exportWizard,
+  stationLayouts,
 } as const
 
 export type Channels = typeof channels

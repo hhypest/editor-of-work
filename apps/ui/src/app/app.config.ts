@@ -23,6 +23,8 @@ import { passportClient } from './passport-client'
 import { PLAN_EDITOR_CLIENT } from '@eow/planning/feature-ui'
 import { planEditorClient } from './plan-editor-client'
 import { APP_INFO, appInfoSource } from './app-info'
+import { STATION_EDITOR_CLIENT } from '@eow/stations/feature-ui'
+import { stationLayoutClient } from './station-layout-client'
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -46,5 +48,6 @@ export const appConfig: ApplicationConfig = {
       useFactory: () => passportClient(window.eow),
     },
     { provide: PLAN_EDITOR_CLIENT, useFactory: () => planEditorClient(window.eow) },
+    { provide: STATION_EDITOR_CLIENT, useFactory: () => stationLayoutClient(window.eow) },
   ],
 }

@@ -163,4 +163,58 @@ describe('Раскладки схем станций в SQLite', () => {
     const result = await store.applyStationSchemeImport(id, command(token))
     expect(result.ok).toBe(false)
   })
+
+  it('отдаёт станции с признаком раскладки и саму раскладку с версией', async () => {
+    expect(value(await store.stationLayoutList(id))).toEqual([
+      { id: 'station', name: 'УЧЕБНАЯ', hasLayout: false },
+    ])
+    expect(value(await store.stationLayout(id, 'station'))).toBeNull()
+    value(
+      await store.applyStationSchemeImport(
+        id,
+        command(value(await store.stationSchemeBasis(id)).token),
+      ),
+    )
+    const stored = value(await store.stationLayout(id, 'station'))!
+    expect(stored.layout).toEqual(layout)
+    expect(stored.editable).toBe(true)
+    expect(stored.version).toMatch(/^[0-9a-f]{64}$/u)
+  })
+
+  it('сохраняет правку раскладки с новой версией и ссылкой на прежний файл схемы', async () => {
+    value(
+      await store.applyStationSchemeImport(
+        id,
+        command(value(await store.stationSchemeBasis(id)).token),
+      ),
+    )
+    const stored = value(await store.stationLayout(id, 'station'))!
+    const moved = {
+      ...layout,
+      nodes: layout.nodes.map((n) => (n.id === 'c' ? { ...n, col: 7 } : n)),
+    }
+    const saved = value(await store.saveStationLayout(id, 'station', moved, stored.version))
+    expect(saved.version).not.toBe(stored.version)
+    expect(value(await store.stationLayout(id, 'station'))!.layout).toEqual(moved)
+    expect(rows('SELECT import_file_id FROM station_layout WHERE edition_id = ?')).toEqual([
+      { import_file_id: 'file-2026-11-02T10:00:00.000Z' },
+    ])
+    const stale = await store.saveStationLayout(id, 'station', layout, stored.version)
+    expect(!stale.ok && stale.error.message).toContain('изменили после открытия')
+  })
+
+  it('не сохраняет раскладку с нарушением правил и в действующей редакции', async () => {
+    value(
+      await store.applyStationSchemeImport(
+        id,
+        command(value(await store.stationSchemeBasis(id)).token),
+      ),
+    )
+    const { version } = value(await store.stationLayout(id, 'station'))!
+    const broken = { ...layout, switches: [{ ...layout.switches[0]!, node: 'c' }] }
+    expect((await store.saveStationLayout(id, 'station', broken, version)).ok).toBe(false)
+    db.prepare("UPDATE edition SET status = 'active' WHERE id = ?").run(id)
+    expect(value(await store.stationLayout(id, 'station'))!.editable).toBe(false)
+    expect((await store.saveStationLayout(id, 'station', layout, version)).ok).toBe(false)
+  })
 })

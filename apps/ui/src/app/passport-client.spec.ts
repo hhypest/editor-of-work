@@ -21,6 +21,7 @@ function api(): EowApi {
     passportData: vi.fn<EowApi['passportData']>(async () =>
       channels.passportData.response.parse({ status: 'ok', data }),
     ),
+    stationLayouts: async () => ({ status: 'error', message: 'unused' }),
     repairs: vi.fn<EowApi['repairs']>(async () => ({
       status: 'ok',
       report: { date: '2027-01-01', rows: [] },

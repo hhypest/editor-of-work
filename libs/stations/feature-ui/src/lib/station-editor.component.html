@@ -1,0 +1,224 @@
+<section aria-labelledby="stations-title" [attr.aria-busy]="facade.busy()">
+  <h2 id="stations-title">{{ text.title }}</h2>
+  <p>{{ text.intro }}</p>
+  <div class="controls">
+    <label for="stations-edition">{{ text.edition }}</label>
+    <select id="stations-edition" [value]="facade.edition() ?? ''" (change)="selectEdition($event)">
+      @for (edition of facade.editions(); track edition.id) {
+        <option [value]="edition.id">
+          № {{ edition.number }} · {{ edition.date }} · {{ edition.label }}
+        </option>
+      }
+    </select>
+    <label for="stations-station">{{ text.station }}</label>
+    <select id="stations-station" [value]="facade.station() ?? ''" (change)="selectStation($event)">
+      @for (station of facade.stations(); track station.id) {
+        <option [value]="station.id">
+          {{ station.name }}{{ station.hasLayout ? '' : ' — ' + text.noLayout }}
+        </option>
+      }
+    </select>
+  </div>
+  @if (facade.busy()) {
+    <p role="status">{{ text.loading }}</p>
+  }
+  @if (facade.error(); as error) {
+    <p role="alert">{{ error }}</p>
+  }
+  @if (!facade.busy() && !facade.error() && !facade.editions().length) {
+    <p>{{ text.emptyEditions }}</p>
+  }
+  @if (!facade.busy() && facade.edition() !== null && !facade.stations().length) {
+    <p>{{ text.emptyStations }}</p>
+  }
+  @if (!facade.busy() && facade.station() !== null && !facade.layout()) {
+    <p>{{ text.emptyLayout }}</p>
+  }
+  @if (facade.drawing(); as drawing) {
+    <div class="toolbar">
+      @if (facade.editable()) {
+        <button
+          type="button"
+          [disabled]="!facade.canUndo()"
+          (click)="facade.edit({ kind: 'undo' })"
+        >
+          {{ text.undo }}
+        </button>
+        <button
+          type="button"
+          [disabled]="!facade.canRedo()"
+          (click)="facade.edit({ kind: 'redo' })"
+        >
+          {{ text.redo }}
+        </button>
+        <button
+          type="button"
+          class="primary"
+          [disabled]="!facade.dirty() || facade.busy()"
+          (click)="facade.save()"
+        >
+          {{ facade.busy() ? text.saving : text.save }}
+        </button>
+        @if (facade.dirty()) {
+          <span role="status">{{ text.unsaved }}</span>
+        }
+      } @else {
+        <span>{{ text.readOnly }}</span>
+      }
+      @if (facade.notice(); as notice) {
+        <span role="status">{{ notice }}</span>
+      }
+    </div>
+    @if (facade.editError(); as problem) {
+      <p role="alert" class="problem">{{ problem }}</p>
+    }
+    <div class="scheme" tabindex="-1">
+      <svg
+        role="img"
+        [attr.aria-label]="'Схема станции ' + (facade.station() ?? '')"
+        [attr.viewBox]="'0 0 ' + drawing.width + ' ' + drawing.height"
+        [attr.width]="drawing.width"
+        [attr.height]="drawing.height"
+        (pointermove)="moveDrag($event)"
+        (pointerup)="endDrag()"
+        (pointercancel)="endDrag()"
+      >
+        @for (c of drawing.crossings; track c.id) {
+          <g class="crossing">
+            <line [attr.x1]="c.x" [attr.y1]="c.top" [attr.x2]="c.x" [attr.y2]="c.bottom" />
+            <text [attr.x]="c.x + 4" [attr.y]="c.top + 10">{{ c.label }}</text>
+          </g>
+        }
+        @for (t of drawing.tracks; track t.id) {
+          <polyline
+            [attr.points]="pointsOf(t.points)"
+            [class]="'track ' + t.kind + ' ' + t.state"
+          />
+          @if (t.label; as label) {
+            <text class="track-label" [attr.x]="label.at.x" [attr.y]="label.at.y">
+              {{ label.text }}
+            </text>
+          }
+        }
+        @for (b of drawing.bridges; track b.id) {
+          <line
+            class="bridge"
+            [attr.x1]="b.from.x"
+            [attr.y1]="b.from.y"
+            [attr.x2]="b.to.x"
+            [attr.y2]="b.to.y"
+          />
+        }
+        @for (d of drawing.derailers; track d.id) {
+          <g class="derailer">
+            <path [attr.d]="'M' + d.x + ' ' + d.y + ' l 8 8'" />
+            <text [attr.x]="d.x + 9" [attr.y]="d.y + 16">{{ d.label }}</text>
+          </g>
+        }
+        @for (n of drawing.nodes; track n.id) {
+          <circle
+            [class]="'node ' + n.kind + (n.end ? ' ' + n.end : '')"
+            [class.editable]="facade.editable()"
+            [attr.cx]="n.x"
+            [attr.cy]="n.y"
+            [attr.r]="n.kind === 'switch' ? 5 : 4"
+            [attr.tabindex]="facade.editable() ? 0 : null"
+            [attr.aria-label]="n.label ? 'Стрелка ' + n.label : 'Узел пути'"
+            (pointerdown)="startDrag($event, n)"
+            (keydown)="nudge($event, n)"
+          />
+          @if (n.label) {
+            <text class="switch-label" [attr.x]="n.x + 6" [attr.y]="n.y + 16">{{ n.label }}</text>
+          }
+          @if (n.end === 'stop') {
+            <line
+              class="stop"
+              [attr.x1]="n.x"
+              [attr.y1]="n.y - 8"
+              [attr.x2]="n.x"
+              [attr.y2]="n.y + 8"
+            />
+          }
+        }
+      </svg>
+    </div>
+    @if (facade.layout(); as layout) {
+      <div class="tables">
+        <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="text.tracks">
+          <table>
+            <caption>
+              {{
+                text.tracks
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ text.number }}</th>
+                <th scope="col">{{ text.kind }}</th>
+                <th scope="col">{{ text.state }}</th>
+                <th scope="col">{{ text.length }}</th>
+                <th scope="col">{{ text.capacity }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (t of layout.tracks; track t.id) {
+                <tr>
+                  <td>
+                    @if (t.kind === 'connector' || !facade.editable()) {
+                      {{ t.number ?? '—' }}
+                    } @else {
+                      <input
+                        [value]="t.number ?? ''"
+                        [attr.aria-label]="text.number + ' пути'"
+                        (change)="renumberTrack(t.id, $event)"
+                      />
+                    }
+                  </td>
+                  <td>{{ text.kinds[t.kind] }}</td>
+                  <td>{{ text.states[t.state] }}</td>
+                  <td>{{ t.fullLength ?? '—' }}</td>
+                  <td>{{ t.capacity ?? '—' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="table-scroll" tabindex="0" role="region" [attr.aria-label]="text.switches">
+          <table>
+            <caption>
+              {{
+                text.switches
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">{{ text.number }}</th>
+                <th scope="col">{{ text.track }}</th>
+                <th scope="col">{{ text.branch }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (s of layout.switches; track s.id) {
+                <tr>
+                  <td>
+                    @if (facade.editable()) {
+                      <input
+                        [value]="s.number ?? ''"
+                        [attr.aria-label]="text.number + ' стрелки'"
+                        (change)="renumberSwitch(s.id, $event)"
+                      />
+                    } @else {
+                      {{ s.number ?? '—' }}
+                    }
+                  </td>
+                  <td>{{ facade.trackNames().get(s.track) }}</td>
+                  <td>{{ facade.trackNames().get(s.branch) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</section>

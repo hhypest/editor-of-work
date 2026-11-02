@@ -1,0 +1,141 @@
+:host {
+  display: block;
+  padding: 16px;
+  color: #202937;
+}
+h2 {
+  margin-top: 0;
+}
+p {
+  max-width: 100ch;
+  line-height: 1.5;
+}
+.controls,
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+select,
+button,
+input {
+  font: inherit;
+  padding: 6px 8px;
+  max-width: 100%;
+}
+button.primary {
+  font-weight: bold;
+}
+.problem {
+  color: #9b1c1c;
+}
+.scheme {
+  overflow: auto;
+  border: 1px solid #b9c0ca;
+  background: #fff;
+  max-height: 70vh;
+}
+svg {
+  display: block;
+  touch-action: none;
+  user-select: none;
+}
+.track {
+  fill: none;
+  stroke: #202937;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.track.main {
+  stroke: #d10000;
+}
+.track.connector {
+  stroke-width: 2;
+}
+.track.siding {
+  stroke: #5b6472;
+}
+.track.closed {
+  stroke: #8a8f98;
+  stroke-dasharray: 6 4;
+}
+.track.conserved {
+  stroke-dasharray: 2 3;
+}
+.track-label,
+.switch-label,
+.derailer text,
+.crossing text {
+  font: 11px sans-serif;
+  fill: #202937;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.switch-label,
+.derailer text,
+.crossing text {
+  text-anchor: start;
+}
+.node {
+  fill: #fff;
+  stroke: #202937;
+  stroke-width: 1.5;
+}
+.node.switch {
+  fill: #1f6f3f;
+  stroke: #1f6f3f;
+}
+.node.editable {
+  cursor: grab;
+}
+.node:focus-visible {
+  outline: none;
+  stroke: #0b57d0;
+  stroke-width: 3;
+}
+.stop {
+  stroke: #202937;
+  stroke-width: 3;
+}
+.derailer path {
+  stroke: #202937;
+  stroke-width: 2;
+}
+.bridge {
+  stroke: #8a5a2b;
+  stroke-width: 9;
+  stroke-opacity: 0.45;
+}
+.crossing line {
+  stroke: #202937;
+  stroke-dasharray: 12 4 2 4;
+}
+.tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.table-scroll {
+  overflow: auto;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+caption {
+  text-align: left;
+  padding: 8px 0;
+  font-weight: bold;
+}
+th,
+td {
+  border: 1px solid #b9c0ca;
+  padding: 4px 8px;
+  text-align: left;
+}
+td input {
+  width: 8em;
+}

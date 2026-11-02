@@ -14,6 +14,7 @@ import {
   XlsxManualDataTemplate,
 } from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
+import { registerStationLayoutHandlers } from './ipc/station-layouts'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
 import { pdfBatchWriter, pdfExporter } from './pdf-exporter'
@@ -156,6 +157,7 @@ if (!app.requestSingleInstanceLock()) {
         new FileTypicalWorkKindCatalog(join(__dirname, 'catalogs', TYPICAL_WORK_KINDS_FILE)),
       )
       registerRepairHandlers(ipcMain, repairReports(passport))
+      registerStationLayoutHandlers(ipcMain, passport)
       const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
       // Один обработчик окна печати на процесс: его делят текущий лист и пакеты.
       const renderPdf = electronPdfRenderer(ipcMain, join(__dirname, 'preload.js'), startUrl)

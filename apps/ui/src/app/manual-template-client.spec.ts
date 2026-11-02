@@ -8,6 +8,7 @@ const api = (): EowApi => ({
   planFile: async () => ({ status: 'cancelled' }),
   passport: vi.fn<EowApi['passport']>(async () => ({ status: 'ok' as const, editions: [] })),
   passportData: async () => ({ status: 'error', message: 'Учебный отказ' }),
+  stationLayouts: async () => ({ status: 'error', message: 'unused' }),
   repairs: async () => ({ status: 'error', message: 'Учебный отказ' }),
   manualTemplate: vi.fn<EowApi['manualTemplate']>(async () => ({ status: 'cancelled' })),
 })

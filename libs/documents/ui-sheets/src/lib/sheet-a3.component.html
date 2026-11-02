@@ -17,7 +17,7 @@
             [attr.y2]="shape.y2.value"
             [attr.stroke-dasharray]="shape.dashed ? '2 1' : null"
             [attr.stroke-width]="shape.weight?.value ?? null"
-            [attr.stroke]="shape.shade ? '#bbb' : null"
+            [attr.stroke]="shape.color ?? (shape.shade ? '#bbb' : null)"
             [attr.stroke-linecap]="shape.weight ? 'round' : null"
           />
         }
@@ -27,7 +27,7 @@
             [attr.y]="shape.y.value"
             [attr.width]="shape.width.value"
             [attr.height]="shape.height.value"
-            [attr.fill]="shape.shade ? '#eee' : 'white'"
+            [attr.fill]="shape.fill ?? (shape.shade ? '#eee' : 'white')"
             [attr.stroke]="shape.border ? null : 'none'"
           />
         }
@@ -51,7 +51,8 @@
                 ? 'rotate(' + shape.rotate + ' ' + shape.x.value + ' ' + shape.y.value + ')'
                 : null
             "
-            fill="#111"
+            [attr.fill]="shape.color ?? '#111'"
+            [attr.text-anchor]="shape.anchor ?? null"
             stroke="none"
           >
             {{ shape.text }}

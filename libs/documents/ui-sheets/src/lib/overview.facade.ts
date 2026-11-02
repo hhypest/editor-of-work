@@ -178,7 +178,7 @@ export class OverviewFacade {
     const district =
       this.variant() === 'district-a' ? buildDistrictSchemeA(this.source, this.measurer) : null
     const result = district ?? buildOverview(this.source, this.scale(), this.measurer)
-    this.autoScale.set(district?.ok ? district.value.scale : null)
+    this.autoScale.set(district?.ok ? district.value.kmPerCm : null)
     this.pdfStatus.set(null)
     this.pdfError.set(null)
     this.pageIndex.set(0)

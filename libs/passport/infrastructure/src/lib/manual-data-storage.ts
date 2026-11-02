@@ -154,7 +154,16 @@ export async function readManualBasis(
     subdivisions: [...new Set(subdivisions.map((r) => r.code))].toSorted(),
     data,
   }
-  return { ...content, token: createHash('sha256').update(JSON.stringify(content)).digest('hex') }
+  const hash = (value: object) => createHash('sha256').update(JSON.stringify(value)).digest('hex')
+  // Формат 1 шаблона: без кодов подразделений и без руководителей, тот же порядок ключей.
+  const { heads: _heads, ...legacyData } = data
+  const legacyToken = hash({
+    date: content.date,
+    lines: content.lines,
+    trackClasses: content.trackClasses,
+    data: legacyData,
+  })
+  return { ...content, token: hash(content), legacyToken }
 }
 /** Порядок значим только у видов работ: в нём строки выводятся в таблицах плана. */
 function canonical(data: ManualData): string {

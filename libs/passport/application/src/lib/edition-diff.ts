@@ -1,5 +1,5 @@
 import { formatPlus, type Chainage } from '@eow/shared/kernel'
-import type { SegmentRow, StationRow } from '@eow/passport/import-api'
+import { DISTRICT_ROW, type SegmentRow, type StationRow } from '@eow/passport/import-api'
 import type { EditionData, EditionLine } from './edition-data'
 
 /** Изменение одного поля строки; имена полей — из DTO, подписи подставляет интерфейс. */
@@ -350,6 +350,15 @@ export function compareEditionData(before: EditionData, after: EditionData): Edi
         after.manual.kilometres,
         (row) => keyOf(row.line, row.km),
         (row) => `Нестандартный километр ${row.line}, км ${row.km}`,
+      ),
+      diffRows(
+        before.manual.heads,
+        after.manual.heads,
+        (row) => keyOf(row.subdivision, row.validFrom),
+        (row) =>
+          row.subdivision === DISTRICT_ROW
+            ? 'Название дистанции'
+            : `Руководитель ${row.subdivision}`,
       ),
     ]),
   })

@@ -203,6 +203,46 @@ describe('Ручные данные: SQLite → xlsx → SQLite', () => {
     expect(value(await store.manualImportReport(id))).toHaveLength(1)
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([])
   })
+  it('книга формата 1, выданная до листа «Руководители», принимается и не стирает руководителей', async () => {
+    value(await store.applyManualData(id, await input()))
+    const basis = value(await store.manualBasis(id))
+    expect(basis.legacyToken).toMatch(/^[a-f0-9]{64}$/u)
+    expect(basis.legacyToken).not.toBe(basis.token)
+    // Так выглядела книга прежней программы: без листа, версия 1, отпечаток без руководителей.
+    const legacy = await edit(value(await adapter.write(basis)), (wb) => {
+      wb.removeWorksheet('Руководители')
+      const meta = wb.getWorksheet('_Шаблон')!
+      meta.getCell('B1').value = 1
+      meta.getCell('B3').value = basis.legacyToken ?? ''
+      wb.getWorksheet('Пары поездов')!.getCell('F2').value = 4.5
+    })
+    const preview = value(
+      await importManualTemplate(store, adapter, {
+        editionId: id,
+        file: { name: 'прежний.xlsx', bytes: legacy },
+        importedAt,
+      }),
+    )
+    expect(preview.changes.find((c) => c.sheet === 'Руководители')).toMatchObject({
+      added: 0,
+      changed: 0,
+      removed: 0,
+    })
+    const saved = value(await store.manualBasis(id)).data
+    expect(saved.trainPairs[0]?.freight).toBe(4.5)
+    expect(saved.heads).toEqual(data.heads)
+    // Книга текущего формата с прежним отпечатком считается устаревшей.
+    const stale = await edit(value(await adapter.write(basis)), (wb) => {
+      wb.getWorksheet('_Шаблон')!.getCell('B3').value = basis.legacyToken ?? ''
+    })
+    expect(
+      await importManualTemplate(store, adapter, {
+        editionId: id,
+        file: { name: 'устаревший.xlsx', bytes: stale },
+        importedAt,
+      }),
+    ).toMatchObject({ ok: false, error: { kind: 'invalid-import' } })
+  })
   it('неполный лист и ошибка заполнения не меняют паспорт', async () => {
     value(await store.applyManualData(id, await input()))
     const before = snapshot(),

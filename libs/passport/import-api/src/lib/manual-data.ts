@@ -83,6 +83,11 @@ export interface ManualData {
 }
 export interface ManualBasis {
   readonly token: string
+  /**
+   * Отпечаток той же основы в шаблоне формата 1 (до листа «Руководители»): книги, выданные
+   * раньше, сверяются с ним, запись идёт по текущему отпечатку.
+   */
+  readonly legacyToken?: string | undefined
   readonly date: string
   readonly lines: StationBasis['lines']
   readonly trackClasses: readonly string[]

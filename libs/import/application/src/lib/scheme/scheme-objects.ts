@@ -14,9 +14,9 @@ import {
   type Segment,
 } from './scheme-geometry'
 import { TRACK_SPACING_UNITS, edgeSegment, type TrackGraph } from './scheme-graph'
-import { DERAILER_LABEL, SWITCH_LABEL, crossingPlace, type PlacedText } from './scheme-texts'
+import { crossingPlace, objectLabel, type PlacedText } from './scheme-texts'
 
-/** Сбрасывающий остряк или башмак на пути. */
+/** Сбрасывающий остряк на пути. */
 export interface SchemeDerailer {
   readonly id: string
   readonly number: string
@@ -121,9 +121,15 @@ function matchSwitchLabels(
   spacing: number,
   remarks: string[],
 ): Map<number, string> {
-  const candidates = texts.filter(
-    (t) => !labelUse.has(t.index) && SWITCH_LABEL.test(t.text) && !DERAILER_LABEL.test(t.text),
-  )
+  const numbers = new Map<number, string>()
+  for (const t of texts) {
+    if (labelUse.has(t.index)) continue
+    const label = objectLabel(t.text)
+    if (label?.kind === 'switch') numbers.set(t.index, label.number)
+    // «сб» не стрелка и не остряк: подпись не должна достаться ближайшей стрелке.
+    if (label?.kind === 'ignored') labelUse.add(t.index)
+  }
+  const candidates = texts.filter((t) => numbers.has(t.index))
   const pairs: { node: number; text: PlacedText; d: number }[] = []
   kinds.forEach((kind, n) => {
     const node = graph.nodes[n]
@@ -137,7 +143,7 @@ function matchSwitchLabels(
   const out = new Map<number, string>()
   for (const { node, text } of pairs) {
     if (out.has(node) || labelUse.has(text.index)) continue
-    const number = SWITCH_LABEL.exec(text.text)?.[1]
+    const number = numbers.get(text.index)
     if (!number) continue
     out.set(node, number)
     labelUse.add(text.index)
@@ -163,7 +169,7 @@ function nearestOnTrack(
   return best
 }
 
-/** Остряк: тонкий косой отросток от линии пути с подписью «…со» или «…сб» рядом. */
+/** Остряк: тонкий косой отросток от линии пути с подписью «…со» рядом. */
 function findDerailers(
   graph: TrackGraph,
   segments: readonly { edge: number; s: Segment }[],
@@ -191,9 +197,9 @@ function findDerailers(
   const out: (Omit<SchemeDerailer, 'track'> & { edge: number })[] = []
   const usedRoots = new Set<number>()
   for (const t of texts) {
-    const match = DERAILER_LABEL.exec(t.text)
-    if (!match?.[1] || labelUse.has(t.index)) continue
-    const number = match[1].replace(/\s+/gu, '')
+    const label = objectLabel(t.text)
+    if (label?.kind !== 'derailer' || labelUse.has(t.index)) continue
+    const number = label.number
     let best = -1
     roots.forEach((r, i) => {
       const d = dist(r.at, t.center)

@@ -12,6 +12,7 @@ import {
 import type { SchemeDrawing } from './scheme-drawing'
 import { recognizeScheme, type RecognizedScheme } from './recognize-scheme'
 import { schemeToLayout } from './scheme-layout'
+import { objectLabel } from './scheme-texts'
 
 /** Прочитанный PDF схемы или причина, по которой его не удалось прочитать. */
 export interface SchemeSourceFile {
@@ -34,6 +35,12 @@ export const stationKey = (name: string): string =>
 /** «IIСев», «8СО», «3 ав» — номер без регистра и пробелов; кириллическая «І» как латинская. */
 export const numberKey = (value: string): string =>
   value.toUpperCase().replaceAll('І', 'I').replaceAll('Ё', 'Е').replace(/\s+/gu, '')
+
+/** Номер стрелки из экспликации по тем же правилам суффиксов, что и подпись на схеме. */
+const switchKey = (value: string): string => {
+  const label = objectLabel(value)
+  return numberKey(label && label.kind !== 'ignored' ? label.number : value)
+}
 
 export function prepareSchemeImport(
   files: readonly SchemeSourceFile[],
@@ -101,7 +108,7 @@ function compareWithPassport(
   const out: string[] = []
   const passportTracks = basis.tracks.filter((t) => t.stationId === stationId)
   const passportSwitches = new Set(
-    basis.switches.filter((s) => s.stationId === stationId).map((s) => numberKey(s.number)),
+    basis.switches.filter((s) => s.stationId === stationId).map((s) => switchKey(s.number)),
   )
   const drawn = layout.tracks.filter((t) => t.number !== null)
   for (const t of drawn) {
@@ -132,7 +139,7 @@ function compareWithPassport(
   const derailers = new Set(scheme.derailers.map((d) => numberKey(d.number)))
   const drawnSwitches = new Set(labels.map(numberKey))
   for (const s of basis.switches.filter((x) => x.stationId === stationId))
-    if (!drawnSwitches.has(numberKey(s.number)) && !derailers.has(numberKey(s.number)))
+    if (!drawnSwitches.has(switchKey(s.number)) && !derailers.has(switchKey(s.number)))
       out.push(`стрелка ${s.number} есть в экспликации, но не найдена на схеме.`)
   return out
 }

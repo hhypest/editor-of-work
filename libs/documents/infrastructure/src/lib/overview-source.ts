@@ -14,17 +14,16 @@ export interface PassportOverviewData {
   readonly stations: readonly StationRow[]
   readonly manual?: { readonly heads: readonly ManualHead[] } | undefined
 }
-const valid = (
+export const valid = (
   row: { readonly validFrom: string | null; readonly validTo: string | null },
   date: string,
 ): boolean =>
   (row.validFrom === null || row.validFrom <= date) && (row.validTo === null || row.validTo >= date)
 
-/** Проекция среза Паспорта: без догадок о направлении и без восстановления исключённых объектов. */
-export function passportOverviewSource(data: PassportOverviewData): OverviewSource {
-  const date = data.edition.date
+/** Действующие подразделения на дату: коды ПД и ПЧУ каждого ПД по оргструктуре. */
+export function orgUnits(org: OrgData, date: string) {
   const active = new Map(
-    data.org.subdivisions.filter((u) => u.active && valid(u, date)).map((u) => [u.id, u]),
+    org.subdivisions.filter((u) => u.active && valid(u, date)).map((u) => [u.id, u]),
   )
   const units = new Map(
     [...active.values()].filter((u) => u.type === 'ПД').map((u) => [u.id, u.code]),
@@ -42,6 +41,13 @@ export function passportOverviewSource(data: PassportOverviewData): OverviewSour
     }
     return undefined
   }
+  return { active, units, pchuOf }
+}
+
+/** Проекция среза Паспорта: без догадок о направлении и без восстановления исключённых объектов. */
+export function passportOverviewSource(data: PassportOverviewData): OverviewSource {
+  const date = data.edition.date
+  const { active, units, pchuOf } = orgUnits(data.org, date)
   const warnings: string[] = []
   const lineId = (name: string): string | undefined => {
     const lines = data.lines.filter((l) => l.name === name)

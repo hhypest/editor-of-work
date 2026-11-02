@@ -1,6 +1,11 @@
 export { OverviewComponent } from './lib/overview.component'
 export { SheetA3Component } from './lib/sheet-a3.component'
-export { OVERVIEW_CLIENT, SHEET_MEASURER, SHEET_PDF_CLIENT } from './lib/overview.facade'
+export {
+  OVERVIEW_CLIENT,
+  SHEET_MEASURER,
+  SHEET_PDF_CLIENT,
+  SPREADSHEET_CLIENT,
+} from './lib/overview.facade'
 export { PdSheetsComponent } from './lib/pd-sheets.component'
 export { PD_SHEET_CLIENT } from './lib/pd-sheets.facade'
 export { EditorSheetsComponent } from './lib/editor-sheets.component'

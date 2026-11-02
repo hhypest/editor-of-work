@@ -54,6 +54,31 @@
       (input)="zoom($event)"
     />
   </div>
+  @if (facade.selected() !== null) {
+    <div class="controls">
+      <button
+        type="button"
+        [disabled]="facade.busy() || facade.exporting()"
+        (click)="facade.exportExcel()"
+      >
+        {{ text.excel }}
+      </button>
+      @if (facade.excelStatus(); as status) {
+        <span role="status">{{ status }}</span>
+      }
+      @if (facade.excelError(); as problem) {
+        <span role="alert">{{ problem }}</span>
+      }
+    </div>
+    @if (facade.excelWarnings().length) {
+      <h3>{{ text.excelWarnings }}</h3>
+      <ul>
+        @for (warning of facade.excelWarnings(); track $index) {
+          <li>{{ warning }}</li>
+        }
+      </ul>
+    }
+  }
   @if (facade.busy()) {
     <p role="status">{{ text.loading }}</p>
   }

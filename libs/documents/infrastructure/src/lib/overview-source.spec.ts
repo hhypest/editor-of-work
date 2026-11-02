@@ -1,3 +1,4 @@
+import { passportAdmDivisionSource } from './adm-division-source'
 import { passportOverviewSource, type PassportOverviewData } from './overview-source'
 
 const common = { importFileId: 'file', validFrom: null, validTo: '9999-12-31' }
@@ -203,5 +204,68 @@ describe('Проекция паспорта для схемы', () => {
     expect(source.stationStats).toEqual({ УЧЕБНАЯ: { tracks: 2, meters: 850, switches: 2 } })
     expect(source.unboundStations).toEqual(['ВНЕ ПД'])
     expect(passportOverviewSource(data).district).toBeUndefined()
+  })
+  it('срез для административного деления: действующие ПД и ПЧУ, привязки, пути и стрелки', () => {
+    const pchu = {
+      ...common,
+      id: 'u',
+      code: 'ПЧУ-1',
+      type: 'ПЧУ',
+      active: true,
+      parentId: null,
+      activity: null,
+    }
+    const division = passportAdmDivisionSource({
+      ...data,
+      lines: [{ id: 'l', name: 'УЧЕБНОЕ', extents: [], kmLengths: [[10, 1050]] }],
+      org: {
+        ...data.org,
+        subdivisions: [
+          ...data.org.subdivisions.map((u) => (u.id === 'pd' ? { ...u, parentId: 'u' } : u)),
+          pchu,
+        ],
+        stations: [
+          { ...common, id: 'b', station: ' УЧЕБНАЯ ', subdivisionId: 'pd' },
+          { ...common, id: 'o', station: 'СТАРАЯ', subdivisionId: 'old' },
+        ],
+      },
+      manual: {
+        heads: [
+          {
+            id: 'h',
+            validFrom: null,
+            validTo: null,
+            subdivision: 'ПЧУ-1',
+            title: null,
+            head: 'Учебный И.И.',
+          },
+          {
+            id: 'd',
+            validFrom: null,
+            validTo: null,
+            subdivision: 'Дистанция',
+            title: 'Учебная дистанция',
+            head: null,
+          },
+        ],
+      },
+    })
+    expect(division.district).toBe('Учебная дистанция')
+    expect(division.units).toEqual([
+      { code: 'ПД-1', kind: 'ПД', head: undefined, pchu: 'ПЧУ-1' },
+      { code: 'ПЧУ-1', kind: 'ПЧУ', head: 'Учебный И.И.' },
+    ])
+    expect(division.boundaries).toEqual([
+      {
+        pd: 'ПД-1',
+        line: 'УЧЕБНОЕ',
+        from: { km: 10, m: 0 },
+        to: { km: 11, m: 0 },
+        statedLength: null,
+      },
+    ])
+    expect(division.bindings).toEqual([{ station: 'УЧЕБНАЯ', pd: 'ПД-1' }])
+    expect(division.axes).toEqual([{ station: 'УЧЕБНАЯ', line: 'УЧЕБНОЕ', at: { km: 10, m: 500 } }])
+    expect(division.lines).toEqual([{ name: 'УЧЕБНОЕ', kmLengths: [[10, 1050]] }])
   })
 })

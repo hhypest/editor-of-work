@@ -1,3 +1,4 @@
+import type { AdmDivisionSource } from './adm-division'
 import type { Chainage, Result } from '@eow/shared/kernel'
 
 /** Миллиметры листа отделены от метров пути и CSS-пикселей. */
@@ -129,4 +130,6 @@ export interface OverviewClient {
     >
   >
   source(editionId: number): Promise<Result<OverviewSource, SheetError>>
+  /** Срез редакции для административного деления (#32). */
+  admDivision(editionId: number): Promise<Result<AdmDivisionSource, SheetError>>
 }

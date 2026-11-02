@@ -8,3 +8,4 @@ export {
   MAX_PDF_PAGES,
   MAX_PDF_BYTES,
 } from './lib/pdf-sheet-schema'
+export { workbookSchema, formulaProblem } from './lib/spreadsheet-channel'

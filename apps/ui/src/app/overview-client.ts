@@ -1,6 +1,6 @@
 import type { EowApi } from '@eow/ipc/contracts'
 import type { OverviewClient } from '@eow/documents/application'
-import { passportOverviewSource } from '@eow/documents/infrastructure'
+import { passportAdmDivisionSource, passportOverviewSource } from '@eow/documents/infrastructure'
 import { err, ok } from '@eow/shared/kernel'
 
 export function overviewClient(api: EowApi | undefined): OverviewClient {
@@ -17,6 +17,13 @@ export function overviewClient(api: EowApi | undefined): OverviewClient {
       const result = await api.passportData({ editionId })
       return result.status === 'ok'
         ? ok(passportOverviewSource(result.data))
+        : err({ message: result.message })
+    },
+    async admDivision(editionId) {
+      if (!api) return unavailable()
+      const result = await api.passportData({ editionId })
+      return result.status === 'ok'
+        ? ok(passportAdmDivisionSource(result.data))
         : err({ message: result.message })
     },
   }

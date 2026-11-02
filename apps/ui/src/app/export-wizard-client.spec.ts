@@ -10,6 +10,7 @@ function api(): EowApi {
     passportData: async () => ({ status: 'error', message: 'Учебный отказ' }),
     stationLayouts: async () => ({ status: 'error', message: 'unused' }),
     sheetPdf: async () => ({ status: 'error', message: 'unused' }),
+    spreadsheet: async () => ({ status: 'error', message: 'unused' }),
     repairs: async () => ({ status: 'error', message: 'Учебный отказ' }),
     manualTemplate: async () => ({ status: 'cancelled' }),
     exportWizard: vi.fn<EowApi['exportWizard']>(async () => ({ status: 'cancelled' })),

@@ -3,7 +3,7 @@ import { defineChannel } from './channel'
 
 const editionId = z.number().int().positive()
 const token = z.uuid()
-const group = z.enum(['org', 'segments', 'stations'])
+const group = z.enum(['org', 'segments', 'stations', 'schemes'])
 const count = z.number().int().nonnegative()
 const choice = z
   .object({

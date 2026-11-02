@@ -15,6 +15,7 @@ import {
   readOrgExports,
   prepareSegmentExports,
   prepareStationExports,
+  prepareStationSchemes,
 } from '@eow/import/infrastructure'
 import type { PassportStore, PassportEditionData, EditionData } from '@eow/passport/application'
 import { editionDataToken } from '@eow/passport/infrastructure'
@@ -22,6 +23,8 @@ import type {
   PassportOrgImport,
   PassportSegmentImport,
   PassportStationImport,
+  PassportStationSchemeImport,
+  StationSchemeImport,
   OrgImport,
   SegmentImport,
   StationImport,
@@ -37,12 +40,14 @@ type Store = PassportStore &
   PassportEditionData &
   PassportOrgImport &
   PassportSegmentImport &
-  PassportStationImport
+  PassportStationImport &
+  PassportStationSchemeImport
 type Outcome = ResponseOf<typeof channels.exportWizard>
 type Command =
   | { group: 'org'; data: OrgImport }
   | { group: 'segments'; data: SegmentImport }
   | { group: 'stations'; data: StationImport }
+  | { group: 'schemes'; data: StationSchemeImport; replaced: number }
 interface Session {
   readonly token: string
   readonly editionId: number
@@ -113,16 +118,33 @@ export function registerExportWizardHandlers(
         : command.group === 'segments'
           ? session.before.segments.filter((r) => command.data.files.some((f) => f.form === r.form))
               .length
-          : session.before.stations.length
+          : command.group === 'schemes'
+            ? command.replaced
+            : session.before.stations.length
+    const incomingRows =
+      command.group === 'org'
+        ? orgRows(command.data)
+        : command.group === 'schemes'
+          ? command.data.layouts.length
+          : command.data.rows.length
     return {
       status: 'preview',
       review: {
         token: session.token,
         editionId: session.editionId,
         group: command.group,
-        files: command.data.files.map((f) => ({ name: f.name, form: f.form, rows: f.rowCount })),
+        files:
+          command.group === 'schemes'
+            ? command.data.files.map((f) => ({
+                name: f.name,
+                form: 'схема станции',
+                rows:
+                  command.data.layouts.find((l) => l.importFileId === f.id)?.layout.tracks.length ??
+                  0,
+              }))
+            : command.data.files.map((f) => ({ name: f.name, form: f.form, rows: f.rowCount })),
         previousRows,
-        incomingRows: command.group === 'org' ? orgRows(command.data) : command.data.rows.length,
+        incomingRows,
         remarks: remarks.map(remarkText),
         exclusionCandidates: [...candidates],
       },
@@ -172,7 +194,9 @@ export function registerExportWizardHandlers(
           ? await store.applyOrgImport(request.editionId, command.data)
           : command.group === 'segments'
             ? await store.applySegmentImport(request.editionId, command.data)
-            : await store.applyStationImport(request.editionId, command.data)
+            : command.group === 'schemes'
+              ? await store.applyStationSchemeImport(request.editionId, command.data)
+              : await store.applyStationImport(request.editionId, command.data)
       return saved.ok ? { status: 'applied' } : failure(saved.error.message)
     }
     pending = undefined
@@ -233,6 +257,21 @@ export function registerExportWizardHandlers(
             {
               group: 'segments',
               data: { ...prepared.value.command, expectedEditionToken: session.snapshot },
+            },
+            prepared.value.remarks,
+          )
+        : failure(prepared.error.message)
+    }
+    if (request.group === 'schemes') {
+      const prepared = await prepareStationSchemes(store, input)
+      await stopIfRequested()
+      return prepared.ok
+        ? preview(
+            session,
+            {
+              group: 'schemes',
+              data: { ...prepared.value.command, expectedEditionToken: session.snapshot },
+              replaced: prepared.value.replaced,
             },
             prepared.value.remarks,
           )

@@ -47,6 +47,11 @@ export interface StationTables {
     last_repair_year: Generated<number | null>
     details: Generated<string | null>
   }
+  /** JSON раскладки, формат — `StationLayout` из import-api (ADR-0046). */
+  station_layout: Row & {
+    station_id: string
+    layout: string
+  }
   territory: Row & {
     name: string
     okato: string

@@ -45,7 +45,7 @@
       [disabled]="facade.locked() || !facade.canEdit()"
       (click)="facade.run('choose')"
     >
-      {{ text.choose }}
+      {{ facade.group() === 'schemes' ? text.chooseSchemes : text.choose }}
     </button>
   }
   @if (facade.busy()) {

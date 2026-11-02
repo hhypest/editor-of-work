@@ -1,7 +1,7 @@
 import type { ManualTemplateClient } from './manual-template-client'
 import type { SubdivisionChoice } from './org-structure'
 
-export type ExportGroup = 'org' | 'segments' | 'stations'
+export type ExportGroup = 'org' | 'segments' | 'stations' | 'schemes'
 export interface ExportFileSummary {
   readonly name: string
   readonly form: string

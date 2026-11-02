@@ -5,6 +5,8 @@ import { basename, join, resolve } from 'node:path'
 import { channels } from '@eow/ipc/contracts'
 import { ORG_FORMS, SEGMENT_FORMS } from '@eow/passport/import-api'
 import { PassportExportSource, importOrgExports } from '@eow/import/infrastructure'
+import { fictionalScheme } from '@eow/import/application/testing'
+import { fictionalSchemePdf } from '@eow/import/infrastructure/testing'
 import { openPassportDatabase, type PassportDatabase } from '@eow/passport/infrastructure'
 import { passportPlanView } from '@eow/planning/infrastructure'
 import type { ExportGroup } from '@eow/import/application'
@@ -20,7 +22,7 @@ const value = <T>(r: Result<T, unknown>): T => {
 
 describe('Мастер выгрузок: файлы → предпросмотр → SQLite', () => {
   let fixtures: string
-  const groups: Record<ExportGroup, string[]> = { org: [], segments: [], stations: [] }
+  const groups: Record<ExportGroup, string[]> = { org: [], segments: [], stations: [], schemes: [] }
   let root: string, store: PassportDatabase, id: number, clock: Date
   let dialogs: ExportWizardDialogs
   let handler: (event: unknown, ...args: unknown[]) => unknown
@@ -44,6 +46,10 @@ describe('Мастер выгрузок: файлы → предпросмотр
           : 'stations'
       groups[group].push(path)
     }
+    // Вымышленная схема станции ОЗЕРНАЯ из тех же фикстур; PDF живёт только во временной папке.
+    const scheme = join(fixtures, 'Схема_Озёрная.pdf')
+    await writeFile(scheme, fictionalSchemePdf(fictionalScheme()))
+    groups.schemes.push(scheme)
   })
   afterAll(async () => {
     await rm(fixtures, { recursive: true, force: true })
@@ -124,7 +130,7 @@ describe('Мастер выгрузок: файлы → предпросмотр
     )
   }
   it('принимает все 17 форм по трём шагам, показывает замечания и сохраняет отчёт без ФИО корректировщика', async () => {
-    expect(Object.values(groups).map((g) => g.length)).toEqual([4, 6, 7])
+    expect(Object.values(groups).map((g) => g.length)).toEqual([4, 6, 7, 1])
     const choices = await invoke({ action: 'choose', editionId: id, group: 'org' })
     expect(choices.status).toBe('choices')
     if (choices.status !== 'choices') throw new Error('Нет выбора')
@@ -248,6 +254,23 @@ describe('Мастер выгрузок: файлы → предпросмотр
       })
     },
   )
+  it('записывает раскладку станции из PDF схемы после станционных форм', async () => {
+    await apply('org')
+    await apply('segments')
+    await apply('stations')
+    const review = await prepare('schemes')
+    expect(review.files).toEqual([{ name: 'Схема_Озёрная.pdf', form: 'схема станции', rows: 6 }])
+    expect([review.previousRows, review.incomingRows]).toEqual([0, 1])
+    expect(review.remarks.some((r) => r.includes('есть на схеме, но не в экспликации'))).toBe(true)
+    expect(await invoke({ action: 'apply', editionId: id, token: review.token })).toEqual({
+      status: 'applied',
+    })
+    const basis = value(await store.stationSchemeBasis(id))
+    expect(basis.layouts).toHaveLength(1)
+    const again = await prepare('schemes')
+    expect(again.previousRows).toBe(1)
+  })
+
   it('выбор файлов и отмена предпросмотра ничего не записывают; истёкший токен и токен другой редакции отклоняются', async () => {
     vi.mocked(dialogs.open).mockResolvedValueOnce(undefined)
     expect(await invoke({ action: 'choose', editionId: id, group: 'org' })).toEqual({

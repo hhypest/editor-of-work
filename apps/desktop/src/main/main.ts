@@ -116,10 +116,15 @@ if (!app.requestSingleInstanceLock()) {
       registerPassportHandlers(ipcMain, passport)
       registerPassportDataHandlers(ipcMain, passport)
       registerExportWizardHandlers(ipcMain, passport, {
-        async open() {
+        async open(group) {
+          const schemes = group === 'schemes'
           const chosen = await dialog.showOpenDialog({
-            title: 'Выберите все формы и части текущего шага импорта',
-            filters: [{ name: 'Выгрузки ЕК АСУИ', extensions: ['xls', 'xlsx'] }],
+            title: schemes
+              ? 'Выберите PDF схем станций'
+              : 'Выберите все формы и части текущего шага импорта',
+            filters: schemes
+              ? [{ name: 'Схемы станций ЕК АСУИ', extensions: ['pdf'] }]
+              : [{ name: 'Выгрузки ЕК АСУИ', extensions: ['xls', 'xlsx'] }],
             properties: ['openFile', 'multiSelections'],
           })
           return chosen.canceled ? undefined : chosen.filePaths

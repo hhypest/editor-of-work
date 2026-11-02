@@ -45,6 +45,7 @@ const primitive = z.discriminatedUnion('kind', [
           size: mm(30),
         })
         .strict(),
+      rotate: z.literal(-90).optional(),
     })
     .strict(),
 ])

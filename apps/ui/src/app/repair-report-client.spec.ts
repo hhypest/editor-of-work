@@ -20,6 +20,7 @@ describe('Порт отчёта через preload', () => {
         message: 'unused',
       })),
       stationLayouts: async () => ({ status: 'error', message: 'unused' }),
+      sheetPdf: async () => ({ status: 'error', message: 'unused' }),
       repairs: vi.fn<EowApi['repairs']>(async () =>
         channels.repairs.response.parse({ status: 'ok', report: { date: '2027-01-01', rows: [] } }),
       ),

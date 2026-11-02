@@ -16,11 +16,25 @@ const valid = (
 /** Проекция среза Паспорта: без догадок о направлении и без восстановления исключённых объектов. */
 export function passportOverviewSource(data: PassportOverviewData): OverviewSource {
   const date = data.edition.date
-  const units = new Map(
-    data.org.subdivisions
-      .filter((u) => u.active && u.type === 'ПД' && valid(u, date))
-      .map((u) => [u.id, u.code]),
+  const active = new Map(
+    data.org.subdivisions.filter((u) => u.active && valid(u, date)).map((u) => [u.id, u]),
   )
+  const units = new Map(
+    [...active.values()].filter((u) => u.type === 'ПД').map((u) => [u.id, u.code]),
+  )
+  /** ПЧУ — ближайший действующий предок ПД; цикл оргструктуры обрывает поиск. */
+  const pchuOf = (id: string): string | undefined => {
+    const seen = new Set<string>()
+    let parent = active.get(id)?.parentId ?? null
+    while (parent !== null && !seen.has(parent)) {
+      seen.add(parent)
+      const unit = active.get(parent)
+      if (!unit) return undefined
+      if (unit.type === 'ПЧУ') return unit.code
+      parent = unit.parentId
+    }
+    return undefined
+  }
   const warnings: string[] = []
   const lineId = (name: string): string | undefined => {
     const lines = data.lines.filter((l) => l.name === name)
@@ -41,7 +55,15 @@ export function passportOverviewSource(data: PassportOverviewData): OverviewSour
     const code = units.get(boundary.subdivisionId)
     if (!code || !valid(boundary, date)) continue
     const id = lineId(boundary.line)
-    if (id) boundaries.push({ lineId: id, code, from: boundary.from, to: boundary.to })
+    const pchu = pchuOf(boundary.subdivisionId)
+    if (id)
+      boundaries.push({
+        lineId: id,
+        code,
+        ...(pchu === undefined ? {} : { pchu }),
+        from: boundary.from,
+        to: boundary.to,
+      })
   }
   return { edition: data.edition, lines: data.lines, axes, boundaries, warnings }
 }

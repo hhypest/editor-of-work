@@ -8,6 +8,7 @@ import { manualTemplate } from './manual-template-channel'
 import { printHost } from './pdf-sheet-schema'
 import { repairs } from './repair-report-channel'
 import { stationLayouts } from './station-layout-channel'
+import { sheetPdf } from './sheet-pdf-channel'
 
 /**
  * Сведения о программе для диагностики: имя, версия продукта из package.json
@@ -36,6 +37,7 @@ export const channels = {
   manualTemplate,
   exportWizard,
   stationLayouts,
+  sheetPdf,
 } as const
 
 export type Channels = typeof channels

@@ -8,6 +8,24 @@ export const sheetLine = (
   y2: number,
   dashed = false,
 ): SheetPrimitive => ({ kind: 'line', x1: mm(x1), y1: mm(y1), x2: mm(x2), y2: mm(y2), dashed })
+/** Линия заданной толщины, мм: путь на схеме, подсветка. */
+export const sheetThickLine = (
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  weight: number,
+  options: { readonly dashed?: boolean; readonly shade?: boolean } = {},
+): SheetPrimitive => ({
+  kind: 'line',
+  x1: mm(x1),
+  y1: mm(y1),
+  x2: mm(x2),
+  y2: mm(y2),
+  dashed: options.dashed ?? false,
+  weight: mm(weight),
+  ...(options.shade ? { shade: true } : {}),
+})
 export const sheetRect = (
   x: number,
   y: number,

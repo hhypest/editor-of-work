@@ -16,6 +16,11 @@ export interface PdfExporter {
   export(page: SheetPage): Promise<Result<PdfOutcome, SheetError>>
 }
 
+/** Листы паспортных схем одним PDF: main выбирает путь и пишет файл целиком. */
+export interface SheetPdfClient {
+  save(fileName: string, pages: readonly SheetPage[]): Promise<Result<PdfOutcome, SheetError>>
+}
+
 /** Пакет листов ПД (ADR-0039): один файл или файл на каждый ПД в выбранной папке. */
 export type PdfBatchMode = 'file' | 'folder'
 export interface PdfBatchJob {

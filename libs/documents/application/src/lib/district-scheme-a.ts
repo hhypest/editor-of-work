@@ -23,6 +23,23 @@ import {
 } from './sheet-model'
 import { bold, narrow, regular } from './sheet-text'
 import { moveShapes, sheetLine as line, sheetThickLine as thick } from './sheet-drawing'
+import {
+  CAPTION,
+  colored,
+  DISTRICT_RED,
+  districtHeader,
+  fillRect,
+  kmText,
+  LEFT,
+  PCHU_FILLS,
+  plural,
+  RIGHT,
+  text,
+  WHITE,
+  type TextOptions,
+} from './district-common'
+
+export { DISTRICT_RED, genitiveTitle, kmText, plural } from './district-common'
 
 /**
  * Схема дистанции, вариант A (#33, ADR-0050) по согласованному образцу: каждое направление —
@@ -35,15 +52,9 @@ export interface DistrictDocument extends OverviewDocument {
   readonly kmPerCm: number
 }
 
-export const DISTRICT_RED = '#c8102e'
 const GRAY = '#9a9a9a'
-const CAPTION = '#555555'
 const PD_FILLS = ['#ececec', '#d4d4d4'] as const
-const PCHU_FILLS = ['#141414', '#4b4b4b', '#2f2f2f', '#626262', '#7a7a7a'] as const
-const WHITE = '#ffffff'
 
-const LEFT = 15,
-  RIGHT = 405
 /** Ширина, в которую вписывается самое длинное направление, мм. */
 const FIT_WIDTH = 355
 /** Разрыв протяжения (чужая дистанция) рисуется пунктиром постоянной длины, мм. */
@@ -63,57 +74,6 @@ const BAND = 5.6
 const LABEL = bold(2.6)
 const COORD = regular(2.4)
 const EPS = 0.001
-
-/** Разряды через обычный пробел: в таблице ширин шрифта нет неразрывного пробела. */
-const grouped = (digits: string): string => digits.replace(/\B(?=(\d{3})+(?!\d))/gu, ' ')
-/** Метры в километрах с тремя знаками: «1 234,567». */
-export const kmText = (meters: number): string => {
-  const [whole = '0', fraction = '000'] = (meters / 1000).toFixed(3).split('.')
-  return `${grouped(whole)},${fraction}`
-}
-/** «1 станция», «3 станции», «5 станций». */
-export function plural(count: number, one: string, few: string, many: string): string {
-  const tens = count % 100,
-    units = count % 10
-  const word =
-    tens >= 11 && tens <= 14 ? many : units === 1 ? one : units >= 2 && units <= 4 ? few : many
-  return `${grouped(String(count))} ${word}`
-}
-
-interface TextOptions {
-  readonly color?: string
-  readonly rotate?: -90
-  readonly anchor?: 'middle'
-}
-const text = (
-  value: string,
-  x: number,
-  y: number,
-  font: SheetFont,
-  options: TextOptions = {},
-): SheetPrimitive => ({
-  kind: 'text',
-  text: value,
-  x: mm(x),
-  y: mm(y),
-  font,
-  ...(options.color ? { color: options.color } : {}),
-  ...(options.rotate ? { rotate: options.rotate } : {}),
-  ...(options.anchor ? { anchor: options.anchor } : {}),
-})
-const fillRect = (x: number, y: number, width: number, height: number, fill: string) =>
-  ({
-    kind: 'rect',
-    x: mm(x),
-    y: mm(y),
-    width: mm(width),
-    height: mm(height),
-    shade: false,
-    border: false,
-    fill,
-  }) as const satisfies SheetPrimitive
-const colored = (shape: SheetPrimitive, color: string): SheetPrimitive =>
-  shape.kind === 'line' ? { ...shape, color } : shape
 
 interface Part {
   readonly from: Chainage
@@ -415,17 +375,6 @@ function drawBlock(prepared: Prepared, context: Context): Result<Block, SheetErr
   return ok({ width, height: coordY + 5, shapes: [...back, ...front] })
 }
 
-/**
- * «Учебная дистанция пути» → «Схема Учебной дистанции пути». Другие формы названия не
- * склоняются: «Схема дистанции: …».
- */
-export function genitiveTitle(name: string | undefined): string {
-  const trimmed = name?.trim()
-  if (!trimmed) return 'Схема дистанции'
-  const match = /^(\S+?)ая\s+дистанция(\s.*)?$/iu.exec(trimmed)
-  return match ? `Схема ${match[1]}ой дистанции${match[2] ?? ''}` : `Схема дистанции: ${trimmed}`
-}
-
 const shiftX = (shape: SheetPrimitive, dx: number): SheetPrimitive =>
   shape.kind === 'line'
     ? { ...shape, x1: mm(shape.x1.value + dx), x2: mm(shape.x2.value + dx) }
@@ -485,21 +434,12 @@ function frame(
 ): SheetPrimitive[] {
   const right = (value: string, y: number, font: SheetFont, options: TextOptions = {}) =>
     text(value, RIGHT - measurer.width(value, font).value, y, font, options)
-  const district = source.district?.trim()
   return [
-    text(`ОАО «РЖД»${district ? ` · ${district.toUpperCase()}` : ''}`, LEFT, 12, regular(2.6), {
-      color: CAPTION,
-    }),
-    text(genitiveTitle(district), LEFT, 20.5, bold(6)),
-    text(
+    ...districtHeader(
+      source,
       'Линейная схема в масштабе по километрам: главные пути, станции по осям, линейные (ПД) и эксплуатационные (ПЧУ) участки',
-      LEFT,
-      26.5,
-      regular(2.8),
+      measurer,
     ),
-    right('Начальник дистанции __________ / __________ /', 12, regular(2.8)),
-    right('«__» __________ 20__ г.', 18, regular(2.8)),
-    colored(thick(LEFT, 30, RIGHT, 30, 0.8), DISTRICT_RED),
     thick(LEFT, 280, RIGHT, 280, 0.3),
     {
       kind: 'rect',

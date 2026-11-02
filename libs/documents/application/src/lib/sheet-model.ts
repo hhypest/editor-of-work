@@ -49,6 +49,10 @@ export type SheetPrimitive =
       readonly radius: SheetMm
       /** Серая заливка: подсветка стрелки с работой. */
       readonly shade?: boolean | undefined
+      /** Заливка и обводка «#rrggbb» и толщина обводки: станции топологической схемы. */
+      readonly fill?: string | undefined
+      readonly stroke?: string | undefined
+      readonly weight?: SheetMm | undefined
     }
   | {
       readonly kind: 'text'
@@ -56,8 +60,8 @@ export type SheetPrimitive =
       readonly y: SheetMm
       readonly text: string
       readonly font: SheetFont
-      /** −90 — подпись читается снизу вверх, поворот вокруг точки (x; y). */
-      readonly rotate?: -90 | undefined
+      /** −90 — подпись читается снизу вверх, −45 — наискось вверх; поворот вокруг (x; y). */
+      readonly rotate?: -90 | -45 | undefined
       /** Цвет текста «#rrggbb»; без него — чёрный. */
       readonly color?: string | undefined
       /** middle — x задаёт середину строки. */

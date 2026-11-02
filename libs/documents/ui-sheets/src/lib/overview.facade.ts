@@ -2,6 +2,7 @@ import { computed, inject, Injectable, InjectionToken, signal } from '@angular/c
 import {
   buildAdmDivision,
   buildDistrictSchemeA,
+  buildDistrictSchemeB,
   buildDistrictSchemeC,
   buildOverview,
   type SheetPdfClient,
@@ -16,8 +17,8 @@ import {
 export const OVERVIEW_CLIENT = new InjectionToken<OverviewClient>('Общая схема дистанции')
 export const SHEET_PDF_CLIENT = new InjectionToken<SheetPdfClient>('PDF паспортных схем')
 export const SPREADSHEET_CLIENT = new InjectionToken<SpreadsheetClient>('Книги Excel')
-/** Оформление листов: общая схема рядами или схема дистанции, вариант A или C. */
-export type OverviewVariant = 'overview' | 'district-a' | 'district-c'
+/** Оформление листов: общая схема рядами или схема дистанции, вариант A, B или C. */
+export type OverviewVariant = 'overview' | 'district-a' | 'district-b' | 'district-c'
 export const SHEET_MEASURER = new InjectionToken<() => Promise<TextMeasurer>>(
   'Измерение текста листа',
 )
@@ -28,6 +29,7 @@ export const OVERVIEW_TEXT = {
   variants: {
     overview: 'Общая схема (ряды в выбранном масштабе)',
     'district-a': 'Схема дистанции, вариант A — линейная в масштабе',
+    'district-b': 'Схема дистанции, вариант B — топологическая',
     'district-c': 'Схема дистанции, вариант C — схема-таблица',
   },
   autoScale: 'Масштаб подобран по самому длинному направлению',
@@ -49,7 +51,7 @@ export const OVERVIEW_TEXT = {
   next: 'Следующий лист',
   warnings: 'Замечания к схеме',
   scope:
-    'Предпросмотр А3 по выбранной редакции паспорта. Общая схема переносит длинные направления в ряды выбранного масштаба; схема дистанции (вариант A) показывает каждое направление одной линией в общем масштабе с полосами ПД и ПЧУ, вариант C — таблицей станций по направлениям с участками ПД и ПЧУ и итогами.',
+    'Предпросмотр А3 по выбранной редакции паспорта. Общая схема переносит длинные направления в ряды выбранного масштаба; схема дистанции (вариант A) показывает каждое направление одной линией в общем масштабе с полосами ПД и ПЧУ, вариант B — топологической схемой направлений с цветом ПЧУ, вариант C — таблицей станций по направлениям с участками ПД и ПЧУ и итогами.',
 } as const
 
 @Injectable()
@@ -145,7 +147,13 @@ export class OverviewFacade {
     this.rebuild()
   }
   setVariant(value: string): void {
-    if (value !== 'overview' && value !== 'district-a' && value !== 'district-c') return
+    if (
+      value !== 'overview' &&
+      value !== 'district-a' &&
+      value !== 'district-b' &&
+      value !== 'district-c'
+    )
+      return
     this.variant.set(value)
     this.rebuild()
   }
@@ -237,7 +245,9 @@ export class OverviewFacade {
       district ??
       (this.variant() === 'district-c'
         ? buildDistrictSchemeC(this.source, this.measurer)
-        : buildOverview(this.source, this.scale(), this.measurer))
+        : this.variant() === 'district-b'
+          ? buildDistrictSchemeB(this.source, this.measurer)
+          : buildOverview(this.source, this.scale(), this.measurer))
     this.autoScale.set(district?.ok ? district.value.kmPerCm : null)
     this.pdfStatus.set(null)
     this.pdfError.set(null)

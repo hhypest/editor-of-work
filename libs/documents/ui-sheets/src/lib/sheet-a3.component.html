@@ -36,7 +36,9 @@
             [attr.cx]="shape.x.value"
             [attr.cy]="shape.y.value"
             [attr.r]="shape.radius.value"
-            [attr.fill]="shape.shade ? '#bbb' : 'white'"
+            [attr.fill]="shape.fill ?? (shape.shade ? '#bbb' : 'white')"
+            [attr.stroke]="shape.stroke ?? null"
+            [attr.stroke-width]="shape.weight?.value ?? null"
           />
         }
         @case ('text') {

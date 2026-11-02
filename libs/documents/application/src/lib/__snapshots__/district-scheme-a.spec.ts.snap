@@ -2729,6 +2729,110 @@ exports[`Схема дистанции, вариант A > фиксирует г
     {
       "dashed": false,
       "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.8,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 135,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 226.66666666666669,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 119.82500000000002,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 119.82500000000002,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "x1": {
+        "unit": "mm",
+        "value": 135,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 135,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 118.62500000000001,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 121.025,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "x1": {
+        "unit": "mm",
+        "value": 226.66666666666669,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 226.66666666666669,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 118.62500000000001,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 121.025,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans Narrow",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "55+000",
+      "x": {
+        "unit": "mm",
+        "value": 135,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 126.32500000000002,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans Narrow",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "82+500",
+      "x": {
+        "unit": "mm",
+        "value": 220.0041666666667,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 126.32500000000002,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
       "x1": {
         "unit": "mm",
         "value": 41.66666666666667,
@@ -2920,110 +3024,6 @@ exports[`Схема дистанции, вариант A > фиксирует г
       "x": {
         "unit": "mm",
         "value": 107.20833333333333,
-      },
-      "y": {
-        "unit": "mm",
-        "value": 126.32500000000002,
-      },
-    },
-    {
-      "dashed": false,
-      "kind": "line",
-      "weight": {
-        "unit": "mm",
-        "value": 0.8,
-      },
-      "x1": {
-        "unit": "mm",
-        "value": 135,
-      },
-      "x2": {
-        "unit": "mm",
-        "value": 226.66666666666669,
-      },
-      "y1": {
-        "unit": "mm",
-        "value": 119.82500000000002,
-      },
-      "y2": {
-        "unit": "mm",
-        "value": 119.82500000000002,
-      },
-    },
-    {
-      "dashed": false,
-      "kind": "line",
-      "x1": {
-        "unit": "mm",
-        "value": 135,
-      },
-      "x2": {
-        "unit": "mm",
-        "value": 135,
-      },
-      "y1": {
-        "unit": "mm",
-        "value": 118.62500000000001,
-      },
-      "y2": {
-        "unit": "mm",
-        "value": 121.025,
-      },
-    },
-    {
-      "dashed": false,
-      "kind": "line",
-      "x1": {
-        "unit": "mm",
-        "value": 226.66666666666669,
-      },
-      "x2": {
-        "unit": "mm",
-        "value": 226.66666666666669,
-      },
-      "y1": {
-        "unit": "mm",
-        "value": 118.62500000000001,
-      },
-      "y2": {
-        "unit": "mm",
-        "value": 121.025,
-      },
-    },
-    {
-      "font": {
-        "family": "PT Sans Narrow",
-        "size": {
-          "unit": "mm",
-          "value": 2.5,
-        },
-        "weight": 400,
-      },
-      "kind": "text",
-      "text": "55+000",
-      "x": {
-        "unit": "mm",
-        "value": 135,
-      },
-      "y": {
-        "unit": "mm",
-        "value": 126.32500000000002,
-      },
-    },
-    {
-      "font": {
-        "family": "PT Sans Narrow",
-        "size": {
-          "unit": "mm",
-          "value": 2.5,
-        },
-        "weight": 400,
-      },
-      "kind": "text",
-      "text": "82+500",
-      "x": {
-        "unit": "mm",
-        "value": 220.0041666666667,
       },
       "y": {
         "unit": "mm",

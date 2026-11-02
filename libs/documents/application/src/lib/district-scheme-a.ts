@@ -260,6 +260,18 @@ function drawLine(
   const kmMm = (1_000_000 / scale) * 1
   const step = KM_STEPS.find((k) => k * kmMm >= 9) ?? 500
   const tickY = lineY + 4
+  // Координаты концов частей подписываются всегда: если не помещаются в строку отметок,
+  // уходят в следующую строку. Номера километров ставятся только в свободные места первой.
+  const coordinateRows: Interval[][] = [[]]
+  const placeCoordinate = (value: string, left: number): void => {
+    const w = measurer.width(value, LABEL).value
+    const x = Math.max(LEFT, Math.min(left, RIGHT - w))
+    const span = { from: x, to: x + w }
+    let row = coordinateRows.findIndex((used) => used.every((u) => !overlaps(u, span, 1.5)))
+    if (row < 0) row = coordinateRows.push([]) - 1
+    coordinateRows[row]?.push(span)
+    shapes.push(text(value, x, tickY + 2.5 + row * 3.5, LABEL))
+  }
   for (const [i, part] of parts.entries()) {
     shapes.push(thick(part.left, lineY, right(part), lineY, 0.8))
     const next = parts[i + 1]
@@ -270,21 +282,12 @@ function drawLine(
         line(next.left - 3, lineY + 1.5, next.left - 1, lineY - 1.5),
       )
     }
-    const ends = [
-      { at: part.from, x: part.left },
-      { at: part.to, x: right(part) },
-    ]
-    for (const end of ends) shapes.push(line(end.x, lineY - 1.2, end.x, lineY + 1.2))
-    const startLabel = formatPlus(part.from)
+    for (const x of [part.left, right(part)]) shapes.push(line(x, lineY - 1.2, x, lineY + 1.2))
+    placeCoordinate(formatPlus(part.from), part.left)
     const endLabel = formatPlus(part.to)
-    const endWidth = measurer.width(endLabel, LABEL).value
-    const startSpan = { from: part.left, to: part.left + measurer.width(startLabel, LABEL).value }
-    const used: Interval[] = [startSpan]
-    shapes.push(text(startLabel, part.left, tickY + 2.5, LABEL))
-    if (right(part) - endWidth > startSpan.to + 2) {
-      used.push({ from: right(part) - endWidth, to: right(part) })
-      shapes.push(text(endLabel, right(part) - endWidth, tickY + 2.5, LABEL))
-    }
+    placeCoordinate(endLabel, right(part) - measurer.width(endLabel, LABEL).value)
+  }
+  for (const part of parts)
     for (let km = Math.ceil(part.from.km / step) * step; km <= part.to.km; km += step) {
       const at = { km, m: 0 }
       if (compareChainage(at, part.from) <= 0 || compareChainage(at, part.to) >= 0) continue
@@ -294,14 +297,14 @@ function drawLine(
       const value = String(km)
       const w = measurer.width(value, LABEL).value
       const span = { from: x - w / 2, to: x + w / 2 }
-      if (used.some((u) => overlaps(u, span, 1.5))) continue
-      used.push(span)
+      const first = coordinateRows[0] ?? []
+      if (first.some((u) => overlaps(u, span, 1.5))) continue
+      first.push(span)
       shapes.push(text(value, span.from, tickY + 2.5, LABEL))
     }
-  }
   for (const p of placed) shapes.push({ kind: 'circle', x: mm(p.x), y: mm(lineY), radius: mm(0.9) })
   // Полосы ПД и ПЧУ под линией: ПД — белые, ПЧУ — серые, подпись внутри или в полосе подписей.
-  const pdY = tickY + 5,
+  const pdY = tickY + 5 + (coordinateRows.length - 1) * 3.5,
     pchuY = pdY + BAND + 1
   interface Span extends Interval {
     readonly code: string
@@ -310,7 +313,12 @@ function drawLine(
   const spans: Span[] = []
   for (const b of source.boundaries) {
     if (b.lineId !== current.id) continue
-    if (compareChainage(b.from, b.to) >= 0)
+    // Граница проверяется по длинам километров так же, как на общей схеме.
+    if (
+      !chainage(b.from.km, b.from.m, lengths).ok ||
+      !chainage(b.to.km, b.to.m, lengths).ok ||
+      compareChainage(b.from, b.to) >= 0
+    )
       return err({ message: `${b.code}: недопустимая граница ПД.` })
     for (const part of parts) {
       const from = compareChainage(b.from, part.from) < 0 ? part.from : b.from

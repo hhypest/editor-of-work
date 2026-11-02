@@ -111,4 +111,39 @@ describe('Схема дистанции, вариант A', () => {
   it('фиксирует геометрию листа', () => {
     expect(built().pages[0]).toMatchSnapshot()
   })
+
+  it('подписывает концы короткой части во второй строке, а не теряет их', () => {
+    const source = fictionalDistrict()
+    const long: OverviewSource = {
+      ...source,
+      lines: [
+        { ...source.lines[0]!, extents: [{ from: { km: 0, m: 0 }, to: { km: 700, m: 0 } }] },
+        { ...source.lines[2]!, extents: [{ from: { km: 10, m: 0 }, to: { km: 11, m: 500 } }] },
+      ],
+      axes: [],
+      boundaries: [],
+    }
+    const document = built(long)
+    expect(document.scale).toBe(2_000_000)
+    const labels = document.pages[0]!.primitives.flatMap((s) =>
+      s.kind === 'text' && /^1[01]\+/u.test(s.text) ? [s] : [],
+    )
+    expect(labels.map((s) => s.kind === 'text' && s.text)).toEqual(['10+000', '11+500'])
+    expect(labels[1]!.y.value).toBeGreaterThan(labels[0]!.y.value)
+  })
+
+  it('отклоняет границу ПД в несуществующем метре нестандартного километра', () => {
+    const source = fictionalDistrict()
+    const broken: OverviewSource = {
+      ...source,
+      boundaries: [
+        { lineId: 'L3', code: 'ПД-6', from: { km: 0, m: 0 }, to: { km: 1, m: 1200 } },
+        { lineId: 'L3', code: 'ПД-7', from: { km: 1, m: 1200 }, to: { km: 18, m: 0 } },
+      ],
+    }
+    expect(buildDistrictSchemeA(broken, tableMeasurer)).toMatchObject({
+      ok: false,
+      error: { message: 'ПД-6: недопустимая граница ПД.' },
+    })
+  })
 })

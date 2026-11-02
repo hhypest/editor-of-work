@@ -42,12 +42,13 @@ import {
   planFileV6Schema,
   planFileV7Schema,
   planFileV8Schema,
+  planFileV9Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 9
+export const PLAN_FORMAT_VERSION = 10
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -56,6 +57,15 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    9,
+    (file) => {
+      // В срезе v9 у раскладок станций нет зданий и платформ: данные переносятся как есть.
+      const parsed = planFileV9Schema.safeParse(file)
+      if (!parsed.success) return file
+      return { ...parsed.data, format: { ...parsed.data.format, version: 10 } }
+    },
+  ],
   [
     8,
     (file) => {

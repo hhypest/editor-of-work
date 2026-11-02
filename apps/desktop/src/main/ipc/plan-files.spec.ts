@@ -404,7 +404,7 @@ describe('планы в main', () => {
     expect(
       reopened.value.datedIndicators.get('district')?.map((r) => [r.name, r.previous, r.current]),
     ).toEqual([['Учебная протяжённость', 10, 12.5]])
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(9)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(10)
     expect(reopened.value.basis.stations.get('S')?.legacyLayout).toMatchObject({
       tracks: [{ id: 't', number: 'I', row: 2, x1: 4, x2: 40, fullMeters: 900 }],
       objects: [{ id: 'o', type: 'здание', x: 20, y: -1, width: 3, height: 1 }],
@@ -776,7 +776,7 @@ describe('планы в main', () => {
       state: { view: { indicators } },
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
-    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(9)
+    expect(JSON.parse(await readFile(path, 'utf8')).format.version).toBe(10)
     await edit({ kind: 'open' })
     expect(await edit({ kind: 'state' }, 'pd:ПД-2')).toMatchObject({
       state: { dirty: false, view: { indicators, canUndo: false } },
@@ -835,7 +835,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(9)
+    expect(saved.format.version).toBe(10)
     expect(saved.plan.expectedIndicators).toEqual([
       { area: { kind: 'pd', pd: 'ПД-2' }, rows: expected },
     ])
@@ -882,7 +882,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(9)
+    expect(saved.format.version).toBe(10)
     expect(saved.plan.datedIndicators).toEqual([{ area: { kind: 'pd', pd: 'ПД-2' }, rows: dated }])
     await edit({ kind: 'open' })
     const reopened = await edit({ kind: 'state' }, 'pd:ПД-2')
@@ -932,7 +932,7 @@ describe('планы в main', () => {
     })
     await edit({ kind: 'save', saveAs: false }, 'pd:ПД-2')
     const saved = JSON.parse(await readFile(path, 'utf8'))
-    expect(saved.format.version).toBe(9)
+    expect(saved.format.version).toBe(10)
     expect(saved.plan.itemTables).toEqual([
       { area: { kind: 'pd', pd: 'ПД-2' }, kind: 'isso', rows: isso },
     ])

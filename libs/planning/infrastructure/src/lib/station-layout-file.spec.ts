@@ -2,10 +2,11 @@ import { createHash } from 'node:crypto'
 import { createAnnualPlan, sampleStationLayout, samplePlanBasis } from '@eow/planning/domain'
 import type { Result } from '@eow/shared/kernel'
 import { decodePlan, encodePlan, readPlanFile } from './plan-file'
-import { planFileV8Schema, snapshotSchema } from './plan-file-schema'
+import { planFileV8Schema, planFileV9Schema, snapshotSchema } from './plan-file-schema'
 import { v1Fixture } from './testing/v1-fixture'
 import { v5Fixture } from './testing/v5-fixture'
 import { v8Fixture } from './testing/v8-fixture'
+import { v9Fixture } from './testing/v9-fixture'
 
 const value = <T>(r: Result<T, unknown>): T => {
   if (!r.ok) throw new Error(JSON.stringify(r.error))
@@ -14,16 +15,18 @@ const value = <T>(r: Result<T, unknown>): T => {
 const sampleText = () =>
   value(encodePlan(value(createAnnualPlan(2027, samplePlanBasis())), '0.6.0'))
 
-describe('Раскладка станции в срезе плана и формат v9', () => {
-  it.each([v1Fixture, v5Fixture, v8Fixture])(
+describe('Раскладка станции в срезе плана, форматы v9 и v10', () => {
+  it.each([v1Fixture, v5Fixture, v8Fixture, v9Fixture])(
     'открывает прежний формат: станции без раскладки, срез и контрольная сумма прежние',
     (old) => {
       const original = JSON.stringify(old),
         file = value(readPlanFile(original))
-      expect(file.format.version).toBe(9)
+      expect(file.format.version).toBe(10)
       expect(file.edition).toEqual(old.edition)
       const plan = value(decodePlan(original))
-      expect([...plan.basis.stations.values()].every((s) => s.layout === undefined)).toBe(true)
+      expect([...plan.basis.stations.values()].every((s) => s.layout?.objects === undefined)).toBe(
+        true,
+      )
       expect(value(decodePlan(value(encodePlan(plan, '0.6.0'))))).toEqual(plan)
       expect(JSON.stringify(old)).toBe(original)
     },
@@ -75,5 +78,34 @@ describe('Раскладка станции в срезе плана и форм
     const plan = value(createAnnualPlan(2027, withObjects))
     const reopened = value(decodePlan(value(encodePlan(plan, '0.6.0'))))
     expect(reopened.basis.stations.get('S1')?.layout?.objects).toEqual(objects)
+  })
+
+  it('открывает закреплённый v9 с раскладкой и скрытыми листами станций без потерь', () => {
+    const plan = value(decodePlan(JSON.stringify(v9Fixture)))
+    expect(plan.basis.stations.get('S')?.layout).toEqual(
+      v9Fixture.edition.snapshot.stations[0]!.layout,
+    )
+    expect(plan.pdHiddenTables.get('D')).toContain('stations')
+    const file = value(readPlanFile(value(encodePlan(plan, '0.6.0'))))
+    expect(file.format.version).toBe(10)
+    expect(file.edition.checksum).toBe(v9Fixture.edition.checksum)
+  })
+
+  it('не выдаёт раскладку со зданиями за формат v9', () => {
+    const basis = samplePlanBasis()
+    const station = basis.stations.get('S1')!
+    const objects = [
+      { id: 'o', kind: 'building', label: '', col: 0, row: 3, width: 4, height: 1 },
+    ] as const
+    const plan = value(
+      createAnnualPlan(2027, {
+        ...basis,
+        stations: new Map([['S1', { ...station, layout: { ...station.layout!, objects } }]]),
+      }),
+    )
+    const text = JSON.parse(value(encodePlan(plan, '0.6.0')))
+    expect(
+      planFileV9Schema.safeParse({ ...text, format: { ...text.format, version: 9 } }).success,
+    ).toBe(false)
   })
 })

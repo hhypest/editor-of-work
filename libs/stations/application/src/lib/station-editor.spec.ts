@@ -105,4 +105,72 @@ describe('Рисунок схемы станции', () => {
     expect(d.nodes.find((n) => n.id === 's')?.label).toBe('1')
     expect(d.width).toBeGreaterThan(cellPoint({ col: 20, row: 0 }).x)
   })
+
+  it('сводит перетаскивание объекта и переезда в один шаг отмены', () => {
+    let s = applyEdit(openEditor(layout), { kind: 'add-object', objectKind: 'building' })
+    s = applyEdit(s, { kind: 'add-crossing' })
+    const added = s.history.present
+    for (const col of [3, 4, 5])
+      s = applyEdit(s, {
+        kind: 'move-object',
+        object: 'building-1',
+        to: { col, row: 2 },
+        drag: 'd',
+      })
+    s = applyEdit(s, { kind: 'end-drag' })
+    for (const col of [11, 12])
+      s = applyEdit(s, { kind: 'move-crossing', crossing: 'crossing-1', col, drag: 'e' })
+    s = applyEdit(s, { kind: 'end-drag' })
+    expect(s.history.present.objects?.[0]).toMatchObject({ col: 5, row: 2 })
+    expect(s.history.present.crossings[0]?.col).toBe(12)
+    s = applyEdit(applyEdit(s, { kind: 'undo' }), { kind: 'undo' })
+    expect(s.history.present).toBe(added)
+    s = applyEdit(s, { kind: 'edit-object', object: 'building-1', change: { label: 'Пост' } })
+    s = applyEdit(s, {
+      kind: 'edit-crossing',
+      crossing: 'crossing-1',
+      change: { km: 20, pk: 3 },
+    })
+    expect(s.history.present.crossings[0]).toMatchObject({ km: 20, pk: 3 })
+    s = applyEdit(s, { kind: 'remove-object', object: 'building-1' })
+    s = applyEdit(s, { kind: 'remove-crossing', crossing: 'crossing-1' })
+    expect(s.history.present.objects).toEqual([])
+    expect(s.history.present.crossings).toEqual([])
+    expect(applyEdit(s, { kind: 'remove-crossing', crossing: 'crossing-1' }).error).toBe(
+      'Переезд не найден.',
+    )
+  })
+
+  it('рисует объект по рядам и ставит номер стрелки со стороны, свободной от ответвления', () => {
+    const withObject: StationLayout = {
+      ...layout,
+      objects: [
+        { id: 'o', kind: 'platform', label: 'Платформа', col: 2, row: 2, width: 4, height: 2 },
+      ],
+    }
+    const d = layoutDrawing(withObject)
+    const top = cellPoint({ col: 2, row: 2 }),
+      bottom = cellPoint({ col: 6, row: 3 })
+    expect(d.objects).toEqual([
+      {
+        id: 'o',
+        kind: 'platform',
+        label: 'Платформа',
+        x: top.x,
+        y: top.y - 12.8,
+        width: bottom.x - top.x,
+        height: bottom.y - top.y + 25.6,
+      },
+    ])
+    expect(d.height).toBeGreaterThanOrEqual(bottom.y)
+    // Ответвление стрелки 1 уходит вверх — номер под узлом.
+    const sw = d.nodes.find((n) => n.id === 's')!
+    expect(sw.switchId).toBe('w1')
+    expect(sw.labelAt!.y).toBeGreaterThan(sw.y)
+    const down = layoutDrawing({
+      ...layout,
+      nodes: layout.nodes.map((n) => (n.row === 0 ? { ...n, row: 2 } : n)),
+    }).nodes.find((n) => n.id === 's')!
+    expect(down.labelAt!.y).toBeLessThan(down.y)
+  })
 })

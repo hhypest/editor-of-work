@@ -74,6 +74,8 @@ async function render(port: StationEditorClient) {
   fixture.detectChanges()
   return { fixture, el: fixture.nativeElement as HTMLElement }
 }
+const button = (el: HTMLElement, text: string) =>
+  [...el.querySelectorAll('button')].find((b) => b.textContent?.trim() === text)!
 const key = (target: Element, k: string) =>
   target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }))
 
@@ -167,5 +169,68 @@ describe('Редактор схемы станции', () => {
     port.editions = vi.fn<StationEditorClient['editions']>(async () => err({ message: 'Нет базы' }))
     const { el } = await render(port)
     expect(el.querySelector('[role="alert"]')?.textContent).toContain('Нет базы')
+  })
+
+  it('по щелчку открывает карточку пути и стрелки и меняет номер в карточке', async () => {
+    const { fixture, el } = await render(client())
+    const card = () => el.querySelector('.card')!.textContent ?? ''
+    expect(card()).toContain(STATION_TEXT.cardHint)
+    ;(el.querySelectorAll('polyline.hit')[1] as SVGElement).dispatchEvent(new MouseEvent('click'))
+    fixture.detectChanges()
+    expect(card()).toContain('станционный')
+    expect(card()).toContain('400')
+    const input = el.querySelector<HTMLInputElement>('.card input')!
+    input.value = '5'
+    input.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(el.querySelector('polyline.track.selected')).not.toBeNull()
+    expect(el.textContent).toContain('5 · 400 м')
+    el.querySelector('circle.node.switch')!.dispatchEvent(new MouseEvent('click'))
+    fixture.detectChanges()
+    expect(card()).toContain(STATION_TEXT.switchTitle)
+    expect(card()).toContain('I')
+  })
+
+  it('добавляет здание и переезд, правит их в карточке, двигает клавишами и удаляет', async () => {
+    const { fixture, el } = await render(client())
+    button(el, STATION_TEXT.addBuilding).click()
+    fixture.detectChanges()
+    expect(el.querySelectorAll('g.object.building')).toHaveLength(1)
+    const label = el.querySelectorAll<HTMLInputElement>('.card input')[0]!
+    label.value = 'Пост ЭЦ'
+    label.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(el.querySelector('g.object text')?.textContent?.trim()).toBe('Пост ЭЦ')
+    const object = el.querySelector('g.object')!
+    const before = object.querySelector('rect')!.getAttribute('x')
+    key(object, 'ArrowRight')
+    fixture.detectChanges()
+    expect(el.querySelector('g.object rect')!.getAttribute('x')).toBe(String(Number(before) + 16))
+    button(el, STATION_TEXT.remove).click()
+    fixture.detectChanges()
+    expect(el.querySelectorAll('g.object')).toHaveLength(0)
+    expect(el.querySelector('.card')!.textContent).toContain(STATION_TEXT.cardHint)
+    button(el, STATION_TEXT.addCrossing).click()
+    fixture.detectChanges()
+    expect(el.querySelectorAll('g.crossing')).toHaveLength(1)
+    const inputs = el.querySelectorAll<HTMLInputElement>('.card input')
+    inputs[2]!.value = '11'
+    inputs[2]!.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(el.querySelector('.problem')?.textContent).toContain('пикет')
+    inputs[1]!.value = '20'
+    inputs[1]!.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(el.querySelector('.problem')).toBeNull()
+    expect(el.textContent).toContain(STATION_TEXT.unsaved)
+  })
+
+  it('в действующей редакции карточка только для чтения, объекты не добавляются', async () => {
+    const { fixture, el } = await render(client(false))
+    expect(button(el, STATION_TEXT.addBuilding)).toBeUndefined()
+    ;(el.querySelectorAll('polyline.hit')[0] as SVGElement).dispatchEvent(new MouseEvent('click'))
+    fixture.detectChanges()
+    expect(el.querySelector('.card input')).toBeNull()
+    expect(el.querySelector('.card')!.textContent).toContain('главный')
   })
 })

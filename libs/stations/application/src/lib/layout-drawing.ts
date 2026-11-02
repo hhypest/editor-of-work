@@ -1,6 +1,7 @@
 import type {
   Cell,
   LayoutNodeKind,
+  LayoutObjectKind,
   LayoutTrackKind,
   LayoutTrackState,
   StationLayout,
@@ -29,6 +30,21 @@ export interface DrawnNode extends DrawingPoint {
   readonly end: 'stop' | 'open' | null
   /** Номер стрелки у её узла. */
   readonly label: string | null
+  /** Место номера стрелки: со стороны, куда не уходит ответвление, чтобы не лечь на ось. */
+  readonly labelAt: DrawingPoint | null
+  /** Стрелка этого узла: карточка открывается по щелчку. */
+  readonly switchId: string | null
+}
+
+/** Здание или платформа: прямоугольник в пикселях рисунка. */
+export interface DrawnObject {
+  readonly id: string
+  readonly kind: LayoutObjectKind
+  readonly label: string
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
 }
 
 export interface LayoutDrawing {
@@ -36,6 +52,7 @@ export interface LayoutDrawing {
   readonly height: number
   readonly tracks: readonly DrawnTrack[]
   readonly nodes: readonly DrawnNode[]
+  readonly objects: readonly DrawnObject[]
   readonly derailers: readonly (DrawingPoint & { readonly id: string; readonly label: string })[]
   readonly bridges: readonly {
     readonly id: string
@@ -56,6 +73,9 @@ export const cellPoint = (c: Cell): DrawingPoint => ({
   x: DRAWING_GRID.margin + c.col * DRAWING_GRID.col,
   y: DRAWING_GRID.margin + c.row * DRAWING_GRID.row,
 })
+
+/** Прямоугольник объекта занимает ряды row…row + height − 1 с полями до соседних рядов. */
+const OBJECT_INSET = 0.4
 
 /** Ближайшая клетка сетки к точке рисунка: привязка перетаскивания. */
 export function cellAt(p: DrawingPoint): Cell {
@@ -110,28 +130,62 @@ export function layoutDrawing(layout: StationLayout): LayoutDrawing {
     const x = cellPoint({ col, row: 0 }).x
     return pointAtCol(byTrack.get(track) ?? [], x)
   }
+  const objects = layout.objects ?? []
   const maxCol = Math.max(
     0,
     ...layout.nodes.map((n) => n.col),
     ...layout.crossings.map((c) => c.col),
+    ...objects.map((o) => o.col + o.width),
   )
   const maxRow = Math.max(
     0,
     ...layout.nodes.map((n) => n.row),
     ...layout.crossings.map((c) => c.toRow),
+    ...objects.map((o) => o.row + o.height - 1),
   )
+  const tracksById = new Map(layout.tracks.map((t) => [t.id, t]))
+  const switchesByNode = new Map(layout.switches.map((s) => [s.node, s]))
+  /** Номер стрелки над узлом, если ответвление уходит вниз, иначе под узлом. */
+  const switchLabelAt = (nodeId: string, at: DrawingPoint): DrawingPoint => {
+    const s = switchesByNode.get(nodeId)
+    const branch = (s && tracksById.get(s.branch)?.nodes) ?? []
+    const next = nodes.get((branch[0] === nodeId ? branch[1] : branch.at(-2)) ?? '')
+    const self = nodes.get(nodeId)
+    const down = !!next && !!self && next.row > self.row
+    return { x: at.x + 6, y: down ? at.y - 7 : at.y + 16 }
+  }
   const far = cellPoint({ col: maxCol, row: maxRow })
   return {
     width: far.x + DRAWING_GRID.margin,
     height: far.y + DRAWING_GRID.margin,
     tracks,
-    nodes: layout.nodes.map((n) => ({
-      id: n.id,
-      ...cellPoint(n),
-      kind: n.kind,
-      end: n.end ?? null,
-      label: n.kind === 'switch' ? (switchNumbers.get(n.id) ?? '?') : null,
-    })),
+    nodes: layout.nodes.map((n) => {
+      const at = cellPoint(n)
+      const isSwitch = n.kind === 'switch'
+      return {
+        id: n.id,
+        ...at,
+        kind: n.kind,
+        end: n.end ?? null,
+        label: isSwitch ? (switchNumbers.get(n.id) ?? '?') : null,
+        labelAt: isSwitch ? switchLabelAt(n.id, at) : null,
+        switchId: switchesByNode.get(n.id)?.id ?? null,
+      }
+    }),
+    objects: objects.map((o) => {
+      const top = cellPoint({ col: o.col, row: o.row }),
+        bottom = cellPoint({ col: o.col + o.width, row: o.row + o.height - 1 })
+      const inset = OBJECT_INSET * DRAWING_GRID.row
+      return {
+        id: o.id,
+        kind: o.kind,
+        label: o.label,
+        x: top.x,
+        y: top.y - inset,
+        width: bottom.x - top.x,
+        height: bottom.y - top.y + 2 * inset,
+      }
+    }),
     derailers: layout.derailers.flatMap((d) => {
       const p = onTrack(d.track, d.col)
       return p ? [{ id: d.id, ...p, label: d.number }] : []

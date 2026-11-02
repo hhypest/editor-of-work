@@ -116,10 +116,16 @@ function drawScheme(
     layout.switches.some((s) => !nodes.has(s.node))
   )
     return err({ message: 'раскладка схемы ссылается на неизвестные узлы.' })
-  const cols = [...layout.nodes.map((n) => n.col), ...layout.crossings.map((c) => c.col)]
+  const objects = layout.objects ?? []
+  const cols = [
+    ...layout.nodes.map((n) => n.col),
+    ...layout.crossings.map((c) => c.col),
+    ...objects.flatMap((o) => [o.col, o.col + o.width]),
+  ]
   const rows = [
     ...layout.nodes.map((n) => n.row),
     ...layout.crossings.flatMap((c) => [c.fromRow, c.toRow]),
+    ...objects.flatMap((o) => [o.row, o.row + o.height - 1]),
   ]
   const minCol = Math.min(0, ...cols),
     minRow = Math.min(0, ...rows)
@@ -154,6 +160,21 @@ function drawScheme(
   const label = (value: string, x: number, y: number): void => {
     const w = measurer.width(value, LABEL).value
     labels.push(rect(x - 0.4, y - 2.2, w + 0.8, 2.8, false, false), text(value, x, y, LABEL))
+  }
+  // Здание — белый прямоугольник, платформа — серый; подпись внутри, если помещается.
+  for (const o of objects) {
+    const topLeft = at(o.col, o.row),
+      bottomRight = at(o.col + o.width, o.row + o.height - 1)
+    const inset = step * 0.4
+    const w = bottomRight.x - topLeft.x,
+      h = bottomRight.y - topLeft.y + 2 * inset
+    background.push(rect(topLeft.x, topLeft.y - inset, w, h, o.kind === 'platform'))
+    if (o.label) {
+      const tw = measurer.width(o.label, LABEL).value
+      if (tw <= w - 1)
+        labels.push(text(o.label, topLeft.x + (w - tw) / 2, topLeft.y - inset + h / 2 + 0.9, LABEL))
+      else label(o.label, topLeft.x, topLeft.y - inset - 0.8)
+    }
   }
   for (const c of layout.crossings) {
     const top = at(c.col, c.fromRow),

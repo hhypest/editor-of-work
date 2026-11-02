@@ -69,6 +69,23 @@ export interface LayoutCrossing {
   readonly toRow: number
 }
 
+export type LayoutObjectKind = 'building' | 'platform'
+
+/**
+ * Объект схемы, который составитель ставит вручную (ADR-0049): здание или платформа.
+ * Прямоугольник занимает колонки col…col + width и ряды row…row + height − 1;
+ * повторный импорт PDF схемы его сохраняет.
+ */
+export interface LayoutObject {
+  readonly id: string
+  readonly kind: LayoutObjectKind
+  readonly label: string
+  readonly col: number
+  readonly row: number
+  readonly width: number
+  readonly height: number
+}
+
 export interface StationLayout {
   readonly version: 1
   readonly nodes: readonly LayoutNode[]
@@ -77,7 +94,12 @@ export interface StationLayout {
   readonly derailers: readonly LayoutDerailer[]
   readonly bridges: readonly LayoutBridge[]
   readonly crossings: readonly LayoutCrossing[]
+  /** Здания и платформы; поле появилось в #30, его отсутствие — объектов нет. */
+  readonly objects?: readonly LayoutObject[] | undefined
 }
+
+/** Пределы объекта схемы: ширина в колонках, высота в рядах, длина подписи. */
+export const LAYOUT_OBJECT_LIMITS = { width: 400, height: 20, label: 200 } as const
 
 /** «IIСев», «8СО», «3 ав» — номер без регистра и пробелов; кириллическая «І» как латинская. */
 export const layoutNumberKey = (value: string): string =>

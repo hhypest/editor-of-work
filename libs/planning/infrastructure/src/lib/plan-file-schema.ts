@@ -486,6 +486,22 @@ const stationLayout = z
           .strict(),
       )
       .max(1_000),
+    objects: z
+      .array(
+        z
+          .object({
+            id: id,
+            kind: z.enum(['building', 'platform']),
+            label: layoutText,
+            col: cell,
+            row: cell,
+            width: z.number().int().min(1).max(400),
+            height: z.number().int().min(1).max(20),
+          })
+          .strict(),
+      )
+      .max(1_000)
+      .optional(),
   })
   .strict()
   .superRefine((layout, ctx) => {

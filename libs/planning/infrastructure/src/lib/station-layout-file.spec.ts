@@ -61,4 +61,19 @@ describe('Раскладка станции в срезе плана и форм
       })
     },
   )
+
+  it('сохраняет здания и платформы раскладки', () => {
+    const basis = samplePlanBasis()
+    const station = basis.stations.get('S1')!
+    const objects = [
+      { id: 'o', kind: 'platform', label: 'Учебная', col: 2, row: 3, width: 10, height: 1 },
+    ] as const
+    const withObjects = {
+      ...basis,
+      stations: new Map([['S1', { ...station, layout: { ...station.layout!, objects } }]]),
+    }
+    const plan = value(createAnnualPlan(2027, withObjects))
+    const reopened = value(decodePlan(value(encodePlan(plan, '0.6.0'))))
+    expect(reopened.basis.stations.get('S1')?.layout?.objects).toEqual(objects)
+  })
 })

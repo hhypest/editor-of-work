@@ -289,4 +289,37 @@ describe('Листы станций', () => {
     const all = stationPages.flatMap((p) => texts(p.primitives))
     for (let i = 1; i <= 24; i++) expect(all.some((t) => t.startsWith(`${i}. Учебный`))).toBe(true)
   })
+
+  it('рисует здания и платформы с подписью внутри или над прямоугольником', () => {
+    const document = built([
+      {
+        ...station,
+        works: [],
+        layout: {
+          ...layout,
+          objects: [
+            { id: 'o1', kind: 'building', label: 'Пост ЭЦ', col: 12, row: 3, width: 8, height: 1 },
+            {
+              id: 'o2',
+              kind: 'platform',
+              label: 'Платформа пассажирская',
+              col: 20,
+              row: 3,
+              width: 1,
+              height: 1,
+            },
+          ],
+        },
+      },
+    ])
+    const page = document.pages[1]!
+    const rects = page.primitives.filter(
+      (s) => s.kind === 'rect' && s.border && s.width.value < 100 && s.height.value < 10,
+    )
+    expect(rects.filter((s) => s.kind === 'rect' && s.shade)).toHaveLength(1)
+    expect(rects.length).toBeGreaterThanOrEqual(2)
+    const words = texts(page.primitives)
+    expect(words).toContain('Пост ЭЦ')
+    expect(words).toContain('Платформа пассажирская')
+  })
 })

@@ -47,11 +47,36 @@ export function stationTitle(texts: readonly PlacedText[]): string | undefined {
 
 /** Track number as written on the line: «I», «12», «1а», «IIСев», «5Юж». */
 export const TRACK_NUMBER = /^(?:[IVXІ]+|\d+)[а-яёА-ЯЁa-z]{0,6}(?:-\d+)?$/u
-/** Switch number: «6», «13 ав», «15р». */
-// The letters are lazy so that «5ав» without a space still leaves «ав» to the suffix.
-export const SWITCH_LABEL = /^(\d+[а-яё]{0,2}?)(?:\s*ав)?$/iu
-/** Derailer: сбрасывающий остряк «8со ав», «4СО», «3рсо», башмак «49сб ав». */
-export const DERAILER_LABEL = /^(\d+\s*р?(?:со|сб))(?:\s*ав)?$/iu
+/**
+ * Подпись стрелки или сбрасывающего остряка у узла: «6», «13 ав», «15р», «8со ав», «3рсо».
+ * По правилу составителя значим только суффикс «со» — сбрасывающий остряк, его номер
+ * «8со». «ав» (автовозврат), «р», «п» отбрасываются; «сб» — не стрелка и не остряк.
+ * Прочие буквы («1а») остаются частью номера стрелки.
+ */
+export type ObjectLabel =
+  | { readonly kind: 'switch'; readonly number: string }
+  | { readonly kind: 'derailer'; readonly number: string }
+  | { readonly kind: 'ignored' }
+
+const IGNORED_SUFFIXES = ['ав', 'р', 'п']
+
+export function objectLabel(text: string): ObjectLabel | undefined {
+  const match = /^(\d+)([а-яё\s]*)$/iu.exec(text.trim())
+  const digits = match?.[1]
+  if (!digits) return undefined
+  let rest = (match[2] ?? '').toLowerCase().replace(/\s+/gu, '')
+  if (/^р?со(?:ав)?$/u.test(rest)) return { kind: 'derailer', number: `${digits}со` }
+  if (/^сб(?:ав)?$/u.test(rest)) return { kind: 'ignored' }
+  for (let changed = true; changed;) {
+    changed = false
+    for (const suffix of IGNORED_SUFFIXES)
+      if (rest.endsWith(suffix)) {
+        rest = rest.slice(0, -suffix.length)
+        changed = true
+      }
+  }
+  return /^[а-яё]{0,2}$/u.test(rest) ? { kind: 'switch', number: digits + rest } : undefined
+}
 export const LENGTH_LABEL = /^\d{1,5}$/u
 export const CAPACITY_LABEL = /^\d{1,4}(?:\/\d{1,4})?$/u
 

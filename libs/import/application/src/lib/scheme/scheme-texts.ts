@@ -1,5 +1,6 @@
 import type { DrawingColor, DrawingText } from './scheme-drawing'
 import { add, scale, type Point } from './scheme-geometry'
+import { IGNORED_SWITCH_SUFFIXES } from '@eow/shared/kernel'
 
 /** Text run with its box on the sheet, for matching labels to drawn objects. */
 export interface PlacedText {
@@ -58,8 +59,6 @@ export type ObjectLabel =
   | { readonly kind: 'derailer'; readonly number: string }
   | { readonly kind: 'ignored' }
 
-const IGNORED_SUFFIXES = ['ав', 'р', 'п']
-
 export function objectLabel(text: string): ObjectLabel | undefined {
   const match = /^(\d+)([а-яё\s]*)$/iu.exec(text.trim())
   const digits = match?.[1]
@@ -69,7 +68,7 @@ export function objectLabel(text: string): ObjectLabel | undefined {
   if (/^сб(?:ав)?$/u.test(rest)) return { kind: 'ignored' }
   for (let changed = true; changed;) {
     changed = false
-    for (const suffix of IGNORED_SUFFIXES)
+    for (const suffix of IGNORED_SWITCH_SUFFIXES)
       if (rest.endsWith(suffix)) {
         rest = rest.slice(0, -suffix.length)
         changed = true

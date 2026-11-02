@@ -14,16 +14,14 @@ import {
   type Result,
   type TrackSpan,
 } from '@eow/shared/kernel'
-import {
-  mm,
-  type OverviewDocument,
-  type OverviewScale,
-  type SheetError,
-  type SheetPage,
-  type SheetPrimitive,
-  type TextMeasurer,
+import type {
+  OverviewDocument,
+  OverviewScale,
+  SheetError,
+  SheetPrimitive,
+  TextMeasurer,
 } from './sheet-model'
-import { bold, narrow, regular, textBlock } from './sheet-text'
+import { bold, narrow, textBlock } from './sheet-text'
 import {
   sheetLine as line,
   sheetRect as rect,
@@ -31,7 +29,8 @@ import {
   moveShapes,
 } from './sheet-drawing'
 import { drawCallouts, packCallouts, type CalloutInput } from './callout-packing'
-import { measureTable } from './sheet-table'
+import { SheetWriter } from './sheet-pages'
+import { drawStationSheets } from './station-sheet'
 
 export interface PdSheetClient {
   load(open: boolean): Promise<Result<PlanSheetData | null | 'cancelled', SheetError>>
@@ -41,9 +40,9 @@ export interface EditorSheetClient {
 }
 export interface PdDocument extends OverviewDocument {
   readonly workIdsByPage: readonly (readonly string[])[]
+  /** Первый лист каждой станции ПД (индекс в pages): переход к листу станции. */
+  readonly stations: readonly { readonly id: string; readonly page: number }[]
 }
-const TOP = 53,
-  BOTTOM = 245
 interface Row {
   readonly span: TrackSpan
   readonly lengths: KmLengths
@@ -196,75 +195,27 @@ export function buildPdSheets(
     )
   )
     return err({ message: 'Неверные ссылки строк ведомости на работы ПД.' })
-  const pages: SheetPage[] = [],
-    workIdsByPage: string[][] = [],
-    pageWorks = new Set<string>(),
-    warnings: string[] = []
+  const warnings: string[] = []
   const hasStatement = pd.tables.some((table) => table.workIds !== undefined)
-  if (hasStatement && pd.works.some((w) => w.lineId === null && w.callout))
+  // Выноски станционных работ стоят на листах станций; без листа станции остаётся ведомость.
+  const onStationSheets = new Set(pd.stations.flatMap((s) => s.works.map((w) => w.id)))
+  if (
+    hasStatement &&
+    pd.works.some((w) => w.lineId === null && w.callout && !onStationSheets.has(w.id))
+  )
     warnings.push('Станционные работы показаны в ведомости: в срезе плана нет координат их осей.')
-  if (!hasStatement && pd.works.some((w) => w.lineId === null))
+  if (!hasStatement && pd.works.some((w) => w.lineId === null && !onStationSheets.has(w.id)))
     warnings.push('Ведомость работ не выведена. Станционные работы не показаны на листах ПД.')
-  let shapes: SheetPrimitive[] = [],
-    y = TOP
-  const flush = (): Result<null, SheetError> => {
-    if (pages.length >= 200) return err({ message: 'Документ ПД превышает 200 листов.' })
-    const header = textBlock(
-      `ППР ${data.year} · ${pd.name} · ${pd.pchu}`,
-      15,
-      19,
-      240,
-      2,
-      bold(4),
-      measurer,
-    )
-    if (!header.ok) return header
-    const approval: SheetPrimitive[] = []
-    for (const [value, ay] of [
-      ['УТВЕРЖДАЮ', 17],
-      [data.approval.title, 22],
-      [data.approval.name, 33],
-      [`«___» __________ ${data.approval.year} г.`, 40],
-    ] as const) {
-      const t = textBlock(value, 272, ay, 130, 2, regular(2.6), measurer)
-      if (!t.ok) return t
-      approval.push(...t.value)
-    }
-    pages.push({
-      width: mm(420),
-      height: mm(297),
-      number: pages.length + 1,
-      primitives: [
-        rect(10, 10, 400, 277),
-        ...header.value,
-        ...approval,
-        ...shapes,
-        text(
-          'Линия — главный путь; серый участок — работа; № выноски — строка ведомости.',
-          15,
-          259,
-          regular(2.5),
-        ),
-        text(
-          '* — ручное значение плана; объёмы относятся ко всему ПД, а не к отдельной странице.',
-          15,
-          265,
-          regular(2.5),
-        ),
-        text(
-          `Редакция ${data.edition.number} от ${data.edition.date} · 1:${scale} · Лист ${pages.length + 1}`,
-          15,
-          281,
-          regular(2.6),
-        ),
-      ],
-    })
-    workIdsByPage.push([...pageWorks])
-    pageWorks.clear()
-    shapes = []
-    y = TOP
-    return ok(null)
-  }
+  const footer = (number: number) =>
+    `Редакция ${data.edition.number} от ${data.edition.date} · 1:${scale} · Лист ${number}`
+  const writer = new SheetWriter(data, measurer, {
+    title: `ППР ${data.year} · ${pd.name} · ${pd.pchu}`,
+    notes: [
+      'Линия — главный путь; серый участок — работа; № выноски — строка ведомости.',
+      '* — ручное значение плана; объёмы относятся ко всему ПД, а не к отдельной странице.',
+    ],
+    footer,
+  })
   for (const row of prepared.value) {
     const x = (at: Chainage) => 35 + (distance(row.span.from, at, row.lengths) * 1000) / scale
     const marks: SheetPrimitive[] = [],
@@ -327,10 +278,11 @@ export function buildPdSheets(
     if (!packed.ok) return packed
     for (const [bandIndex, band] of packed.value.entries()) {
       const height = 30 + band.height
-      if (y + height > BOTTOM) {
-        const saved = flush()
+      if (!writer.fits(height)) {
+        const saved = writer.flush()
         if (!saved.ok) return saved
       }
+      const y = writer.y
       const title = textBlock(
         `${row.name} · ${formatPlus(row.span.from)} – ${formatPlus(row.span.to)}${bandIndex ? ' · выноски (продолжение)' : ''}`,
         15,
@@ -371,7 +323,7 @@ export function buildPdSheets(
       )
       if (!left.ok) return left
       if (!right.ok) return right
-      shapes.push(
+      writer.add([
         ...title.value,
         line(35, y + 12, x(row.span.to), y + 12),
         ...moveShapes(marks, y),
@@ -391,64 +343,35 @@ export function buildPdSheets(
               ]
             : [label],
         ),
-      )
-      for (const id of rowWorks) pageWorks.add(id)
-      y += height + 4
+      ])
+      for (const id of rowWorks) writer.addWork(id)
+      writer.y += height + 4
     }
   }
   if (!prepared.value.length) {
-    shapes.push(
+    writer.add([
       text(
         hasStatement
           ? 'У ПД нет границ на главных путях. Станционные работы — в ведомости.'
           : 'У ПД нет границ на главных путях.',
         15,
-        y + 4,
+        writer.y + 4,
       ),
-    )
-    y += 12
+    ])
+    writer.y += 12
   }
   for (const table of pd.tables) {
-    const measured = measureTable(table, measurer)
-    if (!measured.ok) return measured
-    const m = measured.value
-    const heading = (): Result<null, SheetError> => {
-      const t = textBlock(m.title, 15, y + 4, 390, 1, bold(3), measurer)
-      if (!t.ok) return t
-      shapes.push(...t.value, ...moveShapes(m.header.primitives, y + 8))
-      y += 8 + m.header.height
-      return ok(null)
-    }
-    if (y + 8 + m.header.height + (m.rows[0]?.height ?? 9) > BOTTOM) {
-      const saved = flush()
-      if (!saved.ok) return saved
-    }
-    let h = heading()
-    if (!h.ok) return h
-    for (const [index, full] of m.rows.entries()) {
-      if (TOP + 8 + m.header.height + full.height > BOTTOM)
-        return err({ message: `Строка таблицы «${m.title}» не помещается на листе с заголовком.` })
-      // Внутри страницы повтор подписи группы скрыт; продолжение начинается с полной строки.
-      let r = m.continued[index] ?? full
-      if (y + r.height > BOTTOM) {
-        const saved = flush()
-        if (!saved.ok) return saved
-        h = heading()
-        if (!h.ok) return h
-        r = full
-      }
-      shapes.push(...moveShapes(r.primitives, y))
-      const workId = table.workIds?.[index]
-      if (workId !== undefined) pageWorks.add(workId)
-      y += r.height
-    }
-    if (!m.rows.length) {
-      shapes.push(text('Нет работ', 17, y + 5))
-      y += 9
-    }
-    y += 5
+    const added = writer.table(table)
+    if (!added.ok) return added
   }
-  const saved = flush()
+  const saved = writer.flush()
   if (!saved.ok) return saved
-  return ok({ pages, warnings, workIdsByPage })
+  const stations: { id: string; page: number }[] = []
+  for (const station of pd.stations) {
+    stations.push({ id: station.id, page: writer.pages.length })
+    const drawn = drawStationSheets(writer, data, pd, station, measurer)
+    if (!drawn.ok) return drawn
+    warnings.push(...drawn.value)
+  }
+  return ok({ pages: writer.pages, warnings, workIdsByPage: writer.workIdsByPage, stations })
 }

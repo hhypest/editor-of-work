@@ -1,4 +1,4 @@
-import type { PlanSheetData } from '@eow/planning/sheet-api'
+import type { PlanSheetData, PlanSheetStation, PlanSheetTable } from '@eow/planning/sheet-api'
 import { distance, formatPlaceSpec, err, ok, type Result } from '@eow/shared/kernel'
 import {
   datedChange,
@@ -16,9 +16,10 @@ import {
   shareIn,
   workVolume,
   type AnnualPlan,
+  type PlanArea,
 } from '@eow/planning/domain'
 
-type PdSheetTable = PlanSheetData['pds'][number]['tables'][number]
+type PdSheetTable = PlanSheetTable
 const number = (value: number): string => String(Math.round(value * 1e6) / 1e6).replace('.', ',')
 /**
  * Округление по десятичной записи: 1,255 → 1,26, а не 1,25 из-за двоичной погрешности
@@ -71,6 +72,7 @@ export function planSheetData(
           segments: pd.segments,
           works: [],
           tables: [],
+          stations: [],
         }
       const area = { kind: 'pd', pd: pd.id } as const
       const works = plan.works
@@ -133,31 +135,7 @@ export function planSheetData(
           }),
         })
       }
-      for (const [group, title] of [
-        ['current', 'План текущего содержания'],
-        ['capital', 'Капитальные работы'],
-        ['other', 'Прочие работы'],
-      ] as const) {
-        const rows = planRows(plan, area, group)
-        if (rows.length)
-          append(group, {
-            title,
-            columns: [
-              { title: 'Вид работ', width: 200 },
-              { title: 'Ед.', width: 25 },
-              { title: 'Расчёт', width: 55 },
-              { title: 'План', width: 55 },
-              { title: 'Потребность', width: 55 },
-            ],
-            rows: rows.map((r) => [
-              r.name,
-              r.unit,
-              number(r.computed),
-              number(r.value) + (r.manual ? ' *' : ''),
-              r.need === undefined ? '—' : number(r.need),
-            ]),
-          })
-      }
+      for (const [group, table] of groupTables(plan, area)) append(group, table)
       append('summary', {
         title: 'Показатели ПД',
         columns: [
@@ -237,23 +215,8 @@ export function planSheetData(
           w.note,
         ]),
       })
-      const indicators = indicatorsOf(plan, area)
-      if (indicators.length)
-        append('indicators', {
-          title: 'Ручные показатели ПД',
-          columns: [
-            { title: 'Показатель', width: 160 },
-            { title: 'Ед.', width: 30 },
-            { title: 'Значение', width: 60 },
-            { title: 'Примечание', width: 140 },
-          ],
-          rows: indicators.map((row) => [
-            row.name,
-            row.unit,
-            String(row.value).replace('.', ','),
-            row.note,
-          ]),
-        })
+      const indicators = indicatorsTable(plan, area, 'Ручные показатели ПД')
+      if (indicators) append('indicators', indicators)
       return {
         id: pd.id,
         name: pd.name,
@@ -262,7 +225,134 @@ export function planSheetData(
         segments: pd.segments,
         works,
         tables,
+        stations: hidden.includes('stations') ? [] : stationSheets(plan, pd.id),
       }
     }),
   })
+}
+
+const GROUPS = [
+  ['current', 'План текущего содержания'],
+  ['capital', 'Капитальные работы'],
+  ['other', 'Прочие работы'],
+] as const
+
+/** Таблицы плана по группам работ области: расчёт, план с отметкой ручного значения, потребность. */
+function groupTables(
+  plan: AnnualPlan,
+  area: PlanArea,
+): readonly (readonly [(typeof GROUPS)[number][0], PlanSheetTable])[] {
+  return GROUPS.flatMap(([group, title]) => {
+    const rows = planRows(plan, area, group)
+    if (!rows.length) return []
+    return [
+      [
+        group,
+        {
+          title,
+          columns: [
+            { title: 'Вид работ', width: 200 },
+            { title: 'Ед.', width: 25 },
+            { title: 'Расчёт', width: 55 },
+            { title: 'План', width: 55 },
+            { title: 'Потребность', width: 55 },
+          ],
+          rows: rows.map((r) => [
+            r.name,
+            r.unit,
+            number(r.computed),
+            number(r.value) + (r.manual ? ' *' : ''),
+            r.need === undefined ? '—' : number(r.need),
+          ]),
+        },
+      ] as const,
+    ]
+  })
+}
+
+function indicatorsTable(
+  plan: AnnualPlan,
+  area: PlanArea,
+  title: string,
+): PlanSheetTable | undefined {
+  const indicators = indicatorsOf(plan, area)
+  if (!indicators.length) return undefined
+  return {
+    title,
+    columns: [
+      { title: 'Показатель', width: 160 },
+      { title: 'Ед.', width: 30 },
+      { title: 'Значение', width: 60 },
+      { title: 'Примечание', width: 140 },
+    ],
+    rows: indicators.map((row) => [
+      row.name,
+      row.unit,
+      String(row.value).replace('.', ','),
+      row.note,
+    ]),
+  }
+}
+
+const objectText = (object: PlanSheetStation['works'][number]['object']): string =>
+  object === null
+    ? 'вся станция'
+    : `${object.kind === 'track' ? 'путь' : 'стрелка'} № ${object.number}`
+
+/**
+ * Листы станций ПД (ADR-0048): станции, привязанные к ПД, у которых есть раскладка схемы или
+ * работы. Работа попадает на лист станции, если её место указывает станцию, в том числе
+ * работа на главном пути с привязкой к станционному объекту.
+ */
+function stationSheets(plan: AnnualPlan, pd: string): readonly PlanSheetStation[] {
+  const sheets: PlanSheetStation[] = []
+  for (const station of plan.basis.stations.values()) {
+    if (station.pd !== pd) continue
+    const area = { kind: 'station', station: station.id } as const
+    const works = plan.works
+      .filter((w) => w.place.station === station.id)
+      .map((w) => {
+        const volume = workVolume(w, plan.basis)
+        const object = w.place.object
+        return {
+          id: w.id,
+          name: plan.basis.workKinds.get(w.kind)?.name ?? w.kind,
+          object: object ? { kind: object.kind, number: object.number } : null,
+          volume: Math.round(volume.amount * 1e6) / 1e6,
+          unit: volume.unit,
+          note: w.note,
+          callout: w.callout,
+        }
+      })
+    if (!station.layout && !works.length) continue
+    const tables: PlanSheetTable[] = groupTables(plan, area).map(([, table]) => table)
+    tables.push({
+      title: 'Ведомость работ станции',
+      workIds: works.map((w) => w.id),
+      columns: [
+        { title: '№', width: 12 },
+        { title: 'Вид работ', width: 120 },
+        { title: 'Объект', width: 90 },
+        { title: 'Объём', width: 60 },
+        { title: 'Примечание', width: 108 },
+      ],
+      rows: works.map((w, i) => [
+        String(i + 1),
+        w.name,
+        objectText(w.object),
+        `${number(w.volume)} ${w.unit}`,
+        w.note,
+      ]),
+    })
+    const indicators = indicatorsTable(plan, area, 'Ручные показатели станции')
+    if (indicators) tables.push(indicators)
+    sheets.push({
+      id: station.id,
+      name: station.name,
+      layout: station.layout ?? null,
+      works,
+      tables,
+    })
+  }
+  return sheets
 }

@@ -11,8 +11,8 @@ const source: PlanSheetData = {
   approval: { title: '', name: '', year: 2026 },
   lines: [],
   pds: [
-    { id: 'a', name: '<ПД-1>', pchu: 'Учебный', segments: [], works: [], tables: [] },
-    { id: 'b', name: 'ПД-2', pchu: 'Учебный', segments: [], works: [], tables: [] },
+    { id: 'a', name: '<ПД-1>', pchu: 'Учебный', segments: [], works: [], tables: [], stations: [] },
+    { id: 'b', name: 'ПД-2', pchu: 'Учебный', segments: [], works: [], tables: [], stations: [] },
   ],
 }
 const measurer: TextMeasurer = { width: (text, font) => mm(text.length * font.size.value * 0.5) }

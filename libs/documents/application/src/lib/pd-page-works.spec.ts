@@ -30,6 +30,7 @@ const source: PlanSheetData = {
       segments: [10, 20, 30, 40, 50, 60].map((km) => span(km, km + 1)),
       works: [10, 20, 30, 40, 50, 60].map((km, i) => work(`w${i}`, km)),
       tables: [],
+      stations: [],
     },
   ],
 }

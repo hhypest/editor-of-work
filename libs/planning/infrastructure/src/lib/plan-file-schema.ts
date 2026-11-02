@@ -139,7 +139,7 @@ const legacyLayout = z
     ),
   })
   .strict()
-export const snapshotSchema = snapshotV1Schema
+export const snapshotV2Schema = snapshotV1Schema
   .extend({
     stations: z.array(
       snapshotV1Schema.shape.stations.element
@@ -165,7 +165,7 @@ const placeV2 = z.union([
 export const planFileV2Schema = planFileV1Schema
   .extend({
     format: z.object({ version: z.literal(2), appVersion: id }).strict(),
-    edition: planFileV1Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
+    edition: planFileV1Schema.shape.edition.extend({ snapshot: snapshotV2Schema }).strict(),
     plan: planFileV1Schema.shape.plan
       .extend({
         works: z.array(planFileV1Schema.shape.plan.shape.works.element.extend({ place: placeV2 })),
@@ -367,7 +367,7 @@ export const planFileV7Schema = planFileV6Schema
   })
   .strict()
 /** v8: таблица «Показатели» на 01.01 двух лет для дистанции и ПД; ключ «dated» в составе листов ПД. */
-export const planFileSchema = planFileV7Schema
+export const planFileV8Schema = planFileV7Schema
   .extend({
     format: z.object({ version: z.literal(8), appVersion: id }).strict(),
     plan: planFileV7Schema.shape.plan
@@ -415,6 +415,133 @@ export const planFileSchema = planFileV7Schema
                     .strict(),
                 )
                 .max(10000),
+            })
+            .strict(),
+        ),
+      })
+      .strict(),
+  })
+  .strict()
+const cell = z.number().int().nonnegative().max(100_000)
+const layoutText = z.string().max(200)
+/** Раскладка схемы станции, формат паспорта версии 1 (ADR-0046). */
+const stationLayout = z
+  .object({
+    version: z.literal(1),
+    nodes: z
+      .array(
+        z
+          .object({
+            id,
+            col: cell,
+            row: cell,
+            kind: z.enum(['switch', 'end', 'bend', 'crossing']),
+            end: z.enum(['stop', 'open']).optional(),
+          })
+          .strict(),
+      )
+      .max(20_000),
+    tracks: z
+      .array(
+        z
+          .object({
+            id,
+            number: layoutText.nullable(),
+            kind: z.enum(['main', 'station', 'connector', 'siding']),
+            state: z.enum(['normal', 'closed', 'conserved']),
+            nodes: z.array(id).min(2).max(20_000),
+            fullLength: z.number().finite().nonnegative().nullable(),
+            capacity: layoutText.nullable(),
+          })
+          .strict(),
+      )
+      .max(5_000),
+    switches: z
+      .array(
+        z.object({ id, number: layoutText.nullable(), node: id, track: id, branch: id }).strict(),
+      )
+      .max(5_000),
+    derailers: z
+      .array(z.object({ id, number: layoutText, track: id, col: cell }).strict())
+      .max(5_000),
+    bridges: z
+      .array(
+        z
+          .object({ id, label: layoutText.nullable(), track: id, fromCol: cell, toCol: cell })
+          .strict(),
+      )
+      .max(1_000),
+    crossings: z
+      .array(
+        z
+          .object({
+            id,
+            label: layoutText,
+            km: z.number().int().nonnegative().nullable(),
+            pk: z.number().int().min(1).max(10).nullable(),
+            col: cell,
+            fromRow: cell,
+            toRow: cell,
+          })
+          .strict(),
+      )
+      .max(1_000),
+  })
+  .strict()
+  .superRefine((layout, ctx) => {
+    const nodes = new Set(layout.nodes.map((n) => n.id))
+    const tracks = new Set(layout.tracks.map((t) => t.id))
+    if (
+      layout.tracks.some((t) => t.nodes.some((n) => !nodes.has(n))) ||
+      layout.switches.some(
+        (s) => !nodes.has(s.node) || !tracks.has(s.track) || !tracks.has(s.branch),
+      ) ||
+      [...layout.derailers, ...layout.bridges].some((o) => !tracks.has(o.track))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Раскладка станции ссылается на неизвестные элементы',
+      })
+  })
+
+/** Срез с v9: раскладка схемы станции из паспорта. */
+export const snapshotSchema = snapshotV2Schema
+  .extend({
+    stations: z.array(
+      snapshotV2Schema.shape.stations.element.extend({ layout: stationLayout.optional() }).strict(),
+    ),
+  })
+  .strict()
+
+/** v9: срез паспорта хранит раскладку схемы станции; ключ «stations» скрывает листы станций ПД. */
+export const planFileSchema = planFileV8Schema
+  .extend({
+    format: z.object({ version: z.literal(9), appVersion: id }).strict(),
+    edition: planFileV8Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
+    plan: planFileV8Schema.shape.plan
+      .extend({
+        pdHiddenTables: z.array(
+          z
+            .object({
+              pd: id,
+              hidden: z
+                .array(
+                  z.enum([
+                    'dated',
+                    'current',
+                    'capital',
+                    'other',
+                    'summary',
+                    'works',
+                    'indicators',
+                    'expected',
+                    'contract',
+                    'isso',
+                    'zp',
+                    'stations',
+                  ]),
+                )
+                .max(12),
             })
             .strict(),
         ),

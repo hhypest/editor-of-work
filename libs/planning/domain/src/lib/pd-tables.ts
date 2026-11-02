@@ -13,6 +13,7 @@ export const PD_TABLE_KINDS = Object.freeze([
   'contract',
   'isso',
   'zp',
+  'stations',
 ] as const)
 export type PdTableKind = (typeof PD_TABLE_KINDS)[number]
 const EMPTY: readonly PdTableKind[] = Object.freeze([])

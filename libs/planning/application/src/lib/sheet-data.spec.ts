@@ -1,8 +1,11 @@
 import {
   addWork,
   createAnnualPlan,
+  sampleStationLayout,
   samplePlanBasis,
   setManualValue,
+  setPdHiddenTables,
+  setPlanIndicators,
   workId,
 } from '@eow/planning/domain'
 import { parsePlaceSpec, type Result } from '@eow/shared/kernel'
@@ -27,7 +30,7 @@ describe('Срез плана для листов', () => {
     const full = value(planSheetData(plan))
     const selected = value(planSheetData(plan, 'ПД-2'))
     expect(selected.pds[1]).toEqual(full.pds[1])
-    expect(selected.pds[0]).toEqual({ ...full.pds[0], works: [], tables: [] })
+    expect(selected.pds[0]).toEqual({ ...full.pds[0], works: [], tables: [], stations: [] })
     expect(selected.lines).toEqual(full.lines)
     expect(planSheetData(plan, 'нет ПД')).toMatchObject({ ok: false })
     expect(value(planSheetData(plan))).toEqual(full)
@@ -91,6 +94,70 @@ describe('Срез плана для листов', () => {
         .filter((t) => !t.workIds)
         .every((t) => t.title !== 'Ведомость работ ПД'),
     ).toBe(true)
+  })
+  it('собирает лист станции ПД: раскладку, работы с объектами и таблицы станции', () => {
+    const basis = samplePlanBasis()
+    let plan = value(createAnnualPlan(2027, basis))
+    const spec = value(parsePlaceSpec('20+100', 'L1', basis.lines.get('L1')!.kmLengths))
+    plan = value(
+      addWork(plan, workId('a'), {
+        kind: 'КСП',
+        place: { kind: 'station', station: 'S1', object: { kind: 'switch', number: '3' } },
+        volume: 2,
+        note: 'Учебная',
+        callout: true,
+      }),
+    )
+    plan = value(
+      addWork(plan, workId('b'), {
+        kind: 'ППР',
+        place: { kind: 'station', station: 'S1' },
+        volume: 0.5,
+        note: '',
+        callout: false,
+      }),
+    )
+    plan = value(
+      addWork(plan, workId('c'), {
+        kind: 'ППРК',
+        place: { kind: 'line', spec, station: 'S1', object: { kind: 'track', number: '1' } },
+        volume: 0.2,
+        note: '',
+        callout: true,
+      }),
+    )
+    plan = value(
+      setPlanIndicators(plan, { kind: 'station', station: 'S1' }, [
+        { id: 'i', name: 'Учебный показатель', unit: 'шт', value: 1.5, note: '' },
+      ]),
+    )
+    const source = value(planSheetData(plan, 'ПД-2'))
+    const [station] = source.pds[1]!.stations
+    expect(source.pds[0]?.stations).toEqual([])
+    expect(station?.layout).toEqual(sampleStationLayout())
+    expect(station?.works.map((w) => [w.id, w.object, w.volume, w.callout])).toEqual([
+      ['a', { kind: 'switch', number: '3' }, 2, true],
+      ['b', null, 0.5, false],
+      ['c', { kind: 'track', number: '1' }, 0.2, true],
+    ])
+    expect(station?.tables.map((t) => t.title)).toEqual([
+      'План текущего содержания',
+      'Капитальные работы',
+      'Ведомость работ станции',
+      'Ручные показатели станции',
+    ])
+    const statement = station!.tables[2]!
+    expect(statement.workIds).toEqual(['a', 'b', 'c'])
+    expect(statement.rows.map((r) => r[2])).toEqual(['стрелка № 3', 'вся станция', 'путь № 1'])
+    expect(statement.columns.reduce((n, c) => n + c.width, 0)).toBe(390)
+    const hidden = value(setPdHiddenTables(plan, 'ПД-2', ['stations']))
+    expect(value(planSheetData(hidden, 'ПД-2')).pds[1]?.stations).toEqual([])
+  })
+  it('не выводит лист станции без раскладки и работ', () => {
+    const basis = samplePlanBasis()
+    const { layout: _, ...bare } = basis.stations.get('S1')!
+    const plan = value(createAnnualPlan(2027, { ...basis, stations: new Map([['S1', bare]]) }))
+    expect(value(planSheetData(plan)).pds[1]?.stations).toEqual([])
   })
   it('отклоняет чрезмерный план до расчёта таблиц, сохраняя исходный снимок', () => {
     const plan = value(createAnnualPlan(2027, samplePlanBasis()))

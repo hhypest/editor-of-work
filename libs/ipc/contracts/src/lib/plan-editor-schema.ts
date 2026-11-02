@@ -16,6 +16,7 @@ const pdTableKey = z.enum([
   'contract',
   'isso',
   'zp',
+  'stations',
 ])
 const itemTable = z.enum(['contract', 'isso', 'zp'])
 export const editorDraftSchema = z
@@ -36,7 +37,7 @@ export const editorActionSchema = z.discriminatedUnion('kind', [
   z
     .object({
       kind: z.literal('pdTables'),
-      hidden: z.array(pdTableKey).max(11),
+      hidden: z.array(pdTableKey).max(12),
     })
     .strict(),
   z
@@ -140,6 +141,7 @@ const view = z
     canRedo: z.boolean(),
     area: id,
     pdScale: z.union([z.literal(25000), z.literal(50000), z.literal(100000)]).nullable(),
+    sheetPd: id.nullable(),
     pdTables: z
       .array(
         z
@@ -150,7 +152,7 @@ const view = z
           })
           .strict(),
       )
-      .max(11),
+      .max(12),
     items: z
       .array(
         z

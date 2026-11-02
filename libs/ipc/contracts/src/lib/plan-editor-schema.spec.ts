@@ -7,9 +7,11 @@ describe('Контракт редактора', () => {
       revision: 1,
       area: 'pd:a',
     })
-    expect(channels.planFile.request.safeParse(request(['works', 'current'])).success).toBe(true)
+    expect(
+      channels.planFile.request.safeParse(request(['works', 'current', 'stations'])).success,
+    ).toBe(true)
     expect(channels.planFile.request.safeParse(request([])).success).toBe(true)
-    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 12 }, () => 'works')])
+    for (const hidden of [['unknown'], [1], 'works', Array.from({ length: 13 }, () => 'works')])
       expect(channels.planFile.request.safeParse(request(hidden)).success).toBe(false)
     expect(
       channels.planFile.request.safeParse({ ...request([]), path: '/unexpected' }).success,

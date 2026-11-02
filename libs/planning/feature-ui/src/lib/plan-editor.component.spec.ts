@@ -15,7 +15,7 @@ const state: EditorState = {
     canUndo: true,
     canRedo: true,
     lines: [{ id: 'l', name: '<УЧЕБНОЕ>' }],
-    stations: [{ id: 's', name: 'УЧЕБНАЯ', tracks: ['1'], switches: ['3'] }],
+    stations: [{ id: 's', name: 'УЧЕБНАЯ', tracks: ['1'], switches: ['3'], layout: null }],
     kinds: [{ code: 'work', name: 'Учебная выправка', unit: 'км' }],
     areas: [
       { key: 'district', label: 'Дистанция' },

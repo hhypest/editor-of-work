@@ -62,6 +62,7 @@ export class PlanEditorComponent {
         busy: this.facade.busy(),
         pending: this.facade.pending(),
         pdScale: state?.view?.pdScale ?? null,
+        sheetPd: state?.view?.sheetPd ?? null,
         planEpoch: this.facade.planEpoch(),
       })
     })

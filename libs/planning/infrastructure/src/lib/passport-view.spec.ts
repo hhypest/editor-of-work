@@ -1,5 +1,6 @@
 import { err, ok, spanLength } from '@eow/shared/kernel'
 import { createPlanFromPassport } from '@eow/planning/application'
+import { sampleStationLayout } from '@eow/planning/domain'
 import { decodePlan, encodePlan } from './plan-file'
 import {
   passportPlanBasis,
@@ -22,7 +23,9 @@ function data(): PassportPlanData {
         kmLengths: [[20, 964]],
       },
     ],
-    stations: [{ id: 'station', name: 'Учебная станция', tracks: ['1'], switches: ['3'] }],
+    stations: [
+      { id: 'station', name: 'Учебная станция', tracks: ['1'], switches: ['3'], layout: null },
+    ],
     org: {
       subdivisions: [
         {
@@ -134,6 +137,15 @@ describe('Адаптер паспорта для нового плана', () =>
     const text = encodePlan(plan.value, 'test')
     if (!text.ok) throw new Error(text.error.message)
     expect(decodePlan(text.value)).toEqual(plan)
+  })
+  it('переносит раскладку схемы станции в срез плана', () => {
+    const layout = sampleStationLayout()
+    const basis = passportPlanBasis({
+      ...data(),
+      stations: [{ ...data().stations[0]!, layout }],
+    })
+    if (!basis.ok) throw new Error(basis.error.message)
+    expect(basis.value.stations[0]?.layout).toEqual(layout)
   })
   it('не принимает черновик по прямому запросу и возвращает ошибки чтения', async () => {
     expect(

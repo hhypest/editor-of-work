@@ -41,12 +41,13 @@ import {
   planFileV5Schema,
   planFileV6Schema,
   planFileV7Schema,
+  planFileV8Schema,
   snapshotSchema,
   type BasisSnapshot,
   type PlanFile,
 } from './plan-file-schema'
 
-export const PLAN_FORMAT_VERSION = 8
+export const PLAN_FORMAT_VERSION = 9
 type FileResult<T> = Result<T, PlanStoreError>
 
 function invalid(message: string): PlanStoreError {
@@ -55,6 +56,15 @@ function invalid(message: string): PlanStoreError {
 
 /** Последовательные преобразования vN → vN+1; схема каждой прежней версии сохраняется. */
 const migrations: ReadonlyMap<number, (file: unknown) => unknown> = new Map([
+  [
+    8,
+    (file) => {
+      // Срез v8 не знает раскладок станций: листы станций такого плана выходят без схемы.
+      const parsed = planFileV8Schema.safeParse(file)
+      if (!parsed.success) return file
+      return { ...parsed.data, format: { ...parsed.data.format, version: 9 } }
+    },
+  ],
   [
     7,
     (file) => {
@@ -284,11 +294,12 @@ function restoreBasis(file: PlanFile): FileResult<PlanBasis> {
     edition: { number: file.edition.number, date: file.edition.date },
     lines,
     stations: snapshot.stations.map((s) => {
-      const { legacyLayout, ...rest } = s
+      const { legacyLayout, layout, ...rest } = s
       return {
         ...rest,
         pd: s.pd ?? undefined,
         ...(legacyLayout === undefined ? {} : { legacyLayout }),
+        ...(layout === undefined ? {} : { layout }),
       }
     }),
     pds: snapshot.pds,

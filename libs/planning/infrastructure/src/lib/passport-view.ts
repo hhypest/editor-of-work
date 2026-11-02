@@ -17,6 +17,7 @@ import {
   trackSpan,
   type Chainage,
   type Result,
+  type StationLayout,
   type TrackSpan,
 } from '@eow/shared/kernel'
 
@@ -41,6 +42,7 @@ export interface PassportPlanData {
     readonly name: string
     readonly tracks: readonly string[]
     readonly switches: readonly string[]
+    readonly layout: StationLayout | null
   }[]
   readonly org: OrgData
   readonly manual: ManualData
@@ -160,6 +162,7 @@ export function passportPlanBasis(
       tracks: [...station.tracks],
       switches: [...station.switches],
       pd: [...bindings][0],
+      ...(station.layout === null ? {} : { layout: station.layout }),
     })
   }
   const workKinds: WorkKind[] = []

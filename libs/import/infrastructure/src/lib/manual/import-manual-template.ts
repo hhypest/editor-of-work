@@ -60,7 +60,11 @@ export async function prepareManualTemplate(
         .map((e) => `Лист «${e.sheet}», строка ${e.row}, «${e.column}»: ${e.message}`)
         .join('\n'),
     })
-  if (read.value.date !== basis.date || read.value.basisToken !== basis.token)
+  // Книга формата 1 выдана до листа «Руководители»: её отпечаток считался без него.
+  const current =
+    read.value.basisToken === basis.token ||
+    (read.value.keepHeads && read.value.basisToken === basis.legacyToken)
+  if (read.value.date !== basis.date || !current)
     return err({
       kind: 'invalid-import',
       message:

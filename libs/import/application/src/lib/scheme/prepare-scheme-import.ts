@@ -1,4 +1,4 @@
-import { err, ok, type Result } from '@eow/shared/kernel'
+import { err, layoutNumberKey, layoutSwitchKey, ok, type Result } from '@eow/shared/kernel'
 import {
   checkStationLayout,
   type OrgImportError,
@@ -12,7 +12,6 @@ import {
 import type { SchemeDrawing } from './scheme-drawing'
 import { recognizeScheme, type RecognizedScheme } from './recognize-scheme'
 import { schemeToLayout } from './scheme-layout'
-import { objectLabel } from './scheme-texts'
 
 /** Прочитанный PDF схемы или причина, по которой его не удалось прочитать. */
 export interface SchemeSourceFile {
@@ -32,15 +31,9 @@ export const stationKey = (name: string): string =>
     .replaceAll('ё', 'е')
     .replace(/[\s"«»]+/gu, '')
 
-/** «IIСев», «8СО», «3 ав» — номер без регистра и пробелов; кириллическая «І» как латинская. */
-export const numberKey = (value: string): string =>
-  value.toUpperCase().replaceAll('І', 'I').replaceAll('Ё', 'Е').replace(/\s+/gu, '')
-
-/** Номер стрелки из экспликации по тем же правилам суффиксов, что и подпись на схеме. */
-const switchKey = (value: string): string => {
-  const label = objectLabel(value)
-  return numberKey(label && label.kind !== 'ignored' ? label.number : value)
-}
+/** Номер пути и стрелки сверяется по общим правилам ядра: так же сверяют листы станций. */
+export const numberKey = layoutNumberKey
+const switchKey = layoutSwitchKey
 
 export function prepareSchemeImport(
   files: readonly SchemeSourceFile[],

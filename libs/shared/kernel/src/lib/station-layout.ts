@@ -78,3 +78,31 @@ export interface StationLayout {
   readonly bridges: readonly LayoutBridge[]
   readonly crossings: readonly LayoutCrossing[]
 }
+
+/** «IIСев», «8СО», «3 ав» — номер без регистра и пробелов; кириллическая «І» как латинская. */
+export const layoutNumberKey = (value: string): string =>
+  value.toUpperCase().replaceAll('І', 'I').replaceAll('Ё', 'Е').replace(/\s+/gu, '')
+
+/** Суффиксы номера стрелки, которые не меняют стрелку: автовозврат, «р», «п» (ADR-0046). */
+export const IGNORED_SWITCH_SUFFIXES = ['ав', 'р', 'п'] as const
+
+/**
+ * Номер стрелки для сверки паспорта, схемы и плана: «15р», «13 ав» и «15» — одна стрелка,
+ * «8со ав» и «8рсо» — остряк «8со», прочие буквы («1а») остаются частью номера.
+ */
+export function layoutSwitchKey(value: string): string {
+  const match = /^(\d+)([а-яё\s]*)$/iu.exec(value.trim())
+  const digits = match?.[1]
+  if (!digits) return layoutNumberKey(value)
+  let rest = (match[2] ?? '').toLowerCase().replace(/\s+/gu, '')
+  if (/^р?со(?:ав)?$/u.test(rest)) return layoutNumberKey(`${digits}со`)
+  for (let changed = true; changed;) {
+    changed = false
+    for (const suffix of IGNORED_SWITCH_SUFFIXES)
+      if (rest.endsWith(suffix)) {
+        rest = rest.slice(0, -suffix.length)
+        changed = true
+      }
+  }
+  return /^[а-яё]{0,2}$/u.test(rest) ? layoutNumberKey(digits + rest) : layoutNumberKey(value)
+}

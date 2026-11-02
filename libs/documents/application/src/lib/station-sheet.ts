@@ -1,10 +1,22 @@
-import { err, ok, type Result, type StationLayout } from '@eow/shared/kernel'
+import {
+  err,
+  layoutNumberKey,
+  layoutSwitchKey,
+  ok,
+  type Result,
+  type StationLayout,
+} from '@eow/shared/kernel'
 import type { PlanSheetData, PlanSheetStation } from '@eow/planning/sheet-api'
 import { mm, type SheetError, type SheetPrimitive, type TextMeasurer } from './sheet-model'
 import { bold, narrow, textBlock } from './sheet-text'
 import { sheetLine as line, sheetRect as rect, sheetText as text } from './sheet-drawing'
-import { packCallouts, type CalloutInput } from './callout-packing'
-import type { SheetWriter } from './sheet-pages'
+import {
+  packCallouts,
+  type CalloutBand,
+  type CalloutInput,
+  type PackedCallout,
+} from './callout-packing'
+import { SHEET_BOTTOM, SHEET_TOP, type SheetWriter } from './sheet-pages'
 
 type Pd = PlanSheetData['pds'][number]
 interface Point {
@@ -150,17 +162,22 @@ function drawScheme(
     label(c.label, top.x + 0.8, Math.max(2.5, top.y - step / 2 - 0.8))
   }
   const anchors = new Map<string, Point>()
+  // Номера сверяются по правилам импорта схемы: «3р» в паспорте — стрелка «3» на схеме.
   const trackByNumber = new Map(
-    layout.tracks.flatMap((t) => (t.number === null ? [] : [[t.number, t] as const])),
+    layout.tracks.flatMap((t) =>
+      t.number === null ? [] : [[layoutNumberKey(t.number), t] as const],
+    ),
   )
   const switchByNumber = new Map(
-    layout.switches.flatMap((s) => (s.number === null ? [] : [[s.number, s] as const])),
+    layout.switches.flatMap((s) =>
+      s.number === null ? [] : [[layoutSwitchKey(s.number), s] as const],
+    ),
   )
   const missing: string[] = []
   for (const w of works) {
     if (!w.object) continue
     if (w.object.kind === 'track') {
-      const track = trackByNumber.get(w.object.number)
+      const track = trackByNumber.get(layoutNumberKey(w.object.number))
       const points = track ? (trackPoints.get(track.id) ?? []) : []
       const middle = trackMiddle(points)
       if (!track || !middle) {
@@ -170,7 +187,7 @@ function drawScheme(
       for (const [a, b] of segments(points)) highlight.push(thick(a, b, 2.4, { shade: true }))
       anchors.set(w.id, middle)
     } else {
-      const s = switchByNumber.get(w.object.number)
+      const s = switchByNumber.get(layoutSwitchKey(w.object.number))
       const node = s && nodes.get(s.node)
       if (!node) {
         missing.push(objectText(w.object))
@@ -226,6 +243,40 @@ function drawScheme(
     center: { x: 210, y: extent.y / 2 + PAD / 2 },
     missing,
   })
+}
+
+/**
+ * Перекладывает полосы выносок в блоки не выше room: полосы идут подряд сверху вниз,
+ * блок закрывается, когда следующая полоса в него не помещается. undefined — одна
+ * полоса выше room.
+ */
+function splitBands(
+  bands: readonly CalloutBand[],
+  room: number,
+): readonly CalloutBand[] | undefined {
+  const lanes: { readonly boxes: readonly PackedCallout[]; readonly height: number }[] = []
+  for (const band of bands) {
+    const tops = [...new Set(band.boxes.map((b) => b.y))].toSorted((a, b) => a - b)
+    for (const top of tops) {
+      const boxes = band.boxes.filter((b) => b.y === top)
+      lanes.push({ boxes, height: Math.max(...boxes.map((b) => b.height)) })
+    }
+  }
+  if (lanes.some((lane) => lane.height > room)) return undefined
+  const result: CalloutBand[] = []
+  let boxes: PackedCallout[] = [],
+    y = 0
+  for (const lane of lanes) {
+    if (y && y + lane.height > room) {
+      result.push({ boxes, height: y - 3 })
+      boxes = []
+      y = 0
+    }
+    boxes.push(...lane.boxes.map((b) => ({ ...b, y })))
+    y += lane.height + 3
+  }
+  result.push({ boxes, height: y ? y - 3 : 0 })
+  return result
 }
 
 const move = (shapes: readonly SheetPrimitive[], dy: number): SheetPrimitive[] =>
@@ -292,15 +343,19 @@ export function drawStationSheets(
     }
     const packed = packCallouts(callouts, measurer)
     if (!packed.ok) return packed
-    for (const [bandIndex, band] of packed.value.entries()) {
+    // Полосы выносок делятся по высоте, оставшейся под схемой на пустом листе: такой блок
+    // всегда помещается на новом листе и не выходит за рабочую область.
+    const room = SHEET_BOTTOM - SHEET_TOP - 12 - scheme.value.height
+    const bands = splitBands(packed.value, room)
+    if (!bands)
+      return err({ message: `Станция «${station.name}»: схема слишком высока для выносок.` })
+    for (const [bandIndex, band] of bands.entries()) {
       const height = 6 + scheme.value.height + (band.height ? band.height + 6 : 0)
       if (!writer.fits(height)) {
-        if (writer.empty)
-          return err({
-            message: `Выноски станции «${station.name}» не помещаются на лист со схемой. Сократите тексты выносок.`,
-          })
         const saved = writer.flush()
         if (!saved.ok) return saved
+        if (!writer.fits(height))
+          return err({ message: `Станция «${station.name}»: схема с выносками выше листа.` })
       }
       const y = writer.y
       const title = textBlock(

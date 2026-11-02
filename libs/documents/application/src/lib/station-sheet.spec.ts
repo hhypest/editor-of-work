@@ -207,7 +207,7 @@ describe('Листы станций', () => {
   })
 
   it('повторяет схему для избытка выносок и переносит таблицы на следующий лист', () => {
-    const many = Array.from({ length: 30 }, (_, i) => work(`m${i}`, { kind: 'track', number: '3' }))
+    const many = Array.from({ length: 90 }, (_, i) => work(`m${i}`, { kind: 'track', number: '3' }))
     const document = built([
       {
         ...station,
@@ -223,7 +223,7 @@ describe('Листы станций', () => {
     ])
     const stationTexts = document.pages.slice(1).flatMap((p) => texts(p.primitives))
     expect(stationTexts).toContain('Схема станции Озёрная · выноски (продолжение)')
-    for (let i = 1; i <= 30; i++)
+    for (let i = 1; i <= 90; i++)
       expect(stationTexts.some((t) => t.startsWith(`${i}. Учебный ремонт`))).toBe(true)
     expect(document.pages.length).toBeGreaterThan(2)
     expect(new Set(document.workIdsByPage.slice(1).flat())).toEqual(new Set(many.map((w) => w.id)))
@@ -238,5 +238,55 @@ describe('Листы станций', () => {
       ok: false,
       error: { message: 'Станция «Озёрная»: раскладка схемы ссылается на неизвестные узлы.' },
     })
+  })
+
+  it('сверяет номер стрелки и пути по правилам импорта схемы', () => {
+    const document = built([
+      {
+        ...station,
+        works: [
+          work('a', { kind: 'switch', number: '5р' }),
+          work('b', { kind: 'track', number: ' 3 ' }),
+        ],
+      },
+    ])
+    expect(document.warnings).toEqual([])
+    const page = document.pages[1]!
+    expect(page.primitives.filter((s) => s.kind === 'circle' && s.shade)).toHaveLength(1)
+    expect(page.primitives.filter((s) => s.kind === 'line' && s.shade)).toHaveLength(3)
+  })
+
+  it('делит выноски высокой схемы по месту на листе и не выходит за рабочую область', () => {
+    const tall: StationLayout = {
+      ...layout,
+      nodes: [...layout.nodes, { id: 'z', col: 44, row: 12, kind: 'end', end: 'stop' }],
+      tracks: [
+        ...layout.tracks,
+        {
+          id: 't9',
+          number: '9',
+          kind: 'station',
+          state: 'normal',
+          nodes: ['s3', 'z'],
+          fullLength: null,
+          capacity: null,
+        },
+      ],
+    }
+    const long = 'Учебный ремонт с очень длинным названием работы для проверки переноса строк '
+    const works = Array.from({ length: 24 }, (_, i) => ({
+      ...work(`m${i}`, { kind: 'track', number: i % 2 ? '3' : '9' }),
+      name: long.repeat(3),
+    }))
+    const document = built([{ ...station, layout: tall, works, tables: [] }])
+    const stationPages = document.pages.slice(1)
+    expect(stationPages.length).toBeGreaterThan(1)
+    for (const page of stationPages)
+      for (const shape of page.primitives) {
+        if (shape.kind !== 'rect' || shape.width.value !== 68) continue
+        expect(shape.y.value + shape.height.value).toBeLessThanOrEqual(245)
+      }
+    const all = stationPages.flatMap((p) => texts(p.primitives))
+    for (let i = 1; i <= 24; i++) expect(all.some((t) => t.startsWith(`${i}. Учебный`))).toBe(true)
   })
 })

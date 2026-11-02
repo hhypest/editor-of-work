@@ -51,6 +51,9 @@
         >
           {{ text.redo }}
         </button>
+        <button type="button" (click)="add('building')">{{ text.addBuilding }}</button>
+        <button type="button" (click)="add('platform')">{{ text.addPlatform }}</button>
+        <button type="button" (click)="add('crossing')">{{ text.addCrossing }}</button>
         <button
           type="button"
           class="primary"
@@ -72,75 +75,339 @@
     @if (facade.editError(); as problem) {
       <p role="alert" class="problem">{{ problem }}</p>
     }
-    <div class="scheme" tabindex="-1">
-      <svg
-        role="img"
-        [attr.aria-label]="'Схема станции ' + (facade.station() ?? '')"
-        [attr.viewBox]="'0 0 ' + drawing.width + ' ' + drawing.height"
-        [attr.width]="drawing.width"
-        [attr.height]="drawing.height"
-        (pointermove)="moveDrag($event)"
-        (pointerup)="endDrag()"
-        (pointercancel)="endDrag()"
-      >
-        @for (c of drawing.crossings; track c.id) {
-          <g class="crossing">
-            <line [attr.x1]="c.x" [attr.y1]="c.top" [attr.x2]="c.x" [attr.y2]="c.bottom" />
-            <text [attr.x]="c.x + 4" [attr.y]="c.top + 10">{{ c.label }}</text>
-          </g>
-        }
-        @for (t of drawing.tracks; track t.id) {
-          <polyline
-            [attr.points]="pointsOf(t.points)"
-            [class]="'track ' + t.kind + ' ' + t.state"
-          />
-          @if (t.label; as label) {
-            <text class="track-label" [attr.x]="label.at.x" [attr.y]="label.at.y">
-              {{ label.text }}
-            </text>
+    <div class="workspace">
+      <div class="scheme" tabindex="-1">
+        <svg
+          role="img"
+          [attr.aria-label]="'Схема станции ' + (facade.station() ?? '')"
+          [attr.viewBox]="'0 0 ' + drawing.width + ' ' + drawing.height"
+          [attr.width]="drawing.width"
+          [attr.height]="drawing.height"
+          (pointermove)="moveDrag($event)"
+          (pointerup)="endDrag()"
+          (pointercancel)="endDrag()"
+        >
+          @for (o of drawing.objects; track o.id) {
+            <g
+              [class]="'object ' + o.kind"
+              [class.selected]="facade.selected()?.id === o.id"
+              [class.editable]="facade.editable()"
+              tabindex="0"
+              [attr.aria-label]="text.objectKinds[o.kind] + (o.label ? ' ' + o.label : '')"
+              (pointerdown)="startObjectDrag($event, o.id)"
+              (keydown)="nudgeElement($event, { kind: 'object', id: o.id })"
+            >
+              <rect [attr.x]="o.x" [attr.y]="o.y" [attr.width]="o.width" [attr.height]="o.height" />
+              @if (o.label) {
+                <text [attr.x]="o.x + o.width / 2" [attr.y]="o.y + o.height / 2 + 4">
+                  {{ o.label }}
+                </text>
+              }
+            </g>
           }
-        }
-        @for (b of drawing.bridges; track b.id) {
-          <line
-            class="bridge"
-            [attr.x1]="b.from.x"
-            [attr.y1]="b.from.y"
-            [attr.x2]="b.to.x"
-            [attr.y2]="b.to.y"
-          />
-        }
-        @for (d of drawing.derailers; track d.id) {
-          <g class="derailer">
-            <path [attr.d]="'M' + d.x + ' ' + d.y + ' l 8 8'" />
-            <text [attr.x]="d.x + 9" [attr.y]="d.y + 16">{{ d.label }}</text>
-          </g>
-        }
-        @for (n of drawing.nodes; track n.id) {
-          <circle
-            [class]="'node ' + n.kind + (n.end ? ' ' + n.end : '')"
-            [class.editable]="facade.editable()"
-            [attr.cx]="n.x"
-            [attr.cy]="n.y"
-            [attr.r]="n.kind === 'switch' ? 5 : 4"
-            [attr.tabindex]="facade.editable() ? 0 : null"
-            [attr.aria-label]="n.label ? 'Стрелка ' + n.label : 'Узел пути'"
-            (pointerdown)="startDrag($event, n)"
-            (keydown)="nudge($event, n)"
-          />
-          @if (n.label) {
-            <text class="switch-label" [attr.x]="n.x + 6" [attr.y]="n.y + 16">{{ n.label }}</text>
+          @for (c of drawing.crossings; track c.id) {
+            <g
+              class="crossing"
+              [class.selected]="facade.selected()?.id === c.id"
+              [class.editable]="facade.editable()"
+              tabindex="0"
+              [attr.aria-label]="c.label"
+              (pointerdown)="startCrossingDrag($event, c.id)"
+              (keydown)="nudgeElement($event, { kind: 'crossing', id: c.id })"
+            >
+              <line
+                class="hit"
+                [attr.x1]="c.x"
+                [attr.y1]="c.top"
+                [attr.x2]="c.x"
+                [attr.y2]="c.bottom"
+              />
+              <line [attr.x1]="c.x" [attr.y1]="c.top" [attr.x2]="c.x" [attr.y2]="c.bottom" />
+              <text [attr.x]="c.x + 4" [attr.y]="c.top + 10">{{ c.label }}</text>
+            </g>
           }
-          @if (n.end === 'stop') {
+          @for (t of drawing.tracks; track t.id) {
+            <polyline
+              class="hit"
+              [attr.points]="pointsOf(t.points)"
+              (click)="select({ kind: 'track', id: t.id })"
+            />
+            <polyline
+              [attr.points]="pointsOf(t.points)"
+              [class]="'track ' + t.kind + ' ' + t.state"
+              [class.selected]="facade.selected()?.id === t.id"
+              (click)="select({ kind: 'track', id: t.id })"
+            />
+            @if (t.label; as label) {
+              <text class="track-label" [attr.x]="label.at.x" [attr.y]="label.at.y">
+                {{ label.text }}
+              </text>
+            }
+          }
+          @for (b of drawing.bridges; track b.id) {
             <line
-              class="stop"
-              [attr.x1]="n.x"
-              [attr.y1]="n.y - 8"
-              [attr.x2]="n.x"
-              [attr.y2]="n.y + 8"
+              class="bridge"
+              [attr.x1]="b.from.x"
+              [attr.y1]="b.from.y"
+              [attr.x2]="b.to.x"
+              [attr.y2]="b.to.y"
             />
           }
+          @for (d of drawing.derailers; track d.id) {
+            <g class="derailer">
+              <path [attr.d]="'M' + d.x + ' ' + d.y + ' l 8 8'" />
+              <text [attr.x]="d.x + 9" [attr.y]="d.y + 16">{{ d.label }}</text>
+            </g>
+          }
+          @for (n of drawing.nodes; track n.id) {
+            <circle
+              [class]="'node ' + n.kind + (n.end ? ' ' + n.end : '')"
+              [class.editable]="facade.editable()"
+              [class.selected]="n.switchId !== null && facade.selected()?.id === n.switchId"
+              [attr.cx]="n.x"
+              [attr.cy]="n.y"
+              [attr.r]="n.kind === 'switch' ? 5 : 4"
+              [attr.tabindex]="facade.editable() ? 0 : null"
+              [attr.aria-label]="n.label ? 'Стрелка ' + n.label : 'Узел пути'"
+              (pointerdown)="startDrag($event, n)"
+              (click)="n.switchId !== null && select({ kind: 'switch', id: n.switchId })"
+              (keydown)="nudge($event, n)"
+            />
+            @if (n.label && n.labelAt) {
+              <text class="switch-label" [attr.x]="n.labelAt.x" [attr.y]="n.labelAt.y">
+                {{ n.label }}
+              </text>
+            }
+            @if (n.end === 'stop') {
+              <line
+                class="stop"
+                [attr.x1]="n.x"
+                [attr.y1]="n.y - 8"
+                [attr.x2]="n.x"
+                [attr.y2]="n.y + 8"
+              />
+            }
+          }
+        </svg>
+      </div>
+      <aside class="card" aria-labelledby="station-card-title">
+        <h3 id="station-card-title">{{ text.card }}</h3>
+        @switch (facade.card()?.kind) {
+          @case ('track') {
+            @if (facade.card(); as card) {
+              @if (card.kind === 'track') {
+                <dl>
+                  <dt>{{ text.trackTitle }}</dt>
+                  <dd>{{ card.track.number ?? '—' }}</dd>
+                  <dt>{{ text.kind }}</dt>
+                  <dd>{{ text.kinds[card.track.kind] }}</dd>
+                  <dt>{{ text.state }}</dt>
+                  <dd>{{ text.states[card.track.state] }}</dd>
+                  <dt>{{ text.length }}</dt>
+                  <dd>{{ card.track.fullLength ?? '—' }}</dd>
+                  <dt>{{ text.capacity }}</dt>
+                  <dd>{{ card.track.capacity ?? '—' }}</dd>
+                </dl>
+                @if (facade.editable() && card.track.kind !== 'connector') {
+                  <label>
+                    {{ text.number }}
+                    <input
+                      [value]="card.track.number ?? ''"
+                      (change)="renumberTrack(card.track.id, $event)"
+                    />
+                  </label>
+                }
+              }
+            }
+          }
+          @case ('switch') {
+            @if (facade.card(); as card) {
+              @if (card.kind === 'switch') {
+                <dl>
+                  <dt>{{ text.switchTitle }}</dt>
+                  <dd>{{ card.item.number ?? '—' }}</dd>
+                  <dt>{{ text.track }}</dt>
+                  <dd>{{ facade.trackNames().get(card.item.track) }}</dd>
+                  <dt>{{ text.branch }}</dt>
+                  <dd>{{ facade.trackNames().get(card.item.branch) }}</dd>
+                </dl>
+                @if (facade.editable()) {
+                  <label>
+                    {{ text.number }}
+                    <input
+                      [value]="card.item.number ?? ''"
+                      (change)="renumberSwitch(card.item.id, $event)"
+                    />
+                  </label>
+                }
+              }
+            }
+          }
+          @case ('crossing') {
+            @if (facade.card(); as card) {
+              @if (card.kind === 'crossing') {
+                <p>{{ text.crossing }} · {{ text.column }} {{ card.crossing.col }}</p>
+                <fieldset [disabled]="!facade.editable()">
+                  <label>
+                    {{ text.label }}
+                    <input
+                      [value]="card.crossing.label"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-crossing',
+                          crossing: card.crossing.id,
+                          change: { label: textValue($event) },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.km }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.crossing.km ?? ''"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-crossing',
+                          crossing: card.crossing.id,
+                          change: { km: numberValue($event) },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.pk }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.crossing.pk ?? ''"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-crossing',
+                          crossing: card.crossing.id,
+                          change: { pk: numberValue($event) },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.fromRow }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.crossing.fromRow"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-crossing',
+                          crossing: card.crossing.id,
+                          change: { fromRow: numberValue($event) ?? -1 },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.toRow }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.crossing.toRow"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-crossing',
+                          crossing: card.crossing.id,
+                          change: { toRow: numberValue($event) ?? -1 },
+                        })
+                      "
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    (click)="facade.edit({ kind: 'remove-crossing', crossing: card.crossing.id })"
+                  >
+                    {{ text.remove }}
+                  </button>
+                </fieldset>
+              }
+            }
+          }
+          @case ('object') {
+            @if (facade.card(); as card) {
+              @if (card.kind === 'object') {
+                <p>
+                  {{ text.column }} {{ card.object.col }} · {{ text.row }} {{ card.object.row }}
+                </p>
+                <fieldset [disabled]="!facade.editable()">
+                  <label>
+                    {{ text.kind }}
+                    <select
+                      [value]="card.object.kind"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-object',
+                          object: card.object.id,
+                          change: {
+                            kind: textValue($event) === 'platform' ? 'platform' : 'building',
+                          },
+                        })
+                      "
+                    >
+                      <option value="building">{{ text.objectKinds.building }}</option>
+                      <option value="platform">{{ text.objectKinds.platform }}</option>
+                    </select>
+                  </label>
+                  <label>
+                    {{ text.label }}
+                    <input
+                      [value]="card.object.label"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-object',
+                          object: card.object.id,
+                          change: { label: textValue($event) },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.width }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.object.width"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-object',
+                          object: card.object.id,
+                          change: { width: numberValue($event) ?? 0 },
+                        })
+                      "
+                    />
+                  </label>
+                  <label>
+                    {{ text.height }}
+                    <input
+                      inputmode="numeric"
+                      [value]="card.object.height"
+                      (change)="
+                        facade.edit({
+                          kind: 'edit-object',
+                          object: card.object.id,
+                          change: { height: numberValue($event) ?? 0 },
+                        })
+                      "
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    (click)="facade.edit({ kind: 'remove-object', object: card.object.id })"
+                  >
+                    {{ text.remove }}
+                  </button>
+                </fieldset>
+              }
+            }
+          }
+          @default {
+            <p>{{ text.cardHint }}</p>
+          }
         }
-      </svg>
+      </aside>
     </div>
     @if (facade.layout(); as layout) {
       <div class="tables">

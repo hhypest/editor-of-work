@@ -140,6 +140,7 @@ function ownLayout(layout: StationLayout): StationLayout {
     derailers: own(layout.derailers),
     bridges: own(layout.bridges),
     crossings: own(layout.crossings),
+    ...(layout.objects === undefined ? {} : { objects: own(layout.objects) }),
   })
 }
 

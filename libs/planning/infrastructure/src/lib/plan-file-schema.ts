@@ -425,7 +425,7 @@ export const planFileV8Schema = planFileV7Schema
 const cell = z.number().int().nonnegative().max(100_000)
 const layoutText = z.string().max(200)
 /** Раскладка схемы станции, формат паспорта версии 1 (ADR-0046). */
-const stationLayout = z
+const stationLayoutV9Shape = z
   .object({
     version: z.literal(1),
     nodes: z
@@ -488,23 +488,61 @@ const stationLayout = z
       .max(1_000),
   })
   .strict()
-  .superRefine((layout, ctx) => {
-    const nodes = new Set(layout.nodes.map((n) => n.id))
-    const tracks = new Set(layout.tracks.map((t) => t.id))
-    if (
-      layout.tracks.some((t) => t.nodes.some((n) => !nodes.has(n))) ||
-      layout.switches.some(
-        (s) => !nodes.has(s.node) || !tracks.has(s.track) || !tracks.has(s.branch),
-      ) ||
-      [...layout.derailers, ...layout.bridges].some((o) => !tracks.has(o.track))
-    )
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Раскладка станции ссылается на неизвестные элементы',
-      })
+/** Ссылки путей, стрелок, остряков и мостов указывают на элементы раскладки. */
+function layoutReferences(
+  layout: z.infer<typeof stationLayoutV9Shape>,
+  ctx: z.RefinementCtx,
+): void {
+  const nodes = new Set(layout.nodes.map((n) => n.id))
+  const tracks = new Set(layout.tracks.map((t) => t.id))
+  if (
+    layout.tracks.some((t) => t.nodes.some((n) => !nodes.has(n))) ||
+    layout.switches.some(
+      (s) => !nodes.has(s.node) || !tracks.has(s.track) || !tracks.has(s.branch),
+    ) ||
+    [...layout.derailers, ...layout.bridges].some((o) => !tracks.has(o.track))
+  )
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Раскладка станции ссылается на неизвестные элементы',
+    })
+}
+const stationLayoutV9 = stationLayoutV9Shape.superRefine(layoutReferences)
+/** С v10 у раскладки есть здания и платформы (ADR-0049). */
+const stationLayout = stationLayoutV9Shape
+  .extend({
+    objects: z
+      .array(
+        z
+          .object({
+            id: id,
+            kind: z.enum(['building', 'platform']),
+            label: layoutText,
+            col: cell,
+            row: cell,
+            width: z.number().int().min(1).max(400),
+            height: z.number().int().min(1).max(20),
+          })
+          .strict(),
+      )
+      .max(1_000)
+      .optional(),
   })
+  .strict()
+  .superRefine(layoutReferences)
 
-/** Срез с v9: раскладка схемы станции из паспорта. */
+/** Срез v9: раскладка схемы станции из паспорта. */
+export const snapshotV9Schema = snapshotV2Schema
+  .extend({
+    stations: z.array(
+      snapshotV2Schema.shape.stations.element
+        .extend({ layout: stationLayoutV9.optional() })
+        .strict(),
+    ),
+  })
+  .strict()
+
+/** Срез с v10: в раскладке станции — здания и платформы. */
 export const snapshotSchema = snapshotV2Schema
   .extend({
     stations: z.array(
@@ -514,10 +552,10 @@ export const snapshotSchema = snapshotV2Schema
   .strict()
 
 /** v9: срез паспорта хранит раскладку схемы станции; ключ «stations» скрывает листы станций ПД. */
-export const planFileSchema = planFileV8Schema
+export const planFileV9Schema = planFileV8Schema
   .extend({
     format: z.object({ version: z.literal(9), appVersion: id }).strict(),
-    edition: planFileV8Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
+    edition: planFileV8Schema.shape.edition.extend({ snapshot: snapshotV9Schema }).strict(),
     plan: planFileV8Schema.shape.plan
       .extend({
         pdHiddenTables: z.array(
@@ -547,6 +585,13 @@ export const planFileSchema = planFileV8Schema
         ),
       })
       .strict(),
+  })
+  .strict()
+/** v10: раскладка станции в срезе хранит здания и платформы (ADR-0049). */
+export const planFileSchema = planFileV9Schema
+  .extend({
+    format: z.object({ version: z.literal(10), appVersion: id }).strict(),
+    edition: planFileV9Schema.shape.edition.extend({ snapshot: snapshotSchema }).strict(),
   })
   .strict()
 export type PlanFile = z.infer<typeof planFileSchema>

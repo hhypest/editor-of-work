@@ -20,6 +20,8 @@ export type {
   LayoutDerailer,
   LayoutBridge,
   LayoutCrossing,
+  LayoutObject,
+  LayoutObjectKind,
   StationLayout,
 } from '@eow/shared/kernel'
 
@@ -44,6 +46,7 @@ export function checkStationLayout(layout: StationLayout): string[] {
     ...layout.derailers,
     ...layout.bridges,
     ...layout.crossings,
+    ...(layout.objects ?? []),
   ].map((x) => x.id)
   if (new Set(ids).size !== ids.length) errors.push('Идентификаторы элементов повторяются.')
   for (const n of layout.nodes)

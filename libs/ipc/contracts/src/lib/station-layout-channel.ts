@@ -71,6 +71,23 @@ export const stationLayoutDto = z
       )
       .max(1_000)
       .readonly(),
+    objects: z
+      .array(
+        z
+          .object({
+            id: id,
+            kind: z.enum(['building', 'platform']),
+            label: text,
+            col: cell,
+            row: cell,
+            width: z.number().int().min(1).max(400),
+            height: z.number().int().min(1).max(20),
+          })
+          .strict(),
+      )
+      .max(1_000)
+      .readonly()
+      .optional(),
   })
   .strict()
   .readonly()

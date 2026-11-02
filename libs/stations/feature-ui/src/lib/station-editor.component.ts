@@ -1,7 +1,19 @@
 import { ChangeDetectionStrategy, Component, HostListener, inject } from '@angular/core'
 import type { CanDeactivateFn } from '@angular/router'
-import { cellAt, type DrawingPoint, type DrawnNode } from '@eow/stations/application'
-import { STATION_TEXT, StationEditorFacade } from './station-editor.facade'
+import {
+  cellAt,
+  type Cell,
+  type DrawingPoint,
+  type DrawnNode,
+  type LayoutObjectKind,
+} from '@eow/stations/application'
+import { STATION_TEXT, StationEditorFacade, type SchemeSelection } from './station-editor.facade'
+
+/** Что тащим: узел, объект (с клеткой захвата внутри него) или ось переезда. */
+type Drag =
+  | { readonly kind: 'node'; readonly id: string; readonly key: string }
+  | { readonly kind: 'object'; readonly id: string; readonly key: string; readonly grip: Cell }
+  | { readonly kind: 'crossing'; readonly id: string; readonly key: string }
 
 const ARROWS: Record<string, readonly [number, number]> = {
   ArrowLeft: [-1, 0],
@@ -20,7 +32,7 @@ const ARROWS: Record<string, readonly [number, number]> = {
 export class StationEditorComponent {
   protected readonly facade = inject(StationEditorFacade)
   protected readonly text = STATION_TEXT
-  private drag: { readonly node: string; readonly key: string } | undefined
+  private drag: Drag | undefined
   private drags = 0
 
   constructor() {
@@ -52,12 +64,50 @@ export class StationEditorComponent {
     void this.facade.selectStation(select.value)
   }
 
+  private pointer(event: PointerEvent): DrawingPoint | undefined {
+    const target = event.target
+    const svg = target instanceof SVGElement ? target.ownerSVGElement : null
+    const matrix = svg?.getScreenCTM()
+    if (!matrix) return undefined
+    const inverse = matrix.inverse()
+    return {
+      x: inverse.a * event.clientX + inverse.c * event.clientY + inverse.e,
+      y: inverse.b * event.clientX + inverse.d * event.clientY + inverse.f,
+    }
+  }
+
+  private capture(event: PointerEvent): void {
+    event.preventDefault()
+    if (event.target instanceof Element) event.target.setPointerCapture?.(event.pointerId)
+  }
+
   /** Одно перетаскивание — один шаг отмены: сдвиги идут с общим ключом. */
   protected startDrag(event: PointerEvent, node: DrawnNode): void {
     if (!this.facade.editable()) return
-    event.preventDefault()
-    if (event.target instanceof Element) event.target.setPointerCapture?.(event.pointerId)
-    this.drag = { node: node.id, key: `drag-${++this.drags}` }
+    this.capture(event)
+    this.drag = { kind: 'node', id: node.id, key: `drag-${++this.drags}` }
+  }
+
+  protected startObjectDrag(event: PointerEvent, id: string): void {
+    this.facade.select({ kind: 'object', id })
+    const object = this.facade.layout()?.objects?.find((o) => o.id === id)
+    const point = this.pointer(event)
+    if (!this.facade.editable() || !object || !point) return
+    this.capture(event)
+    const cell = cellAt(point)
+    this.drag = {
+      kind: 'object',
+      id,
+      key: `drag-${++this.drags}`,
+      grip: { col: cell.col - object.col, row: cell.row - object.row },
+    }
+  }
+
+  protected startCrossingDrag(event: PointerEvent, id: string): void {
+    this.facade.select({ kind: 'crossing', id })
+    if (!this.facade.editable()) return
+    this.capture(event)
+    this.drag = { kind: 'crossing', id, key: `drag-${++this.drags}` }
   }
 
   protected moveDrag(event: PointerEvent): void {
@@ -67,17 +117,40 @@ export class StationEditorComponent {
     const matrix = svg.getScreenCTM()
     if (!matrix) return
     const inverse = matrix.inverse()
-    const point = {
+    const cell = cellAt({
       x: inverse.a * event.clientX + inverse.c * event.clientY + inverse.e,
       y: inverse.b * event.clientX + inverse.d * event.clientY + inverse.f,
-    }
-    this.facade.edit({ kind: 'move', node: drag.node, to: cellAt(point), drag: drag.key })
+    })
+    if (drag.kind === 'node')
+      this.facade.edit({ kind: 'move', node: drag.id, to: cell, drag: drag.key })
+    else if (drag.kind === 'crossing')
+      this.facade.edit({ kind: 'move-crossing', crossing: drag.id, col: cell.col, drag: drag.key })
+    else
+      this.facade.edit({
+        kind: 'move-object',
+        object: drag.id,
+        to: {
+          col: Math.max(0, cell.col - drag.grip.col),
+          row: Math.max(0, cell.row - drag.grip.row),
+        },
+        drag: drag.key,
+      })
   }
 
   protected endDrag(): void {
     if (!this.drag) return
     this.drag = undefined
     this.facade.edit({ kind: 'end-drag' })
+  }
+
+  protected select(selection: SchemeSelection): void {
+    this.facade.select(selection)
+  }
+
+  protected add(kind: LayoutObjectKind | 'crossing'): void {
+    this.facade.edit(
+      kind === 'crossing' ? { kind: 'add-crossing' } : { kind: 'add-object', objectKind: kind },
+    )
   }
 
   /** Стрелки клавиатуры сдвигают узел на клетку: каждое нажатие — отдельный шаг отмены. */
@@ -94,6 +167,45 @@ export class StationEditorComponent {
     })
   }
 
+  /** Стрелки клавиатуры сдвигают выбранный объект или переезд на клетку. */
+  protected nudgeElement(event: KeyboardEvent, selection: SchemeSelection): void {
+    const step = ARROWS[event.key]
+    const layout = this.facade.layout()
+    if (!step || !layout) return
+    if (selection.kind === 'object') {
+      const object = layout.objects?.find((o) => o.id === selection.id)
+      if (!object) return
+      event.preventDefault()
+      this.facade.edit({
+        kind: 'move-object',
+        object: object.id,
+        to: { col: object.col + step[0], row: object.row + step[1] },
+      })
+    } else if (selection.kind === 'crossing' && step[0] !== 0) {
+      const crossing = layout.crossings.find((c) => c.id === selection.id)
+      if (!crossing) return
+      event.preventDefault()
+      this.facade.edit({
+        kind: 'move-crossing',
+        crossing: crossing.id,
+        col: crossing.col + step[0],
+      })
+    }
+  }
+
+  /** Поле карточки: пустое число — null, нечисловое — отклоняется доменом как неверное. */
+  protected numberValue(event: Event): number | null {
+    if (!(event.target instanceof HTMLInputElement)) return null
+    const text = event.target.value.trim()
+    return text === '' ? null : Number(text)
+  }
+
+  protected textValue(event: Event): string {
+    return event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement
+      ? event.target.value
+      : ''
+  }
+
   protected renumberTrack(track: string, event: Event): void {
     if (event.target instanceof HTMLInputElement)
       this.facade.edit({ kind: 'renumber-track', track, number: event.target.value })
@@ -106,7 +218,12 @@ export class StationEditorComponent {
 
   @HostListener('document:keydown', ['$event'])
   protected shortcut(event: KeyboardEvent): void {
-    if (!(event.ctrlKey || event.metaKey) || event.target instanceof HTMLInputElement) return
+    if (
+      !(event.ctrlKey || event.metaKey) ||
+      event.target instanceof HTMLInputElement ||
+      event.target instanceof HTMLSelectElement
+    )
+      return
     const key = event.key.toLowerCase()
     if (key === 'z' && !event.shiftKey) this.facade.edit({ kind: 'undo' })
     else if (key === 'y' || (key === 'z' && event.shiftKey)) this.facade.edit({ kind: 'redo' })

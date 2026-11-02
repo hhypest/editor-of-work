@@ -203,6 +203,29 @@ describe('Раскладки схем станций в SQLite', () => {
     expect(!stale.ok && stale.error.message).toContain('изменили после открытия')
   })
 
+  it('сохраняет здания и платформы при повторном импорте схемы', async () => {
+    value(
+      await store.applyStationSchemeImport(
+        id,
+        command(value(await store.stationSchemeBasis(id)).token),
+      ),
+    )
+    const stored = value(await store.stationLayout(id, 'station'))!
+    const objects = [
+      { id: 'o1', kind: 'building', label: 'Пост ЭЦ', col: 2, row: 2, width: 6, height: 1 },
+    ] as const
+    value(await store.saveStationLayout(id, 'station', { ...layout, objects }, stored.version))
+    const again = command(
+      value(await store.stationSchemeBasis(id)).token,
+      '2026-11-03T10:00:00.000Z',
+    )
+    value(await store.applyStationSchemeImport(id, again))
+    expect(value(await store.stationLayout(id, 'station'))!.layout).toEqual({ ...layout, objects })
+    const duplicate = { ...layout, objects: [{ ...objects[0], id: 't1' }] }
+    const { version } = value(await store.stationLayout(id, 'station'))!
+    expect((await store.saveStationLayout(id, 'station', duplicate, version)).ok).toBe(false)
+  })
+
   it('не сохраняет раскладку с нарушением правил и в действующей редакции', async () => {
     value(
       await store.applyStationSchemeImport(

@@ -31,6 +31,55 @@ button.primary {
 .problem {
   color: #9b1c1c;
 }
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.card {
+  border: 1px solid #b9c0ca;
+  padding: 8px 12px;
+  background: #f7f8fa;
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 8px;
+  margin: 0 0 8px;
+}
+.card dt {
+  color: #4a5361;
+}
+.card dd {
+  margin: 0;
+}
+.card fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.card label {
+  display: grid;
+  gap: 2px;
+}
+.card input,
+.card select,
+.card button {
+  box-sizing: border-box;
+  width: 100%;
+}
 .scheme {
   overflow: auto;
   border: 1px solid #b9c0ca;
@@ -111,6 +160,61 @@ svg {
 .crossing line {
   stroke: #202937;
   stroke-dasharray: 12 4 2 4;
+}
+.crossing line.hit,
+polyline.hit {
+  stroke: transparent;
+  stroke-width: 10;
+  stroke-dasharray: none;
+  fill: none;
+  cursor: pointer;
+}
+.crossing.editable line.hit {
+  cursor: ew-resize;
+}
+.crossing.selected line:not(.hit) {
+  stroke: #0b57d0;
+  stroke-width: 2;
+}
+.track {
+  cursor: pointer;
+}
+.track.selected {
+  stroke: #0b57d0;
+  stroke-width: 4;
+}
+.node.selected {
+  stroke: #0b57d0;
+  stroke-width: 3;
+}
+.object rect {
+  fill: #fff;
+  stroke: #202937;
+  stroke-width: 1.5;
+}
+.object.platform rect {
+  fill: #e4e7ec;
+}
+.object.editable {
+  cursor: grab;
+}
+.object.selected rect,
+.object:focus-visible rect {
+  stroke: #0b57d0;
+  stroke-width: 3;
+}
+.object:focus-visible,
+.crossing:focus-visible {
+  outline: none;
+}
+.object text {
+  font: 11px sans-serif;
+  fill: #202937;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.crossing:focus-visible line:not(.hit) {
+  stroke: #0b57d0;
 }
 .tables {
   display: grid;

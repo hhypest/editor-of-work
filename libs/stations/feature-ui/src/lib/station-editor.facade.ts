@@ -7,6 +7,10 @@ import {
   openEditor,
   type EditorAction,
   type EditorState,
+  type LayoutCrossing,
+  type LayoutObject,
+  type LayoutSwitch,
+  type LayoutTrack,
   type StationEdition,
   type StationEntry,
   type StationLayoutClient,
@@ -18,10 +22,42 @@ export interface StationEditorClient extends StationLayoutClient {
 }
 export const STATION_EDITOR_CLIENT = new InjectionToken<StationEditorClient>('Редактор станций')
 
+/** Выбранный на схеме элемент: по щелчку открывается его карточка. */
+export type SchemeSelection =
+  | { readonly kind: 'track'; readonly id: string }
+  | { readonly kind: 'switch'; readonly id: string }
+  | { readonly kind: 'crossing'; readonly id: string }
+  | { readonly kind: 'object'; readonly id: string }
+
+export type SchemeCard =
+  | { readonly kind: 'track'; readonly track: LayoutTrack }
+  | { readonly kind: 'switch'; readonly item: LayoutSwitch }
+  | { readonly kind: 'crossing'; readonly crossing: LayoutCrossing }
+  | { readonly kind: 'object'; readonly object: LayoutObject }
+
 export const STATION_TEXT = {
   title: 'Схемы станций',
   intro:
-    'Раскладка путевого развития из PDF схем станций (шаг «Схемы станций» мастера импорта). Узлы перетаскиваются мышью или стрелками клавиатуры с привязкой к сетке; стрелка сдвигается только вдоль своего пути. Править можно черновик редакции.',
+    'Раскладка путевого развития из PDF схем станций (шаг «Схемы станций» мастера импорта). Узлы, переезды, здания и платформы перетаскиваются мышью или стрелками клавиатуры с привязкой к сетке; стрелка сдвигается только вдоль своего пути. Щелчок по элементу открывает его карточку. Править можно черновик редакции.',
+  addBuilding: 'Добавить здание',
+  addPlatform: 'Добавить платформу',
+  addCrossing: 'Добавить переезд',
+  card: 'Карточка элемента',
+  cardHint: 'Щёлкните путь, стрелку, переезд, здание или платформу на схеме.',
+  remove: 'Удалить',
+  label: 'Подпись',
+  km: 'Километр',
+  pk: 'Пикет',
+  fromRow: 'От ряда',
+  toRow: 'До ряда',
+  width: 'Ширина, колонок',
+  height: 'Высота, рядов',
+  column: 'Колонка',
+  row: 'Ряд',
+  objectKinds: { building: 'здание', platform: 'платформа' },
+  crossing: 'Переезд',
+  switchTitle: 'Стрелка',
+  trackTitle: 'Путь',
   edition: 'Редакция паспорта',
   station: 'Станция',
   noLayout: 'нет схемы',
@@ -85,6 +121,31 @@ export class StationEditorFacade {
     return layout !== null && layout !== this.savedLayout()
   })
   private readonly savedLayout = signal<EditorState['history']['present'] | null>(null)
+  readonly selected = signal<SchemeSelection | null>(null)
+  /** Карточка выбранного элемента; после отмены добавления элемента её нет. */
+  readonly card = computed<SchemeCard | null>(() => {
+    const layout = this.layout(),
+      selected = this.selected()
+    if (!layout || !selected) return null
+    switch (selected.kind) {
+      case 'track': {
+        const track = layout.tracks.find((t) => t.id === selected.id)
+        return track ? { kind: 'track', track } : null
+      }
+      case 'switch': {
+        const item = layout.switches.find((s) => s.id === selected.id)
+        return item ? { kind: 'switch', item } : null
+      }
+      case 'crossing': {
+        const crossing = layout.crossings.find((c) => c.id === selected.id)
+        return crossing ? { kind: 'crossing', crossing } : null
+      }
+      case 'object': {
+        const object = layout.objects?.find((o) => o.id === selected.id)
+        return object ? { kind: 'object', object } : null
+      }
+    }
+  })
   readonly trackNames = computed(
     () =>
       new Map(
@@ -126,7 +187,20 @@ export class StationEditorFacade {
     const state = this.editor()
     if (!state || !this.editable()) return
     this.notice.set(null)
-    this.editor.set(applyEdit(state, action))
+    const next = applyEdit(state, action)
+    this.editor.set(next)
+    // Добавленный элемент сразу открывается в карточке: его подпись правят там.
+    if (next.error !== null || (action.kind !== 'add-object' && action.kind !== 'add-crossing'))
+      return
+    const layout = next.history.present
+    const added =
+      action.kind === 'add-object' ? layout.objects?.at(-1)?.id : layout.crossings.at(-1)?.id
+    if (added !== undefined)
+      this.selected.set({ kind: action.kind === 'add-object' ? 'object' : 'crossing', id: added })
+  }
+
+  select(selection: SchemeSelection | null): void {
+    this.selected.set(selection)
   }
 
   async save(): Promise<void> {
@@ -162,6 +236,7 @@ export class StationEditorFacade {
 
   private async loadLayout(revision: number, edition: number, station: string): Promise<void> {
     this.station.set(station)
+    this.selected.set(null)
     this.editor.set(null)
     this.savedLayout.set(null)
     const loaded = await this.client.load(edition, station)

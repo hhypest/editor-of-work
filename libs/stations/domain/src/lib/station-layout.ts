@@ -20,6 +20,8 @@ export type {
   LayoutDerailer,
   LayoutBridge,
   LayoutCrossing,
+  LayoutObject,
+  LayoutObjectKind,
   StationLayout,
 } from '@eow/shared/kernel'
 

@@ -10,6 +10,7 @@ import {
   type StationSchemeImport,
 } from '@eow/passport/import-api'
 import { referenceId, type PassportSchema } from './org-import-storage'
+import { stationLayoutSchema } from './station-scheme-schema'
 
 /** Станции, экспликации путей и стрелок и уже записанные раскладки редакции. */
 export async function readStationSchemeBasis(
@@ -82,6 +83,11 @@ export async function writeStationSchemeImport(
       })
       .execute()
   for (const l of input.layouts) {
+    // Здания и платформы ставит составитель: повторный импорт схемы их не стирает.
+    const previous = await readStationLayout(db, editionId, l.stationId)
+    const parsed = previous ? stationLayoutSchema.safeParse(JSON.parse(previous.json)) : undefined
+    const objects = parsed?.success ? parsed.data.objects : undefined
+    const layout = objects?.length ? { ...l.layout, objects } : l.layout
     await db
       .deleteFrom('station_layout')
       .where('edition_id', '=', editionId)
@@ -93,7 +99,7 @@ export async function writeStationSchemeImport(
         edition_id: editionId,
         id: referenceId('station-layout', l.stationId),
         station_id: l.stationId,
-        layout: JSON.stringify(l.layout),
+        layout: JSON.stringify(layout),
         import_file_id: l.importFileId,
         valid_from: null,
         valid_to: null,

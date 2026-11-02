@@ -27,7 +27,7 @@ describe('Таблица «Показатели» и формат v8', () => {
     (old) => {
       const original = JSON.stringify(old),
         file = value(readPlanFile(original))
-      expect(file.format.version).toBe(9)
+      expect(file.format.version).toBe(10)
       expect(file.plan.datedIndicators).toEqual([])
       expect(file.edition).toEqual(old.edition)
       expect(file.plan.works).toEqual(old.plan.works)

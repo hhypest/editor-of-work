@@ -106,6 +106,16 @@ describe('Чтение PDF схемы станции', () => {
     expect(() => file.stream({ kind: 'ref', num: 1, gen: 0 })).toThrow('32 МиБ')
   })
 
+  it('пропускает одиночный «>» в карте ToUnicode и не зацикливается', () => {
+    const cmap = new TextEncoder().encode('> 1 beginbfchar <41> <0410> endbfchar')
+    expect(parseToUnicode(cmap).map.get(0x41)).toBe('А')
+  })
+
+  it('берёт шрифт формы из её ресурсов, даже если имя совпадает со шрифтом листа', () => {
+    const texts = readSchemeDrawing(pageWithForm()).texts.map((t) => t.text)
+    expect(texts).toEqual(['A', 'B'])
+  })
+
   it('разбирает диапазоны bfrange карты ToUnicode', () => {
     const cmap = new TextEncoder().encode(
       'begincodespacerange <0000> <FFFF> endcodespacerange\n1 beginbfrange <0010> <0012> <0410> endbfrange',
@@ -115,3 +125,33 @@ describe('Чтение PDF схемы станции', () => {
     expect([map.get(0x10), map.get(0x12)]).toEqual(['А', 'В'])
   })
 })
+
+/** Лист и форма с одноимёнными шрифтами /F0, у которых код 41 означает разные буквы. */
+function pageWithForm(): Uint8Array {
+  const cmap = (letter: string) =>
+    `1 beginbfchar <41> <00${letter.charCodeAt(0).toString(16)}> endbfchar`
+  const page = 'BT /F0 10 Tf 10 10 Td (A) Tj ET /X0 Do'
+  const form = 'BT /F0 10 Tf 10 30 Td (A) Tj ET'
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /Font << /F0 5 0 R >> /XObject << /X0 7 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${page.length} >>\nstream\n${page}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /A /ToUnicode 6 0 R >>',
+    `<< /Length ${cmap('A').length} >>\nstream\n${cmap('A')}\nendstream`,
+    `<< /Type /XObject /Subtype /Form /Resources << /Font << /F0 8 0 R >> >> /Length ${form.length} >>\nstream\n${form}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /B /ToUnicode 9 0 R >>',
+    `<< /Length ${cmap('B').length} >>\nstream\n${cmap('B')}\nendstream`,
+  ]
+  let body = '%PDF-1.4\n'
+  const offsets = objects.map((o, i) => {
+    const at = body.length
+    body += `${i + 1} 0 obj\n${o}\nendobj\n`
+    return at
+  })
+  const xref = body.length
+  body += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  body += offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')
+  body += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
+  return new TextEncoder().encode(body)
+}

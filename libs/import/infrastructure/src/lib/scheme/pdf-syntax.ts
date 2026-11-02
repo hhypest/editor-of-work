@@ -69,7 +69,11 @@ export class PdfLexer {
       return this.hexString()
     }
     if (b === 0x3e) {
-      if (this.byte(this.pos + 1) !== 0x3e) throw new PdfSyntaxError('Неожиданный символ «>».')
+      if (this.byte(this.pos + 1) !== 0x3e) {
+        // Step past the stray byte so that a caller skipping bad tokens keeps moving.
+        this.pos++
+        throw new PdfSyntaxError('Неожиданный символ «>».')
+      }
       this.pos += 2
       return { kind: 'op', value: '>>' }
     }

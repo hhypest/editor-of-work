@@ -25,9 +25,12 @@ export function parseToUnicode(data: Uint8Array): {
   let section: 'bfchar' | 'bfrange' | 'codespace' | undefined
   for (;;) {
     let t
+    const before = lexer.pos
     try {
       t = lexer.token()
     } catch {
+      // A damaged CMap loses only the broken token; never retry the same position.
+      if (lexer.pos === before) lexer.pos++
       continue
     }
     if (!t) break

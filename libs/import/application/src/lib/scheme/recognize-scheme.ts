@@ -1,5 +1,5 @@
 import type { SchemeDrawing } from './scheme-drawing'
-import { along, dist, distToSegment, sinBetween, sub, type Point } from './scheme-geometry'
+import { along, dist, distToSegment, dot, sinBetween, sub, type Point } from './scheme-geometry'
 import {
   buildTrackGraph,
   collinearOpposite,
@@ -183,8 +183,7 @@ function analyzeNode(graph: TrackGraph, id: number, remarks: string[]): NodeInfo
   const branch = branches[0]
   if (branch && edges.length === 3) {
     // The straight route is the through edge on the branch side; the other one is the toe.
-    const [straight, toe] =
-      sinBetween(dir(branch), dir(p)) < sinBetween(dir(branch), dir(q)) ? [p, q] : [q, p]
+    const [straight, toe] = dot(dir(branch), dir(p)) > dot(dir(branch), dir(q)) ? [p, q] : [q, p]
     // A main track that continues over the diverging route keeps its colour.
     if (straight.style !== toe.style && branch.style === toe.style) link(toe, branch)
     else link(toe, straight)

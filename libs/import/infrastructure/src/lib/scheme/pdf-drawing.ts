@@ -110,7 +110,7 @@ function color(values: readonly number[]): DrawingColor {
 class ContentInterpreter {
   private readonly paths: DrawingPath[] = []
   private readonly texts: DrawingText[] = []
-  private readonly fonts = new Map<string, PdfFont>()
+  private readonly fonts = new Map<string | PdfObject, PdfFont>()
   private state: GraphicsState
   private readonly stack: GraphicsState[] = []
   private subpaths: DrawingPoint[][] = []
@@ -420,14 +420,16 @@ class ContentInterpreter {
     this.textMatrix = this.lineMatrix
   }
 
+  /** Resource names are local to their dictionary: the cache is keyed by the font object. */
   private font(resources: PdfObject | undefined, name: string): PdfFont | undefined {
-    const cached = this.fonts.get(name)
-    if (cached) return cached
     const dict = this.file.get(resources, 'Font')
     const ref = dict?.kind === 'dict' ? dict.entries.get(name) : undefined
     if (!ref) return undefined
+    const key = ref.kind === 'ref' ? `${ref.num} ${ref.gen}` : ref
+    const cached = this.fonts.get(key)
+    if (cached) return cached
     const font = loadFont(this.file, ref)
-    this.fonts.set(name, font)
+    this.fonts.set(key, font)
     return font
   }
 

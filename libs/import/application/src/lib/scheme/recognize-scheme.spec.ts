@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { checkStationLayout } from '@eow/passport/import-api'
 import { recognizeScheme, type RecognizedScheme } from './recognize-scheme'
 import { schemeToLayout } from './scheme-layout'
-import { fictionalDrawing, fictionalScheme, type SchemeCommand } from './testing/fictional-scheme'
+import {
+  BLACK,
+  RED,
+  fictionalDrawing,
+  fictionalScheme,
+  type SchemeCommand,
+} from './testing/fictional-scheme'
 
 function recognized(commands?: (c: readonly SchemeCommand[]) => SchemeCommand[]): RecognizedScheme {
   const base = fictionalScheme()
@@ -137,6 +143,54 @@ describe('Распознавание схемы станции', () => {
     const a = byNumber(joined, '11'),
       b = byNumber(joined, '12')
     expect(a.nodes.at(-1)).toBe(b.nodes[0])
+  })
+
+  it('читает номер стрелки без пробела перед «ав»', () => {
+    const tight = recognized((c) =>
+      c.map((x) => (x.kind === 'text' && x.text === '5 ав' ? { ...x, text: '5ав' } : x)),
+    )
+    expect(switchNo(tight, '5')).toBeDefined()
+  })
+
+  it('ведёт главный путь по ответвлению независимо от порядка линий в PDF', () => {
+    // Главный путь приходит слева и уходит по ответвлению; прямо идёт станционный.
+    const y: SchemeCommand[] = [
+      {
+        kind: 'line',
+        points: [
+          [0, 1000],
+          [1500, 1000],
+        ],
+        width: 10,
+        color: RED,
+      },
+      {
+        kind: 'line',
+        points: [
+          [1500, 1000],
+          [1700, 1160],
+          [3000, 1160],
+        ],
+        width: 10,
+        color: RED,
+      },
+      {
+        kind: 'line',
+        points: [
+          [1500, 1000],
+          [3000, 1000],
+        ],
+        width: 10,
+        color: BLACK,
+      },
+      { kind: 'text', text: 'I', x: 2300, y: 1180, size: 91, color: RED },
+      { kind: 'text', text: '5', x: 2300, y: 1020, size: 91, color: BLACK },
+    ]
+    for (const order of [y, [y[2]!, y[1]!, y[0]!, y[3]!, y[4]!]]) {
+      const s = recognized(() => order)
+      expect(byNumber(s, 'I').nodes).toHaveLength(4)
+      expect(byNumber(s, '5').nodes).toHaveLength(2)
+    }
   })
 
   it('без линий путей возвращает ошибку', () => {

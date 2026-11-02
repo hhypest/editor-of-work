@@ -48,7 +48,8 @@ export function stationTitle(texts: readonly PlacedText[]): string | undefined {
 /** Track number as written on the line: «I», «12», «1а», «IIСев», «5Юж». */
 export const TRACK_NUMBER = /^(?:[IVXІ]+|\d+)[а-яёА-ЯЁa-z]{0,6}(?:-\d+)?$/u
 /** Switch number: «6», «13 ав», «15р». */
-export const SWITCH_LABEL = /^(\d+[а-яё]{0,2})(?:\s*ав)?$/iu
+// The letters are lazy so that «5ав» without a space still leaves «ав» to the suffix.
+export const SWITCH_LABEL = /^(\d+[а-яё]{0,2}?)(?:\s*ав)?$/iu
 /** Derailer: сбрасывающий остряк «8со ав», «4СО», «3рсо», башмак «49сб ав». */
 export const DERAILER_LABEL = /^(\d+\s*р?(?:со|сб))(?:\s*ав)?$/iu
 export const LENGTH_LABEL = /^\d{1,5}$/u

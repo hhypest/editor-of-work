@@ -24,6 +24,9 @@ import {
   SEGMENT_FORMS,
   STATION_FORMS,
   type PassportStationImport,
+  type PassportStationSchemeImport,
+  type StationSchemeBasis,
+  type StationSchemeImport,
   type StationBasis,
   type StationImport,
   type StationImportFile,
@@ -58,6 +61,8 @@ import {
   writeStationImport,
   writeStationExclusions,
 } from './station-import-storage'
+import { stationSchemeImportSchema } from './station-scheme-schema'
+import { readStationSchemeBasis, writeStationSchemeImport } from './station-scheme-storage'
 import { manualFileSchema, manualImportSchema } from './manual-data-schema'
 import { readManualBasis, writeManualData } from './manual-data-storage'
 import { readEditionData, readPlanningData, editionTokenMatches } from './edition-data'
@@ -98,6 +103,7 @@ export interface PassportDatabase
     PassportOrgImport,
     PassportSegmentImport,
     PassportStationImport,
+    PassportStationSchemeImport,
     PassportManualData,
     PassportBackups {
   readonly path: string
@@ -528,6 +534,38 @@ class SqlitePassportStore implements PassportDatabase {
       if (!(await editionTokenMatches(db, id, parsed.data.expectedEditionToken)))
         return err(stalePreview())
       return writeStationImport(db, id, parsed.data)
+    })
+  }
+  stationSchemeBasis(id: number): Promise<Result<StationSchemeBasis, PassportError>> {
+    return this.operation(() =>
+      this.queries.transaction().execute(async (db) => {
+        const edition = await db
+          .selectFrom('edition')
+          .select('id')
+          .where('id', '=', id)
+          .executeTakeFirst()
+        return edition ? ok(await readStationSchemeBasis(db, id)) : err(absent())
+      }),
+    )
+  }
+  applyStationSchemeImport(
+    id: number,
+    input: StationSchemeImport,
+  ): Promise<Result<void, PassportError>> {
+    const parsed = stationSchemeImportSchema.safeParse(input)
+    if (!parsed.success)
+      return Promise.resolve(
+        err({
+          kind: 'invalid-import',
+          message:
+            parsed.error.issues.find((i) => i.code === 'custom')?.message ??
+            'Неверная раскладка схемы станции. Подготовьте импорт заново.',
+        }),
+      )
+    return this.stationDraft(id, async (db) => {
+      if (!(await editionTokenMatches(db, id, parsed.data.expectedEditionToken)))
+        return err(stalePreview())
+      return writeStationSchemeImport(db, id, parsed.data)
     })
   }
   setStationExclusions(

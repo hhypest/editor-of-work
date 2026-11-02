@@ -2,12 +2,18 @@ import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
 import {
   mm,
+  type SheetPdfClient,
   type OverviewClient,
   type OverviewSource,
   type TextMeasurer,
 } from '@eow/documents/application'
 import { OverviewComponent } from './overview.component'
-import { OVERVIEW_CLIENT, SHEET_MEASURER, OverviewFacade } from './overview.facade'
+import {
+  OVERVIEW_CLIENT,
+  SHEET_MEASURER,
+  SHEET_PDF_CLIENT,
+  OverviewFacade,
+} from './overview.facade'
 
 const editions = [1, 2].map((id) => ({ id, number: id, label: 'Учебная', date: '2027-01-01' }))
 const source: OverviewSource = {
@@ -126,5 +132,52 @@ describe('Предпросмотр А3', () => {
     await facade.select(1)
     expect(facade.document()).toBeNull()
     expect(facade.error()).toBe('Нет доступа к редакции')
+  })
+
+  it('переключает оформление на схему дистанции A и сохраняет все листы в PDF', async () => {
+    const port = client()
+    const pdf: SheetPdfClient = {
+      save: vi.fn<SheetPdfClient['save']>(async () => ok('saved')),
+    }
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: [...providers(port), { provide: SHEET_PDF_CLIENT, useValue: pdf }],
+    }).compileComponents()
+    const fixture = TestBed.createComponent(OverviewComponent)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    const variant = element.querySelector<HTMLSelectElement>('#sheet-variant')!
+    variant.value = 'district-a'
+    variant.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(element.querySelector('#sheet-scale')).toBeNull()
+    expect(element.textContent).toContain('Масштаб подобран по самому длинному направлению')
+    expect(element.querySelector('svg')?.textContent).toContain('Вариант A')
+    const save = [...element.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Сохранить все листы в PDF'),
+    )!
+    save.click()
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(pdf.save).toHaveBeenCalledWith('Схема дистанции 2027-01-01', expect.any(Array))
+    expect(element.textContent).toContain('PDF сохранён: листов 1.')
+  })
+
+  it('без настольной программы сообщает, что PDF недоступен', async () => {
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: providers(client()),
+    }).compileComponents()
+    const fixture = TestBed.createComponent(OverviewComponent)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    ;[...element.querySelectorAll('button')]
+      .find((b) => b.textContent?.includes('Сохранить все листы в PDF'))!
+      .click()
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('настольной программе')
   })
 })

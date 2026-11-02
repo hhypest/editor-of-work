@@ -15,6 +15,7 @@ import {
 } from '@eow/import/infrastructure'
 import { registerRepairHandlers } from './ipc/repairs'
 import { registerStationLayoutHandlers } from './ipc/station-layouts'
+import { registerSheetPdfHandler } from './ipc/sheet-pdf'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
 import { pdfBatchWriter, pdfExporter } from './pdf-exporter'
@@ -161,6 +162,17 @@ if (!app.requestSingleInstanceLock()) {
       const filters = [{ name: 'Годовой план ППР', extensions: ['ppr.json'] }]
       // Один обработчик окна печати на процесс: его делят текущий лист и пакеты.
       const renderPdf = electronPdfRenderer(ipcMain, join(__dirname, 'preload.js'), startUrl)
+      registerSheetPdfHandler(ipcMain, {
+        async choosePath(defaultName) {
+          const chosen = await dialog.showSaveDialog({
+            title: 'Сохранить схему в PDF',
+            filters: [{ name: 'Листы PDF', extensions: ['pdf'] }],
+            defaultPath: defaultName,
+          })
+          return chosen.canceled ? undefined : chosen.filePath
+        },
+        render: renderPdf,
+      })
       const stopPlanFiles = registerPlanFileHandlers(
         ipcMain,
         {

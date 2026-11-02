@@ -51,6 +51,8 @@ export type SheetPrimitive =
       readonly y: SheetMm
       readonly text: string
       readonly font: SheetFont
+      /** −90 — подпись читается снизу вверх, поворот вокруг точки (x; y). */
+      readonly rotate?: -90 | undefined
     }
 export interface SheetPage {
   readonly width: SheetMm
@@ -76,6 +78,8 @@ export interface OverviewSource {
   readonly boundaries: readonly {
     readonly lineId: string
     readonly code: string
+    /** ПЧУ, в которое входит ПД, по оргструктуре на дату редакции; нет — «не указан». */
+    readonly pchu?: string | undefined
     readonly from: Chainage
     readonly to: Chainage
   }[]

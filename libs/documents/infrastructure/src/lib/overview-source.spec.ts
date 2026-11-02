@@ -80,4 +80,41 @@ describe('Проекция паспорта для схемы', () => {
     expect(source.boundaries).toEqual([])
     expect(source.warnings.join(' ')).toContain('неоднозначно')
   })
+  it('находит ПЧУ участка ПД через оргструктуру и не зацикливается', () => {
+    const pchu = {
+      ...common,
+      id: 'u',
+      code: 'ПЧУ-1',
+      type: 'ПЧУ',
+      active: true,
+      parentId: null,
+      activity: null,
+    }
+    const withPchu: PassportOverviewData = {
+      ...data,
+      org: {
+        ...data.org,
+        subdivisions: [
+          ...data.org.subdivisions.map((u) => (u.id === 'pd' ? { ...u, parentId: 'mid' } : u)),
+          { ...pchu, id: 'mid', code: 'Участок', type: 'Участок', parentId: 'u' },
+          pchu,
+        ],
+      },
+    }
+    expect(passportOverviewSource(withPchu).boundaries).toEqual([
+      expect.objectContaining({ code: 'ПД-1', pchu: 'ПЧУ-1' }),
+    ])
+    const loop: PassportOverviewData = {
+      ...data,
+      org: {
+        ...data.org,
+        subdivisions: [
+          ...data.org.subdivisions.map((u) => (u.id === 'pd' ? { ...u, parentId: 'a' } : u)),
+          { ...pchu, id: 'a', code: 'А', type: 'Участок', parentId: 'b' },
+          { ...pchu, id: 'b', code: 'Б', type: 'Участок', parentId: 'a' },
+        ],
+      },
+    }
+    expect(passportOverviewSource(loop).boundaries[0]?.pchu).toBeUndefined()
+  })
 })

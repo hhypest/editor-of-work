@@ -34,6 +34,12 @@ export interface ManualTables {
     unit: string
     conditions: string | null
   }
+  /** Лист «Руководители» (миграция 008). */
+  subdivision_head: Row & {
+    subdivision: string
+    title: string | null
+    head: string | null
+  }
   seg_train_pairs: Row & {
     line_id: string
     start_km: number

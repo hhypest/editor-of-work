@@ -336,6 +336,16 @@ const manual = z
         })
         .strict(),
     ),
+    heads: z.array(
+      z
+        .object({
+          ...manualRow,
+          subdivision: z.string(),
+          title: text,
+          head: text,
+        })
+        .strict(),
+    ),
   })
   .strict()
 

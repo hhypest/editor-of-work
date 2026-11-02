@@ -14,7 +14,10 @@ export const MANUAL_SHEETS = {
   tolerances: 'Допуски',
   trainPairs: 'Пары поездов',
   kilometres: 'Нестандартные километры',
+  heads: 'Руководители',
 } as const
+/** Строка листа «Руководители» с названием всей дистанции, а не подразделения. */
+export const DISTRICT_ROW = 'Дистанция'
 interface ManualRow {
   readonly id: string
   readonly validFrom: string | null
@@ -58,18 +61,33 @@ export interface ManualKilometre extends ManualRow {
   readonly km: number
   readonly length: number
 }
+/**
+ * Руководитель подразделения или название дистанции (ADR-0051): подписи схем дистанции
+ * и административного деления. ФИО хранится только в базе составителя.
+ */
+export interface ManualHead extends ManualRow {
+  /** Код ПД или ПЧУ из оргструктуры либо «Дистанция». */
+  readonly subdivision: string
+  /** Полное наименование; у строки «Дистанция» — название дистанции. */
+  readonly title: string | null
+  /** ФИО руководителя: «Иванов И.И.». */
+  readonly head: string | null
+}
 export interface ManualData {
   readonly workKinds: readonly ManualWorkKind[]
   readonly repairNorms: readonly ManualRepairNorm[]
   readonly tolerances: readonly ManualTolerance[]
   readonly trainPairs: readonly ManualTrainPairs[]
   readonly kilometres: readonly ManualKilometre[]
+  readonly heads: readonly ManualHead[]
 }
 export interface ManualBasis {
   readonly token: string
   readonly date: string
   readonly lines: StationBasis['lines']
   readonly trackClasses: readonly string[]
+  /** Коды подразделений оргструктуры редакции: проверка листа «Руководители». */
+  readonly subdivisions: readonly string[]
   readonly data: ManualData
 }
 export interface ManualIssue {
@@ -98,7 +116,7 @@ export interface PassportManualData {
 /** Проверки опубликованного языка выполняются и перед предпросмотром, и внутри транзакции. */
 export function validateManualData(
   data: ManualData,
-  basis: Pick<ManualBasis, 'lines' | 'trackClasses'>,
+  basis: Pick<ManualBasis, 'lines' | 'trackClasses'> & Partial<Pick<ManualBasis, 'subdivisions'>>,
 ): readonly ManualIssue[] {
   const issues: ManualIssue[] = []
   const add = (sheet: string, index: number, column: string, message: string): void => {
@@ -244,5 +262,47 @@ export function validateManualData(
     )
       add(sheet, i, 'Координаты', 'Участки пар поездов перекрываются в одном периоде')
   })
+  const known = new Set(basis.subdivisions ?? [])
+  data.heads.forEach((r, i) => {
+    const sheet = MANUAL_SHEETS.heads
+    const district = r.subdivision === DISTRICT_ROW
+    if (!district && !known.has(r.subdivision))
+      add(
+        sheet,
+        i,
+        'Подразделение',
+        `Нет подразделения с таким кодом; для названия дистанции — «${DISTRICT_ROW}»`,
+      )
+    if (district && !r.title) add(sheet, i, 'Наименование', 'Укажите название дистанции')
+    if (!r.title && !r.head)
+      add(sheet, i, 'Руководитель', 'Заполните наименование или руководителя')
+    if ((r.title?.length ?? 0) > 200) add(sheet, i, 'Наименование', 'Длиннее 200 знаков')
+    if ((r.head?.length ?? 0) > 100) add(sheet, i, 'Руководитель', 'Длиннее 100 знаков')
+    if (
+      data.heads
+        .slice(0, i)
+        .some(
+          (p) =>
+            p.subdivision === r.subdivision &&
+            (p.validFrom ?? '') <= (r.validTo ?? '9999-12-31') &&
+            (r.validFrom ?? '') <= (p.validTo ?? '9999-12-31'),
+        )
+    )
+      add(sheet, i, 'Подразделение', 'Подразделение повторяется в пересекающихся периодах')
+  })
   return issues
+}
+
+/** Руководитель и наименование подразделения на дату: строка, действующая на эту дату. */
+export function headOn(
+  heads: readonly ManualHead[],
+  subdivision: string,
+  date: string,
+): ManualHead | undefined {
+  return heads.find(
+    (h) =>
+      h.subdivision === subdivision &&
+      (h.validFrom === null || h.validFrom <= date) &&
+      (h.validTo === null || h.validTo >= date),
+  )
 }

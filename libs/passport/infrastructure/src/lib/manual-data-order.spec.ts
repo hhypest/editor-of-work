@@ -26,6 +26,7 @@ const data = (workKinds: readonly ManualWorkKind[]): ManualData => ({
   tolerances: [],
   trainPairs: [],
   kilometres: [],
+  heads: [],
 })
 
 describe('Порядок видов работ в паспорте', () => {

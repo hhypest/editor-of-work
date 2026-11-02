@@ -14,7 +14,14 @@ import { readStationBasis } from './station-import-storage'
 import { SEGMENT_TABLES } from './segment-tables'
 import { manualDataSchema } from './manual-data-schema'
 
-const tables = ['repair_norm', 'work_kind', 'tolerance', 'seg_train_pairs', 'line_km'] as const
+const tables = [
+  'repair_norm',
+  'work_kind',
+  'tolerance',
+  'seg_train_pairs',
+  'line_km',
+  'subdivision_head',
+] as const
 const invalid = (message: string): Result<never, OrgImportError> =>
   err({ kind: 'invalid-import', message })
 const period = (r: { id: string; valid_from: string | null; valid_to: string | null }) => ({
@@ -61,6 +68,18 @@ export async function readManualBasis(
     .selectAll()
     .where('edition_id', '=', editionId)
     .orderBy('id')
+    .execute()
+  const heads = await db
+    .selectFrom('subdivision_head')
+    .selectAll()
+    .where('edition_id', '=', editionId)
+    .orderBy('subdivision')
+    .orderBy('id')
+    .execute()
+  const subdivisions = await db
+    .selectFrom('subdivision')
+    .select('code')
+    .where('edition_id', '=', editionId)
     .execute()
   const classes = await db
     .selectFrom('seg_class')
@@ -121,11 +140,18 @@ export async function readManualBasis(
       km: r.km,
       length: r.length_m,
     })),
+    heads: heads.map((r) => ({
+      ...period(r),
+      subdivision: r.subdivision,
+      title: r.title,
+      head: r.head,
+    })),
   })
   const content = {
     date: geometry.date,
     lines: geometry.lines,
     trackClasses: [...new Set(classes.map((r) => r.class).filter((r) => r !== null))].toSorted(),
+    subdivisions: [...new Set(subdivisions.map((r) => r.code))].toSorted(),
     data,
   }
   return { ...content, token: createHash('sha256').update(JSON.stringify(content)).digest('hex') }
@@ -324,6 +350,11 @@ export async function writeManualData(
     await db
       .insertInto('line_km')
       .values({ ...provenance(r), line_id: lineId(r.line), km: r.km, length_m: r.length })
+      .execute()
+  for (const r of input.data.heads)
+    await db
+      .insertInto('subdivision_head')
+      .values({ ...provenance(r), subdivision: r.subdivision, title: r.title, head: r.head })
       .execute()
   return ok(undefined)
 }

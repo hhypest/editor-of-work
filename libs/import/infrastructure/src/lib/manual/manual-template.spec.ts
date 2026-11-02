@@ -14,7 +14,14 @@ const basis: ManualBasis = {
   token: 'a'.repeat(64),
   lines: [],
   trackClasses: [],
-  data: { workKinds: [], repairNorms: [], tolerances: [], trainPairs: [], kilometres: [] },
+  data: {
+    workKinds: [],
+    repairNorms: [],
+    tolerances: [],
+    trainPairs: [],
+    kilometres: [],
+    heads: [],
+  },
 }
 const adapter = new XlsxManualDataTemplate(() => 'fixed-new-id')
 async function edit(change: (wb: ExcelJS.Workbook) => void): Promise<Uint8Array> {
@@ -24,7 +31,7 @@ async function edit(change: (wb: ExcelJS.Workbook) => void): Promise<Uint8Array>
   return new Uint8Array(await wb.xlsx.writeBuffer())
 }
 describe('Шаблон xlsx ручных данных', () => {
-  it('независимый читатель ExcelJS открывает пять оформленных листов без образцов нормативов', async () => {
+  it('независимый читатель ExcelJS открывает шесть оформленных листов без образцов нормативов', async () => {
     const bytes = value(await adapter.write(basis)),
       wb = new ExcelJS.Workbook()
     await wb.xlsx.load(new Uint8Array(bytes).buffer)
@@ -34,6 +41,7 @@ describe('Шаблон xlsx ручных данных', () => {
       'Допуски',
       'Пары поездов',
       'Нестандартные километры',
+      'Руководители',
     ])
     expect(wb.getWorksheet('Виды работ')?.getColumn(9).hidden).toBe(true)
     expect(wb.getWorksheet('Виды работ')?.getCell('A1').font.bold).toBe(true)
@@ -140,11 +148,47 @@ describe('Шаблон xlsx ручных данных', () => {
       const bytes = await edit((wb) => {
         if (failure === 'лист') wb.removeWorksheet('Пары поездов')
         if (failure === 'столбец') wb.getWorksheet('Допуски')!.getCell('C1').value = 'Неизвестное'
-        if (failure === 'версия') wb.getWorksheet('_Шаблон')!.getCell('B1').value = 2
+        if (failure === 'версия') wb.getWorksheet('_Шаблон')!.getCell('B1').value = 3
       })
       expect((await adapter.read(bytes)).ok).toBe(false)
     },
   )
+  it('книга версии 1 без листа «Руководители» не стирает руководителей', async () => {
+    const bytes = await edit((wb) => {
+      wb.removeWorksheet('Руководители')
+      wb.getWorksheet('_Шаблон')!.getCell('B1').value = 1
+    })
+    const read = value(await adapter.read(bytes))
+    expect(read.keepHeads).toBe(true)
+    expect(read.data.heads).toEqual([])
+    const missing = await edit((wb) => wb.removeWorksheet('Руководители'))
+    expect((await adapter.read(missing)).ok).toBe(false)
+  })
+  it('читает лист «Руководители»: код, наименование, ФИО, обрезая пробелы', async () => {
+    const bytes = await edit((wb) => {
+      const sheet = wb.getWorksheet('Руководители')!
+      sheet.getRow(2).values = ['Дистанция', ' Учебная дистанция ', null, null, null, 'd']
+      sheet.getRow(3).values = ['ПД-1', null, 'Учебный И.И.', '01.01.2027', null, 'h']
+    })
+    expect(value(await adapter.read(bytes)).data.heads).toEqual([
+      {
+        id: 'd',
+        validFrom: null,
+        validTo: null,
+        subdivision: 'Дистанция',
+        title: 'Учебная дистанция',
+        head: null,
+      },
+      {
+        id: 'h',
+        validFrom: '2027-01-01',
+        validTo: null,
+        subdivision: 'ПД-1',
+        title: null,
+        head: 'Учебный И.И.',
+      },
+    ])
+  })
   it('предметная ошибка после пустых строк сохраняет исходный номер строки', async () => {
     const bytes = await edit((wb) => {
       wb.getWorksheet('Виды работ')!.getRow(8).values = [

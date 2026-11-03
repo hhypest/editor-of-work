@@ -41,7 +41,7 @@
         <option value="100000">1:100 000</option>
       </select>
     } @else if (facade.autoScale(); as auto) {
-      <span>{{ text.autoScale }}: 1 см ≈ {{ auto.toLocaleString('ru-RU') }} км</span>
+      <span>{{ text.autoScale }}: 1 см = {{ auto.toLocaleString('ru-RU') }} км</span>
     }
     <label for="sheet-zoom">{{ text.zoom }}: {{ (facade.zoom() * 100).toFixed(0) }}%</label>
     <input

@@ -153,7 +153,7 @@ describe('Предпросмотр А3', () => {
     fixture.detectChanges()
     expect(element.querySelector('#sheet-scale')).toBeNull()
     expect(element.textContent).toContain('Масштаб подобран по самому длинному направлению')
-    expect(element.textContent).toMatch(/1 см ≈ [\d,]+ км/u)
+    expect(element.textContent).toMatch(/1 см = [\d,]+ км/u)
     expect(element.querySelector('svg')?.textContent).toContain('Схема дистанции')
     const save = [...element.querySelectorAll('button')].find((b) =>
       b.textContent?.includes('Сохранить все листы в PDF'),

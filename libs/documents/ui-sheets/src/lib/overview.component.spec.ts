@@ -229,4 +229,30 @@ describe('Предпросмотр А3', () => {
     fixture.detectChanges()
     expect(element.querySelector('[role=alert]')?.textContent).toContain('Нет данных редакции')
   })
+
+  it('показывает схему-таблицу (вариант C) и сохраняет её в PDF', async () => {
+    const port = client()
+    const pdf: SheetPdfClient = {
+      save: vi.fn<SheetPdfClient['save']>(async () => ok('saved')),
+    }
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: [...providers(port), { provide: SHEET_PDF_CLIENT, useValue: pdf }],
+    }).compileComponents()
+    const fixture = TestBed.createComponent(OverviewComponent)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    const variant = element.querySelector<HTMLSelectElement>('#sheet-variant')!
+    variant.value = 'district-c'
+    variant.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(element.querySelector('#sheet-scale')).toBeNull()
+    expect(element.querySelector('svg')?.textContent).toContain('Схема-таблица')
+    ;[...element.querySelectorAll('button')]
+      .find((b) => b.textContent?.includes('Сохранить все листы в PDF'))!
+      .click()
+    await fixture.whenStable()
+    expect(pdf.save).toHaveBeenCalledWith('Схема дистанции 2027-01-01', expect.any(Array))
+  })
 })

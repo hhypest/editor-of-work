@@ -2,6 +2,7 @@ import { computed, inject, Injectable, InjectionToken, signal } from '@angular/c
 import {
   buildAdmDivision,
   buildDistrictSchemeA,
+  buildDistrictSchemeC,
   buildOverview,
   type SheetPdfClient,
   type SpreadsheetClient,
@@ -15,8 +16,8 @@ import {
 export const OVERVIEW_CLIENT = new InjectionToken<OverviewClient>('Общая схема дистанции')
 export const SHEET_PDF_CLIENT = new InjectionToken<SheetPdfClient>('PDF паспортных схем')
 export const SPREADSHEET_CLIENT = new InjectionToken<SpreadsheetClient>('Книги Excel')
-/** Оформление листов: общая схема рядами или схема дистанции, вариант A. */
-export type OverviewVariant = 'overview' | 'district-a'
+/** Оформление листов: общая схема рядами или схема дистанции, вариант A или C. */
+export type OverviewVariant = 'overview' | 'district-a' | 'district-c'
 export const SHEET_MEASURER = new InjectionToken<() => Promise<TextMeasurer>>(
   'Измерение текста листа',
 )
@@ -27,6 +28,7 @@ export const OVERVIEW_TEXT = {
   variants: {
     overview: 'Общая схема (ряды в выбранном масштабе)',
     'district-a': 'Схема дистанции, вариант A — линейная в масштабе',
+    'district-c': 'Схема дистанции, вариант C — схема-таблица',
   },
   autoScale: 'Масштаб подобран по самому длинному направлению',
   pdf: 'Сохранить все листы в PDF',
@@ -47,7 +49,7 @@ export const OVERVIEW_TEXT = {
   next: 'Следующий лист',
   warnings: 'Замечания к схеме',
   scope:
-    'Предпросмотр А3 по выбранной редакции паспорта. Общая схема переносит длинные направления в ряды выбранного масштаба; схема дистанции (вариант A) показывает каждое направление одной линией в общем масштабе с полосами ПД и ПЧУ.',
+    'Предпросмотр А3 по выбранной редакции паспорта. Общая схема переносит длинные направления в ряды выбранного масштаба; схема дистанции (вариант A) показывает каждое направление одной линией в общем масштабе с полосами ПД и ПЧУ, вариант C — таблицей станций по направлениям с участками ПД и ПЧУ и итогами.',
 } as const
 
 @Injectable()
@@ -143,7 +145,7 @@ export class OverviewFacade {
     this.rebuild()
   }
   setVariant(value: string): void {
-    if (value !== 'overview' && value !== 'district-a') return
+    if (value !== 'overview' && value !== 'district-a' && value !== 'district-c') return
     this.variant.set(value)
     this.rebuild()
   }
@@ -156,7 +158,7 @@ export class OverviewFacade {
       return
     }
     const edition = this.editions().find((e) => e.id === this.selected())
-    const name = `${this.variant() === 'district-a' ? 'Схема дистанции' : 'Общая схема'} ${edition?.date ?? ''}`
+    const name = `${this.variant() === 'overview' ? 'Общая схема' : 'Схема дистанции'} ${edition?.date ?? ''}`
     this.exporting.set(true)
     this.pdfError.set(null)
     this.pdfStatus.set(OVERVIEW_TEXT.pdfSaving)
@@ -231,7 +233,11 @@ export class OverviewFacade {
     if (!this.source || !this.measurer) return
     const district =
       this.variant() === 'district-a' ? buildDistrictSchemeA(this.source, this.measurer) : null
-    const result = district ?? buildOverview(this.source, this.scale(), this.measurer)
+    const result =
+      district ??
+      (this.variant() === 'district-c'
+        ? buildDistrictSchemeC(this.source, this.measurer)
+        : buildOverview(this.source, this.scale(), this.measurer))
     this.autoScale.set(district?.ok ? district.value.kmPerCm : null)
     this.pdfStatus.set(null)
     this.pdfError.set(null)

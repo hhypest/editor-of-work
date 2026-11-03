@@ -35,7 +35,7 @@ export function plural(count: number, one: string, few: string, many: string): s
 
 export interface TextOptions {
   readonly color?: string
-  readonly rotate?: -90
+  readonly rotate?: -90 | -45
   readonly anchor?: 'middle'
 }
 export const text = (

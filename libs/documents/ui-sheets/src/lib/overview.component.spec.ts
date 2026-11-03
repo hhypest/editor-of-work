@@ -230,6 +230,22 @@ describe('Предпросмотр А3', () => {
     expect(element.querySelector('[role=alert]')?.textContent).toContain('Нет данных редакции')
   })
 
+  it('переключает топологическую схему (вариант B)', async () => {
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: providers(client()),
+    }).compileComponents()
+    const fixture = TestBed.createComponent(OverviewComponent)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    const variant = element.querySelector<HTMLSelectElement>('#sheet-variant')!
+    variant.value = 'district-b'
+    variant.dispatchEvent(new Event('change'))
+    fixture.detectChanges()
+    expect(element.querySelector('svg')?.textContent).toContain('Топологическая схема направлений')
+  })
+
   it('показывает схему-таблицу (вариант C) и сохраняет её в PDF', async () => {
     const port = client()
     const pdf: SheetPdfClient = {

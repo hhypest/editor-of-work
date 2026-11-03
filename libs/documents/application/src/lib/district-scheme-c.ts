@@ -58,13 +58,13 @@ const EPS = 1e-9
 const BOUNDS = narrow(2.2)
 const BOUNDS_STEP = 2.75
 
-interface Span {
+export interface DistrictSpan {
   readonly code: string
   readonly pchu: string | undefined
   readonly ranges: readonly (readonly [Chainage, Chainage])[]
   readonly meters: number
 }
-interface Column {
+export interface DistrictColumn {
   readonly line: string
   /** Пустое название — участок ПД без станций на этом направлении. */
   readonly name: string
@@ -73,14 +73,26 @@ interface Column {
   /** Станция примыкания уже учтена на другом направлении. */
   readonly repeated: boolean
 }
-interface Prepared {
+/** Направление для схем B и C: станции по осям, участки ПД, части протяжения. */
+export interface DistrictLine {
+  readonly id: string
   readonly line: string
-  readonly columns: readonly Column[]
-  readonly spans: readonly Span[]
+  readonly lengths: KmLengths
+  /** Части протяжения по возрастанию координат. */
+  readonly parts: readonly (readonly [Chainage, Chainage])[]
+  readonly columns: readonly DistrictColumn[]
+  readonly spans: readonly DistrictSpan[]
   readonly gaps: readonly string[]
 }
+type Span = DistrictSpan
+type Column = DistrictColumn
+type Prepared = DistrictLine
 
-function prepare(source: OverviewSource): Result<readonly Prepared[], SheetError> {
+/**
+ * Направления среза для схем B и C: станции по осям (примыкание помечено повтором), участки ПД
+ * по порядку координат (части одного ПД подряд — один участок), разрывы протяжения.
+ */
+export function districtLines(source: OverviewSource): Result<readonly DistrictLine[], SheetError> {
   if (source.lines.length > 1000 || source.axes.length > 50000 || source.boundaries.length > 50000)
     return err({ message: 'Слишком много объектов для одного документа.' })
   const unbound = new Set(source.unboundStations ?? [])
@@ -162,7 +174,24 @@ function prepare(source: OverviewSource): Result<readonly Prepared[], SheetError
       columns.push(...(own.length ? own : [column('', undefined, span)]))
     }
     for (const axis of axes.slice(next)) columns.push(column(axis.name, axis.at, spanOf(axis.at)))
-    if (columns.length) result.push({ line: line.name, columns, spans: done, gaps })
+    const parts: [Chainage, Chainage][] = []
+    for (const e of extents) {
+      const from = valid(e.from, line.name),
+        to = valid(e.to, line.name)
+      if (!from.ok) return from
+      if (!to.ok) return to
+      parts.push([from.value, to.value])
+    }
+    if (columns.length)
+      result.push({
+        id: line.id,
+        line: line.name,
+        lengths: lengths.value,
+        parts,
+        columns,
+        spans: done,
+        gaps,
+      })
   }
   return ok(result)
 }
@@ -653,7 +682,7 @@ export function buildDistrictSchemeC(
   source: OverviewSource,
   measurer: TextMeasurer,
 ): Result<OverviewDocument, SheetError> {
-  const prepared = prepare(source)
+  const prepared = districtLines(source)
   if (!prepared.ok) return prepared
   const warnings = [...source.warnings]
   if (source.boundaries.some((b) => b.pchu === undefined))

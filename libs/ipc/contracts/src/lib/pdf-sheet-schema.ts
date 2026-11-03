@@ -36,7 +36,16 @@ const primitive = z.discriminatedUnion('kind', [
     })
     .strict(),
   z
-    .object({ kind: z.literal('circle'), x, y, radius: mm(100), shade: z.boolean().optional() })
+    .object({
+      kind: z.literal('circle'),
+      x,
+      y,
+      radius: mm(100),
+      shade: z.boolean().optional(),
+      fill: color,
+      stroke: color,
+      weight: mm(5).optional(),
+    })
     .strict(),
   z
     .object({
@@ -51,7 +60,7 @@ const primitive = z.discriminatedUnion('kind', [
           size: mm(30),
         })
         .strict(),
-      rotate: z.literal(-90).optional(),
+      rotate: z.union([z.literal(-90), z.literal(-45)]).optional(),
       color,
       anchor: z.literal('middle').optional(),
     })

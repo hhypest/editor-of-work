@@ -1,0 +1,3559 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Схема дистанции, вариант B — топологическая > фиксирует геометрию листа 1`] = `
+{
+  "height": {
+    "unit": "mm",
+    "value": 297,
+  },
+  "number": 1,
+  "primitives": [
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ОАО «РЖД» · УЧЕБНАЯ ДИСТАНЦИЯ ИНФРАСТРУКТУРЫ",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 12,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Схема Учебной дистанции инфраструктуры",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 20.5,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "Топологическая схема направлений · цвет линии — эксплуатационный участок (ПЧУ)",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 26.5,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "Начальник дистанции __________ / __________ /",
+      "x": {
+        "unit": "mm",
+        "value": 350.4,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 12,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "«__» __________ 20__ г.",
+      "x": {
+        "unit": "mm",
+        "value": 379.4024,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 18,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.8,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 405,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 30,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 30,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 90,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 90,
+      },
+    },
+    {
+      "color": "#9a9a9a",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#9a9a9a",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 43,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 66.64736782002969,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 66.64736782002969,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 86.9891896007004,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 86.9891896007004,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 104.69674546077424,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 104.69674546077424,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 122.4958395188611,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 122.4958395188611,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 131.90393209242131,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 131.90393209242131,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 145.38038902211565,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 145.38038902211565,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 160.63675535761865,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 160.63675535761865,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 183.82643218758326,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 183.82643218758326,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 204.16825396825396,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 204.16825396825396,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 221.2045297095657,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 221.2045297095657,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 224.51007574892466,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 224.51007574892466,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 242.30916980701153,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 242.30916980701153,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 262.65099158768226,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 262.65099158768226,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 280.4500856457691,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 280.4500856457691,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 300.7919074264398,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 300.7919074264398,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 35,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 41.5,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 68,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Северная — Узловая",
+      "x": {
+        "unit": "mm",
+        "value": 43,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 43,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": " · 105,084 км",
+      "x": {
+        "unit": "mm",
+        "value": 68.3064,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 43,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "на Северную",
+      "x": {
+        "unit": "mm",
+        "value": 18.796999999999997,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68.9,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 43,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 43,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 65.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 70.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "100+000",
+      "x": {
+        "unit": "mm",
+        "value": 38.65875,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 79,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 131.90393209242131,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 131.90393209242131,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 65.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 70.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "135+000",
+      "x": {
+        "unit": "mm",
+        "value": 127.56268209242131,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 79,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 221.2045297095657,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 221.2045297095657,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 65.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 70.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "170+000",
+      "x": {
+        "unit": "mm",
+        "value": 216.8632797095657,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 79,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 65.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 70.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "205+000",
+      "x": {
+        "unit": "mm",
+        "value": 305.85875,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 79,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-1 · Учебный А.А.",
+      "x": {
+        "unit": "mm",
+        "value": 87.45196604621066,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 74,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-2 · Пробный Б.Б.",
+      "x": {
+        "unit": "mm",
+        "value": 176.5542309009935,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 74,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-3 · Условный В.В.",
+      "x": {
+        "unit": "mm",
+        "value": 265.7022648547828,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 74,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 2.3,
+      },
+      "stroke": "#111111",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Озёрная-1",
+      "x": {
+        "unit": "mm",
+        "value": 49.44827376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 64.8,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 66.64736782002969,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Берёзовка-2",
+      "x": {
+        "unit": "mm",
+        "value": 67.24736782002968,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 86.9891896007004,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ольховый Лог-3",
+      "x": {
+        "unit": "mm",
+        "value": 87.5891896007004,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 104.69674546077424,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Сосновка-4",
+      "x": {
+        "unit": "mm",
+        "value": 105.29674546077423,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 122.4958395188611,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Каменка-5",
+      "x": {
+        "unit": "mm",
+        "value": 123.0958395188611,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 145.38038902211565,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ручьёво-6",
+      "x": {
+        "unit": "mm",
+        "value": 145.98038902211565,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 160.63675535761865,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Луговая-7",
+      "x": {
+        "unit": "mm",
+        "value": 161.23675535761865,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 183.82643218758326,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Песчаная-8",
+      "x": {
+        "unit": "mm",
+        "value": 184.42643218758326,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#c8102e",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 204.16825396825396,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Дубрава-9",
+      "x": {
+        "unit": "mm",
+        "value": 204.76825396825396,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 224.51007574892466,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ключи-10",
+      "x": {
+        "unit": "mm",
+        "value": 225.11007574892466,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 242.30916980701153,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Липки-11",
+      "x": {
+        "unit": "mm",
+        "value": 242.90916980701152,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 262.65099158768226,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Северная-12",
+      "x": {
+        "unit": "mm",
+        "value": 263.2509915876823,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 280.4500856457691,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Озёрная-13",
+      "x": {
+        "unit": "mm",
+        "value": 281.0500856457691,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 300.7919074264398,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 68,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Берёзовка-14",
+      "x": {
+        "unit": "mm",
+        "value": 301.39190742643984,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 65.6,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 155.99315595142934,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 161.078611396597,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 161.078611396597,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 181.4204331772677,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 181.4204331772677,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 209.39043812568994,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 209.39043812568994,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 227.1895321837768,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 227.1895321837768,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 232.27498762894447,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 240.27498762894447,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 255.5313539644475,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 255.5313539644475,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 278.41590346770204,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 278.41590346770204,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 301.3004529709566,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 301.3004529709566,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 233.77498762894447,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 238.77498762894447,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 147.99315595142934,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 154.49315595142934,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 112,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Озёрная — Узловая",
+      "x": {
+        "unit": "mm",
+        "value": 155.99315595142934,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 87,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": " · 57,500 км",
+      "x": {
+        "unit": "mm",
+        "value": 179.98355595142934,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 87,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "на Озёрную",
+      "x": {
+        "unit": "mm",
+        "value": 132.96795595142933,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112.9,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 155.99315595142934,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 155.99315595142934,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 109.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 114.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "10+000",
+      "x": {
+        "unit": "mm",
+        "value": 152.27865595142936,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 123,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 232.27498762894447,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 232.27498762894447,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 109.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 114.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "40+000",
+      "x": {
+        "unit": "mm",
+        "value": 228.5604876289445,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 123,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 240.27498762894447,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 240.27498762894447,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 109.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 114.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "55+000",
+      "x": {
+        "unit": "mm",
+        "value": 237.4894876289445,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 123,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 310.2,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 109.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 114.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "82+500",
+      "x": {
+        "unit": "mm",
+        "value": 306.4855,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 123,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-4 · Модельный Г.Г.",
+      "x": {
+        "unit": "mm",
+        "value": 194.1340717901869,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 118,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-5 · Образцов Д.Д.",
+      "x": {
+        "unit": "mm",
+        "value": 275.23749381447226,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 118,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 161.078611396597,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ольховый Лог-15",
+      "x": {
+        "unit": "mm",
+        "value": 161.678611396597,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 181.4204331772677,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Сосновка-16",
+      "x": {
+        "unit": "mm",
+        "value": 182.0204331772677,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 209.39043812568994,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Каменка-17",
+      "x": {
+        "unit": "mm",
+        "value": 209.99043812568993,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 227.1895321837768,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ручьёво-18",
+      "x": {
+        "unit": "mm",
+        "value": 227.7895321837768,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 255.5313539644475,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Луговая-19",
+      "x": {
+        "unit": "mm",
+        "value": 256.1313539644475,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 278.41590346770204,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Песчаная-20",
+      "x": {
+        "unit": "mm",
+        "value": 279.01590346770206,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 301.3004529709566,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 112,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Дубрава-21",
+      "x": {
+        "unit": "mm",
+        "value": 301.9004529709566,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 109.6,
+      },
+    },
+    {
+      "color": "#9a9a9a",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 45.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#9a9a9a",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 48.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 51.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 51.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 54.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 54.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 70.00418712648928,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 70.00418712648928,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 85.26055346199232,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 85.26055346199232,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 91.6173727684519,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 37.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 44.34827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 93.1173727684519,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 99.6173727684519,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 156,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Подъездная ветвь",
+      "x": {
+        "unit": "mm",
+        "value": 45.84827376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 131,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": " · 18,000 км",
+      "x": {
+        "unit": "mm",
+        "value": 68.26507376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 131,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 45.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 45.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 153.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 158.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "0+000",
+      "x": {
+        "unit": "mm",
+        "value": 42.76052376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 167,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 51.84827376194283,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 51.84827376194283,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 153.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 158.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "1+000",
+      "x": {
+        "unit": "mm",
+        "value": 50.43602376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 167,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 91.6173727684519,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 91.6173727684519,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 153.4,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 158.6,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.3,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "18+000",
+      "x": {
+        "unit": "mm",
+        "value": 87.9028727684519,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 167,
+      },
+    },
+    {
+      "anchor": "middle",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.6,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПД-7 · Примерный Е.Е.",
+      "x": {
+        "unit": "mm",
+        "value": 71.73282326519737,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 162,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 54.84827376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Ключи-22",
+      "x": {
+        "unit": "mm",
+        "value": 55.44827376194283,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 153.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 70.00418712648928,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Липки-23",
+      "x": {
+        "unit": "mm",
+        "value": 70.60418712648928,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 153.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.4,
+      },
+      "stroke": "#1f3a68",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 85.26055346199232,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 156,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "rotate": -45,
+      "text": "Северная-24",
+      "x": {
+        "unit": "mm",
+        "value": 85.86055346199231,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 153.6,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 3.2,
+      },
+      "stroke": "#777777",
+      "weight": {
+        "unit": "mm",
+        "value": 0.8,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 330.2,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 90,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "УЗЛОВАЯ",
+      "x": {
+        "unit": "mm",
+        "value": 301.8408,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 89.5,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "вне границ дистанции",
+      "x": {
+        "unit": "mm",
+        "value": 301.8408,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 93.5,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.2,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 139.66666666666669,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 210,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 210,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПЧУ-1 · Тестовый Ж.Ж. — 70,084 км",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 216,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-1 · Учебный А.А. — гл. путь 34,964 км · 5 ст. · ст. пути 10,000 км · 30 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 221,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-2 · Пробный Б.Б. — гл. путь 35,120 км · 4 ст. · ст. пути 12,500 км · 22 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 225,
+      },
+    },
+    {
+      "color": "#1f3a68",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.2,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 272.33333333333337,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 210,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 210,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "ПЧУ-2 · Макетный З.З. — 109,500 км",
+      "x": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 216,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-3 · Условный В.В. — гл. путь 35,000 км · 5 ст. · ст. пути 21,250 км · 30 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 221,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-4 · Модельный Г.Г. — гл. путь 30,000 км · 4 ст. · ст. пути 21,500 км · 23 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 225,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-5 · Образцов Д.Д. — гл. путь 27,500 км · 3 ст. · ст. пути 18,750 км · 19 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 229,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-7 · Примерный Е.Е. — гл. путь 17,000 км · 3 ст. · ст. пути 21,000 км · 18 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 147.66666666666669,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 233,
+      },
+    },
+    {
+      "color": "#9a9a9a",
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 1.2,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 280.33333333333337,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 405.00000000000006,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 210,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 210,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.8,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Без ПЧУ — 1,000 км",
+      "x": {
+        "unit": "mm",
+        "value": 280.33333333333337,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 216,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "ПД-6 — гл. путь 1,000 км · 0 ст. · ст. пути 0,000 км · 0 стр.",
+      "x": {
+        "unit": "mm",
+        "value": 280.33333333333337,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 221,
+      },
+    },
+    {
+      "dashed": false,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.6,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 280,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 284,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "граница ПД",
+      "x": {
+        "unit": "mm",
+        "value": 17,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 283.3,
+      },
+    },
+    {
+      "color": "#a0a0a0",
+      "dashed": true,
+      "kind": "line",
+      "weight": {
+        "unit": "mm",
+        "value": 0.9,
+      },
+      "x1": {
+        "unit": "mm",
+        "value": 37,
+      },
+      "x2": {
+        "unit": "mm",
+        "value": 45,
+      },
+      "y1": {
+        "unit": "mm",
+        "value": 282,
+      },
+      "y2": {
+        "unit": "mm",
+        "value": 282,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "вне дистанции",
+      "x": {
+        "unit": "mm",
+        "value": 47,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 283.3,
+      },
+    },
+    {
+      "fill": "#ffffff",
+      "kind": "circle",
+      "radius": {
+        "unit": "mm",
+        "value": 1.6,
+      },
+      "stroke": "#111111",
+      "weight": {
+        "unit": "mm",
+        "value": 0.7,
+      },
+      "x": {
+        "unit": "mm",
+        "value": 71,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 282.2,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "станция примыкания",
+      "x": {
+        "unit": "mm",
+        "value": 74,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 283.3,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.5,
+        },
+        "weight": 700,
+      },
+      "kind": "text",
+      "text": "Всего: главный путь 180,584 км · станционные пути 105,000 км · 142 стрелочных перевода · 24 станции",
+      "x": {
+        "unit": "mm",
+        "value": 289.25,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 283.3,
+      },
+    },
+    {
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.4,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "Схема внемасштабная, станции расставлены по порядку осей. Не входят в привязку к ПД: Учебный разъезд.",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 288.5,
+      },
+    },
+    {
+      "color": "#555555",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.2,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "Редакция от 01.01.2027 · Лист 1",
+      "x": {
+        "unit": "mm",
+        "value": 15,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 293.5,
+      },
+    },
+    {
+      "color": "#c8102e",
+      "font": {
+        "family": "PT Sans",
+        "size": {
+          "unit": "mm",
+          "value": 2.2,
+        },
+        "weight": 400,
+      },
+      "kind": "text",
+      "text": "Замечаний: 2; список — в предпросмотре.",
+      "x": {
+        "unit": "mm",
+        "value": 364.2802,
+      },
+      "y": {
+        "unit": "mm",
+        "value": 293.5,
+      },
+    },
+  ],
+  "width": {
+    "unit": "mm",
+    "value": 420,
+  },
+}
+`;

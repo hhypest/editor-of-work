@@ -14,6 +14,7 @@ const api: EowApi = {
   passportData: async () => ({ status: 'error', message: 'unused' }),
   stationLayouts: async () => ({ status: 'error', message: 'unused' }),
   sheetPdf: async () => ({ status: 'error', message: 'unused' }),
+  spreadsheet: async () => ({ status: 'error', message: 'unused' }),
   repairs: async () => ({ status: 'error', message: 'unused' }),
   manualTemplate: async () => ({ status: 'cancelled' }),
   exportWizard: async () => ({ status: 'cancelled' }),

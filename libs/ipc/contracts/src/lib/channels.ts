@@ -9,6 +9,7 @@ import { printHost } from './pdf-sheet-schema'
 import { repairs } from './repair-report-channel'
 import { stationLayouts } from './station-layout-channel'
 import { sheetPdf } from './sheet-pdf-channel'
+import { spreadsheet } from './spreadsheet-channel'
 
 /**
  * Сведения о программе для диагностики: имя, версия продукта из package.json
@@ -38,6 +39,7 @@ export const channels = {
   exportWizard,
   stationLayouts,
   sheetPdf,
+  spreadsheet,
 } as const
 
 export type Channels = typeof channels

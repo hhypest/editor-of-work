@@ -3,6 +3,7 @@ import {
   PD_SHEET_CLIENT,
   OVERVIEW_CLIENT,
   SHEET_PDF_CLIENT,
+  SPREADSHEET_CLIENT,
   SHEET_MEASURER,
   EDITOR_SHEET_CLIENT,
   EDITOR_PDF_CLIENT,
@@ -13,6 +14,7 @@ import { editorSheetClient } from './editor-sheet-client'
 import { prepareSheetMeasurer } from '@eow/documents/infrastructure'
 import { overviewClient } from './overview-client'
 import { sheetPdfClient } from './sheet-pdf-client'
+import { spreadsheetClient } from './spreadsheet-client'
 import { type ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core'
 import { provideRouter, withHashLocation } from '@angular/router'
 import { appRoutes } from './app.routes'
@@ -38,6 +40,7 @@ export const appConfig: ApplicationConfig = {
     { provide: PD_SHEET_CLIENT, useFactory: () => pdSheetClient(window.eow) },
     { provide: OVERVIEW_CLIENT, useFactory: () => overviewClient(window.eow) },
     { provide: SHEET_PDF_CLIENT, useFactory: () => sheetPdfClient(window.eow) },
+    { provide: SPREADSHEET_CLIENT, useFactory: () => spreadsheetClient(window.eow) },
     { provide: SHEET_MEASURER, useValue: () => prepareSheetMeasurer(document) },
     { provide: EXPORT_WIZARD_CLIENT, useFactory: () => exportWizardClient(window.eow) },
     { provide: MANUAL_TEMPLATE_CLIENT, useFactory: () => manualTemplateClient(window.eow) },

@@ -1,3 +1,4 @@
+import type { AdmDivisionSource } from './adm-division'
 import type { Chainage, Result } from '@eow/shared/kernel'
 
 /** Миллиметры листа отделены от метров пути и CSS-пикселей. */
@@ -27,6 +28,8 @@ export type SheetPrimitive =
       readonly weight?: SheetMm | undefined
       /** Серая линия: подсветка пути с работой под чёрной линией пути. */
       readonly shade?: boolean | undefined
+      /** Цвет линии «#rrggbb»; без него — чёрный (или серый при shade). */
+      readonly color?: string | undefined
     }
   | {
       readonly kind: 'rect'
@@ -36,6 +39,8 @@ export type SheetPrimitive =
       readonly height: SheetMm
       readonly shade: boolean
       readonly border: boolean
+      /** Заливка «#rrggbb» вместо белой или серой. */
+      readonly fill?: string | undefined
     }
   | {
       readonly kind: 'circle'
@@ -53,6 +58,10 @@ export type SheetPrimitive =
       readonly font: SheetFont
       /** −90 — подпись читается снизу вверх, поворот вокруг точки (x; y). */
       readonly rotate?: -90 | undefined
+      /** Цвет текста «#rrggbb»; без него — чёрный. */
+      readonly color?: string | undefined
+      /** middle — x задаёт середину строки. */
+      readonly anchor?: 'middle' | undefined
     }
 export interface SheetPage {
   readonly width: SheetMm
@@ -84,6 +93,21 @@ export interface OverviewSource {
     readonly to: Chainage
   }[]
   readonly warnings: readonly string[]
+  /** Название дистанции из листа «Руководители» (ADR-0051). */
+  readonly district?: string | undefined
+  /** ФИО руководителей по кодам ПД и ПЧУ на дату редакции. */
+  readonly heads?: Readonly<Record<string, string>> | undefined
+  /** Станционные пути (кроме главных) и стрелки по названию станции на дату редакции. */
+  readonly stationStats?:
+    | Readonly<
+        Record<
+          string,
+          { readonly tracks: number; readonly meters: number; readonly switches: number }
+        >
+      >
+    | undefined
+  /** Станции с осями, не привязанные ни к одному действующему ПД. */
+  readonly unboundStations?: readonly string[] | undefined
 }
 export interface OverviewDocument {
   readonly pages: readonly SheetPage[]
@@ -106,4 +130,6 @@ export interface OverviewClient {
     >
   >
   source(editionId: number): Promise<Result<OverviewSource, SheetError>>
+  /** Срез редакции для административного деления (#32). */
+  admDivision(editionId: number): Promise<Result<AdmDivisionSource, SheetError>>
 }

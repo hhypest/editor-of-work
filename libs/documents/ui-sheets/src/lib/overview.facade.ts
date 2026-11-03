@@ -1,8 +1,10 @@
 import { computed, inject, Injectable, InjectionToken, signal } from '@angular/core'
 import {
+  buildAdmDivision,
   buildDistrictSchemeA,
   buildOverview,
   type SheetPdfClient,
+  type SpreadsheetClient,
   type OverviewClient,
   type OverviewDocument,
   type OverviewScale,
@@ -12,6 +14,7 @@ import {
 
 export const OVERVIEW_CLIENT = new InjectionToken<OverviewClient>('Общая схема дистанции')
 export const SHEET_PDF_CLIENT = new InjectionToken<SheetPdfClient>('PDF паспортных схем')
+export const SPREADSHEET_CLIENT = new InjectionToken<SpreadsheetClient>('Книги Excel')
 /** Оформление листов: общая схема рядами или схема дистанции, вариант A. */
 export type OverviewVariant = 'overview' | 'district-a'
 export const SHEET_MEASURER = new InjectionToken<() => Promise<TextMeasurer>>(
@@ -30,6 +33,11 @@ export const OVERVIEW_TEXT = {
   pdfSaving: 'Сохранение PDF…',
   pdfSaved: 'PDF сохранён',
   pdfCancelled: 'Сохранение PDF отменено.',
+  excel: 'Административное деление в Excel',
+  excelSaving: 'Сохранение книги…',
+  excelSaved: 'Книга административного деления сохранена',
+  excelCancelled: 'Сохранение книги отменено.',
+  excelWarnings: 'Замечания к административному делению',
   scale: 'Масштаб схемы',
   zoom: 'Масштаб просмотра',
   loading: 'Подготовка листов…',
@@ -47,6 +55,7 @@ export class OverviewFacade {
   private readonly client = inject(OVERVIEW_CLIENT)
   private readonly prepareMeasurer = inject(SHEET_MEASURER)
   private readonly pdf = inject(SHEET_PDF_CLIENT, { optional: true })
+  private readonly spreadsheet = inject(SPREADSHEET_CLIENT, { optional: true })
   private measurer: TextMeasurer | undefined
   private revision = 0
   private source: OverviewSource | undefined
@@ -66,6 +75,9 @@ export class OverviewFacade {
   readonly exporting = signal(false)
   readonly pdfStatus = signal<string | null>(null)
   readonly pdfError = signal<string | null>(null)
+  readonly excelStatus = signal<string | null>(null)
+  readonly excelError = signal<string | null>(null)
+  readonly excelWarnings = signal<readonly string[]>([])
   readonly zoom = signal(0.7)
   readonly busy = signal(false)
   readonly error = signal<string | null>(null)
@@ -166,6 +178,48 @@ export class OverviewFacade {
       this.exporting.set(false)
     }
   }
+  /** Книга административного деления выбранной редакции (#32): формулы и итоги приложения. */
+  async exportExcel(): Promise<void> {
+    const id = this.selected()
+    if (id === null || this.exporting() || this.busy()) return
+    if (!this.spreadsheet) {
+      this.excelError.set('Excel доступен в настольной программе editor-of-work.')
+      return
+    }
+    const edition = this.editions().find((e) => e.id === id)
+    this.exporting.set(true)
+    this.excelError.set(null)
+    this.excelWarnings.set([])
+    this.excelStatus.set(OVERVIEW_TEXT.excelSaving)
+    try {
+      const source = await this.client.admDivision(id)
+      if (!source.ok) {
+        this.excelError.set(source.error.message)
+        this.excelStatus.set(null)
+        return
+      }
+      const division = buildAdmDivision(source.value)
+      this.excelWarnings.set(division.warnings)
+      const result = await this.spreadsheet.save(
+        `Административное деление ${edition?.date ?? ''}`.trim(),
+        division.workbook,
+      )
+      if (!result.ok) {
+        this.excelError.set(result.error.message)
+        this.excelStatus.set(null)
+      } else
+        this.excelStatus.set(
+          result.value === 'saved'
+            ? `${OVERVIEW_TEXT.excelSaved}: станций ${division.totals.district.stations}.`
+            : OVERVIEW_TEXT.excelCancelled,
+        )
+    } catch {
+      this.excelError.set('Не удалось сохранить книгу. Повторите попытку.')
+      this.excelStatus.set(null)
+    } finally {
+      this.exporting.set(false)
+    }
+  }
   setZoom(value: number): void {
     if (Number.isFinite(value) && value >= 0.3 && value <= 1.5) this.zoom.set(value)
   }
@@ -178,7 +232,7 @@ export class OverviewFacade {
     const district =
       this.variant() === 'district-a' ? buildDistrictSchemeA(this.source, this.measurer) : null
     const result = district ?? buildOverview(this.source, this.scale(), this.measurer)
-    this.autoScale.set(district?.ok ? district.value.scale : null)
+    this.autoScale.set(district?.ok ? district.value.kmPerCm : null)
     this.pdfStatus.set(null)
     this.pdfError.set(null)
     this.pageIndex.set(0)

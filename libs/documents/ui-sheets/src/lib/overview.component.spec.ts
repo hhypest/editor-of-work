@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing'
 import { err, ok } from '@eow/shared/kernel'
 import {
   mm,
+  type AdmDivisionSource,
   type SheetPdfClient,
+  type SpreadsheetClient,
   type OverviewClient,
   type OverviewSource,
   type TextMeasurer,
@@ -12,6 +14,7 @@ import {
   OVERVIEW_CLIENT,
   SHEET_MEASURER,
   SHEET_PDF_CLIENT,
+  SPREADSHEET_CLIENT,
   OverviewFacade,
 } from './overview.facade'
 
@@ -30,10 +33,22 @@ const source: OverviewSource = {
   boundaries: [],
   warnings: ['Учебное замечание'],
 }
+const division: AdmDivisionSource = {
+  edition: { date: '2027-01-01' },
+  lines: [],
+  units: [{ code: 'ПД-1', kind: 'ПД' }],
+  boundaries: [],
+  bindings: [{ station: 'Учебная', pd: 'ПД-1' }],
+  axes: [],
+  tracks: [],
+  switches: [],
+  warnings: [],
+}
 const measurer: TextMeasurer = { width: (text, font) => mm(text.length * font.size.value * 0.5) }
 const client = (): OverviewClient => ({
   editions: vi.fn<OverviewClient['editions']>(async () => ok(editions)),
   source: vi.fn<OverviewClient['source']>(async () => ok(source)),
+  admDivision: vi.fn<OverviewClient['admDivision']>(async () => ok(division)),
 })
 function providers(port: OverviewClient) {
   return [
@@ -153,7 +168,8 @@ describe('Предпросмотр А3', () => {
     fixture.detectChanges()
     expect(element.querySelector('#sheet-scale')).toBeNull()
     expect(element.textContent).toContain('Масштаб подобран по самому длинному направлению')
-    expect(element.querySelector('svg')?.textContent).toContain('Вариант A')
+    expect(element.textContent).toMatch(/1 см = [\d,]+ км/u)
+    expect(element.querySelector('svg')?.textContent).toContain('Схема дистанции')
     const save = [...element.querySelectorAll('button')].find((b) =>
       b.textContent?.includes('Сохранить все листы в PDF'),
     )!
@@ -179,5 +195,38 @@ describe('Предпросмотр А3', () => {
     await fixture.whenStable()
     fixture.detectChanges()
     expect(element.querySelector('[role=alert]')?.textContent).toContain('настольной программе')
+  })
+
+  it('сохраняет книгу административного деления выбранной редакции', async () => {
+    const port = client()
+    const excel: SpreadsheetClient = {
+      save: vi.fn<SpreadsheetClient['save']>(async () => ok('saved')),
+    }
+    await TestBed.configureTestingModule({
+      imports: [OverviewComponent],
+      providers: [...providers(port), { provide: SPREADSHEET_CLIENT, useValue: excel }],
+    }).compileComponents()
+    const fixture = TestBed.createComponent(OverviewComponent)
+    await fixture.whenStable()
+    fixture.detectChanges()
+    const element = fixture.nativeElement as HTMLElement
+    ;[...element.querySelectorAll('button')]
+      .find((b) => b.textContent?.includes('Административное деление в Excel'))!
+      .click()
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(port.admDivision).toHaveBeenCalledWith(2)
+    expect(excel.save).toHaveBeenCalledWith(
+      'Административное деление 2027-01-01',
+      expect.objectContaining({ sheets: expect.any(Array) }),
+    )
+    expect(element.textContent).toContain('Книга административного деления сохранена: станций 1.')
+    vi.mocked(port.admDivision).mockResolvedValueOnce(err({ message: 'Нет данных редакции' }))
+    ;[...element.querySelectorAll('button')]
+      .find((b) => b.textContent?.includes('Административное деление в Excel'))!
+      .click()
+    await fixture.whenStable()
+    fixture.detectChanges()
+    expect(element.querySelector('[role=alert]')?.textContent).toContain('Нет данных редакции')
   })
 })

@@ -30,6 +30,7 @@ function api(): EowApi {
     ),
     stationLayouts: async () => ({ status: 'error', message: 'unused' }),
     sheetPdf: async () => ({ status: 'error', message: 'unused' }),
+    spreadsheet: async () => ({ status: 'error', message: 'unused' }),
     repairs: vi.fn<EowApi['repairs']>(async () => ({
       status: 'ok',
       report: { date: '2027-01-01', rows: [] },

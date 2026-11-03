@@ -16,6 +16,7 @@ import {
 import { registerRepairHandlers } from './ipc/repairs'
 import { registerStationLayoutHandlers } from './ipc/station-layouts'
 import { registerSheetPdfHandler } from './ipc/sheet-pdf'
+import { registerSpreadsheetHandler } from './ipc/spreadsheet'
 import { repairReports } from '@eow/passport/application'
 import { openPortablePassport, PassportLocationCancelled } from '@eow/passport/infrastructure'
 import { pdfBatchWriter, pdfExporter } from './pdf-exporter'
@@ -172,6 +173,16 @@ if (!app.requestSingleInstanceLock()) {
           return chosen.canceled ? undefined : chosen.filePath
         },
         render: renderPdf,
+      })
+      registerSpreadsheetHandler(ipcMain, {
+        async choosePath(defaultName) {
+          const chosen = await dialog.showSaveDialog({
+            title: 'Сохранить книгу Excel',
+            filters: [{ name: 'Книга Excel', extensions: ['xlsx'] }],
+            defaultPath: defaultName,
+          })
+          return chosen.canceled ? undefined : chosen.filePath
+        },
       })
       const stopPlanFiles = registerPlanFileHandlers(
         ipcMain,

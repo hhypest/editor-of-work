@@ -94,6 +94,10 @@ export const ADM_SHEETS = {
   switches: 'Стрелки (исх.)',
 } as const
 const MAIN_PURPOSE = 'главный'
+/** Наибольшая высота строки книги, пт (предел Excel — 409). */
+export const MAX_HEIGHT = 400
+/** Сколько строк границ помещается в строку наибольшей высоты. */
+const MAX_BOUNDARY_LINES = Math.floor((MAX_HEIGHT - 4) / 13)
 
 const base: CellStyle = { size: 10, border: true, wrap: true, align: 'left' }
 const S = {
@@ -255,6 +259,13 @@ export function buildAdmDivision(source: AdmDivisionSource): AdmDivision {
       stations: own.length,
     }
   }
+  for (const pd of pds) {
+    const count = boundaries.filter((b) => b.pd === pd.code).length
+    if (count > MAX_BOUNDARY_LINES)
+      warnings.push(
+        `${pd.code}: ${count} участков границ — в строке главного листа видны первые ${MAX_BOUNDARY_LINES}, полный список на листе «${ADM_SHEETS.boundaries}».`,
+      )
+  }
   const byPd = new Map(pds.map((p) => [p.code, totalsOf(new Set([p.code]))]))
   const district = totalsOf(new Set(pds.map((p) => p.code)))
   const sheets = [
@@ -272,10 +283,10 @@ const ref = (sheet: string, column: string, rows?: readonly [number, number]) =>
   rows
     ? `${sheetRef(sheet)}$${column}$${rows[0]}:$${column}$${rows[1]}`
     : `${sheetRef(sheet)}$${column}:$${column}`
-/** «ПД-1» и руководитель из справочника через INDEX/MATCH. */
+/** «ПД-1» и руководитель из справочника; T() не даёт Excel превратить пустую ячейку в 0. */
 const headFormula = (code: string, head: string | undefined): WorkbookCell =>
   f(
-    `=${q(code)}&CHAR(10)&INDEX(${ref(ADM_SHEETS.reference, 'C')},MATCH(${q(code)},${ref(ADM_SHEETS.reference, 'A')},0))`,
+    `=${q(code)}&CHAR(10)&T(INDEX(${ref(ADM_SHEETS.reference, 'C')},MATCH(${q(code)},${ref(ADM_SHEETS.reference, 'A')},0)))`,
     head ? `${code}\n${head}` : `${code}\n`,
   )
 /** ПЧУ по коду ПД из справочника; T() даёт пустую строку вместо 0 у ПД без ПЧУ. */
@@ -365,7 +376,8 @@ function mainSheet(
           S.count,
         ),
       ])
-      heights[rows.length] = Math.max(30, 13 * Math.max(own.length, 2) + 4)
+      // Excel не допускает строку выше 409 пт: длинный перечень границ виден частично.
+      heights[rows.length] = Math.min(MAX_HEIGHT, Math.max(30, 13 * Math.max(own.length, 2) + 4))
     }
     const last = rows.length
     if (group.pchu && last > first) merges.push(`B${first}:B${last}`)
@@ -501,7 +513,9 @@ function stationsSheet(
       notes.length ? v(notes.join('; ')) : empty(),
     ])
   }
-  const last = Math.max(2, stations.length + 1)
+  const last = stations.length + 1
+  /** Без строк станций итог — константа: SUM(G2:G2) в строке 2 ссылался бы сам на себя. */
+  const sum = (column: string) => (stations.length ? `=SUM(${column}2:${column}${last})` : '=0')
   const total = stations.map((s) => statsOf(s.name))
   rows.push([
     empty(S.group),
@@ -511,22 +525,22 @@ function stationsSheet(
     empty(S.group),
     empty(S.group),
     f(
-      `=SUM(G2:G${last})`,
+      sum('G'),
       total.reduce((n, s) => n + s.tracks, 0),
       S.groupCount,
     ),
     f(
-      `=SUM(H2:H${last})`,
+      sum('H'),
       total.reduce((n, s) => n + s.meters, 0),
       S.groupMeters,
     ),
     f(
-      `=SUM(I2:I${last})`,
+      sum('I'),
       total.reduce((n, s) => n + s.main, 0),
       S.groupMeters,
     ),
     f(
-      `=SUM(J2:J${last})`,
+      sum('J'),
       total.reduce((n, s) => n + s.switches, 0),
       S.groupCount,
     ),
@@ -611,12 +625,11 @@ function boundariesSheet(
       b.meters === undefined ? empty(S.meters) : v(b.meters, S.meters),
     ])
   }
-  const last = Math.max(2, boundaries.length + 1)
   rows.push([
     v('Итого', S.group),
     ...Array.from({ length: 6 }, () => empty(S.group)),
     f(
-      `=SUM(H2:H${last})`,
+      boundaries.length ? `=SUM(H2:H${boundaries.length + 1})` : '=0',
       boundaries.reduce((n, b) => n + (b.meters ?? 0), 0),
       S.groupMeters,
     ),

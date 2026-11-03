@@ -20,6 +20,9 @@ const LIMITS = { sheets: 20, rows: 50_000, columns: 50, cells: 500_000 } as cons
  */
 export function formulaProblem(formula: string): string | undefined {
   if (!formula.startsWith('=')) return 'Формула начинается не с «=».'
+  // Имя листа в кавычках может скрывать другую книгу: '[книга.xlsx]Лист'!A1, 'C:\путь\[книга]Лист'!A1.
+  for (const [quoted] of formula.replace(/"(?:[^"]|"")*"/gu, '""').matchAll(/'(?:[^']|'')*'!/gu))
+    if (/[[\]\\/:]/u.test(quoted)) return 'Формула ссылается на другую книгу.'
   const bare = formula.replace(/"(?:[^"]|"")*"/gu, '""').replace(/'(?:[^']|'')*'!/gu, 'X!')
   if (/["']/u.test(bare.replaceAll('""', ''))) return 'Незакрытая кавычка в формуле.'
   if (/[[\]{}]/u.test(bare)) return 'Формула ссылается на другую книгу или массив.'

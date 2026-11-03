@@ -45,7 +45,7 @@ describe('Схема дистанции, вариант A', () => {
     expect(main.kind === 'line' && main.x2.value - main.x1.value).toBeCloseTo(105_084 / 300, 6)
     const words = texts(document.pages[0]!.primitives)
     expect(words).toContain(' · 105,084 км')
-    expect(words.some((t) => t.startsWith('Масштаб по главному пути: 1 см ≈ 3 км.'))).toBe(true)
+    expect(words.some((t) => t.startsWith('Масштаб по главному пути: 1 см = 3 км.'))).toBe(true)
     expect(words).toContain('Редакция от 01.01.2027 · Лист 1')
   })
 
@@ -240,5 +240,61 @@ describe('Схема дистанции, вариант A', () => {
       ok: false,
       error: { message: 'ПД-6: недопустимая граница ПД.' },
     })
+  })
+
+  it('масштаб учитывает разрывы протяжения; направление шире листа отклоняется', () => {
+    // 100 км в шести частях: пять разрывов по 12 мм уменьшают место под путь.
+    expect(districtKmPerCm([{ meters: 100_000, gaps: 5 }])).toBe(3.4)
+    const source = fictionalDistrict()
+    const parts = Array.from({ length: 6 }, (_, i) => ({
+      from: { km: i * 20, m: 0 },
+      to: { km: i * 20 + 16, m: 667 },
+    }))
+    const document = built({
+      ...source,
+      lines: [{ ...source.lines[2]!, extents: parts }],
+      axes: [],
+      boundaries: [],
+    })
+    const xs = document.pages[0]!.primitives.flatMap((s) =>
+      s.kind === 'line' ? [s.x1.value, s.x2.value] : [],
+    )
+    expect(Math.max(...xs)).toBeLessThanOrEqual(405)
+  })
+
+  it('станция вне протяжения не рисуется и не входит в итоги', () => {
+    const source = fictionalDistrict()
+    const outside: OverviewSource = {
+      ...source,
+      axes: [...source.axes, { id: 'far', lineId: 'L3', name: 'Дальняя', at: { km: 30, m: 0 } }],
+      stationStats: { ...source.stationStats, Дальняя: { tracks: 5, meters: 9000, switches: 9 } },
+    }
+    const document = built(outside)
+    const words = texts(document.pages[0]!.primitives)
+    expect(words).not.toContain('Дальняя')
+    expect(words.find((t) => t.startsWith('Всего:'))).toContain('24 станции')
+    expect(document.warnings).toContain(
+      'Ось Дальняя 30+000 вне протяжения направления и не показана.',
+    )
+  })
+
+  it('длинные примечания переносятся по строкам в пределах листа', () => {
+    const source = fictionalDistrict()
+    const names = Array.from({ length: 30 }, (_, i) => `Учебная станция ${i + 1}`)
+    const document = built({
+      ...source,
+      unboundStations: [...(source.unboundStations ?? []), ...names],
+    })
+    const notes = document.pages[0]!.primitives.filter(
+      (s) => s.kind === 'text' && s.font.size.value === 2.4 && s.y.value > 270 && !s.color,
+    )
+    expect(notes.length).toBeGreaterThan(1)
+    for (const note of notes)
+      expect(
+        note.kind === 'text' && note.x.value + tableMeasurer.width(note.text, note.font).value,
+      ).toBeLessThanOrEqual(405 + 1e-9)
+    expect(notes.map((n) => (n.kind === 'text' ? n.text : '')).join(' ')).toContain(
+      'Учебная станция 30.',
+    )
   })
 })

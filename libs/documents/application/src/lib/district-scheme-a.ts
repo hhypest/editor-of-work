@@ -21,7 +21,7 @@ import {
   type SheetPrimitive,
   type TextMeasurer,
 } from './sheet-model'
-import { bold, narrow, regular } from './sheet-text'
+import { bold, narrow, regular, wrapText } from './sheet-text'
 import { moveShapes, sheetLine as line, sheetThickLine as thick } from './sheet-drawing'
 import {
   CAPTION,
@@ -48,7 +48,7 @@ export { DISTRICT_RED, genitiveTitle, kmText, plural } from './district-common'
  * Короткие направления встают в ряд рядом друг с другом.
  */
 export interface DistrictDocument extends OverviewDocument {
-  /** Километров в одном сантиметре листа: «1 см ≈ 3,9 км». */
+  /** Километров в одном сантиметре листа: «1 см = 3,9 км». */
   readonly kmPerCm: number
 }
 
@@ -74,6 +74,8 @@ const BAND = 5.6
 const LABEL = bold(2.6)
 const COORD = regular(2.4)
 const EPS = 0.001
+/** Шаг строк примечаний в подвале, мм. */
+const NOTE_STEP = 3.2
 
 interface Part {
   readonly from: Chainage
@@ -126,10 +128,25 @@ function prepareLines(source: OverviewSource): Result<readonly Prepared[], Sheet
  * Масштаб по главному пути: километров в сантиметре с одним знаком после запятой, при котором
  * самое длинное направление помещается в ширину листа.
  */
-export function districtKmPerCm(lines: readonly { readonly meters: number }[]): number {
-  const longest = Math.max(1, ...lines.map((l) => l.meters))
-  return Math.max(0.1, Math.ceil((longest / 1000 / (FIT_WIDTH / 10)) * 10 - 1e-9) / 10)
+export function districtKmPerCm(
+  lines: readonly { readonly meters: number; readonly gaps?: number }[],
+): number {
+  // Разрывы протяжения занимают постоянную ширину и в масштаб не входят.
+  const needed = lines.map(
+    (l) => l.meters / 1000 / (Math.max(60, FIT_WIDTH - (l.gaps ?? 0) * GAP) / 10),
+  )
+  const widest = Math.max(1 / (FIT_WIDTH / 10) / 1000, ...needed)
+  return Math.max(0.1, Math.ceil(widest * 10 - 1e-9) / 10)
 }
+/** Ось на протяжении своего направления: иначе станция не рисуется и в итоги не входит. */
+const onExtent = (source: OverviewSource, axis: OverviewSource['axes'][number]) =>
+  source.lines.some(
+    (l) =>
+      l.id === axis.lineId &&
+      l.extents.some(
+        (e) => compareChainage(e.from, axis.at) <= 0 && compareChainage(axis.at, e.to) <= 0,
+      ),
+  )
 
 interface Station {
   readonly x: number
@@ -396,7 +413,9 @@ function summarize(
   const shown = new Set(prepared.map((p) => p.line.id))
   const drawn = [
     ...new Set(
-      source.axes.filter((a) => shown.has(a.lineId) && !unbound.has(a.name)).map((a) => a.name),
+      source.axes
+        .filter((a) => shown.has(a.lineId) && !unbound.has(a.name) && onExtent(source, a))
+        .map((a) => a.name),
     ),
   ]
   const stats = drawn.map((n) => source.stationStats?.[n])
@@ -418,7 +437,7 @@ function summarize(
       plural(drawn.length, 'станция', 'станции', 'станций'),
     ].join(' · '),
     notes: [
-      `Масштаб по главному пути: 1 см ≈ ${String(kmPerCm).replace('.', ',')} км.`,
+      `Масштаб по главному пути: 1 см = ${String(kmPerCm).replace('.', ',')} км.`,
       ...junctions,
       ...(unbound.size ? [`Не входят в привязку к ПД: ${[...unbound].join(', ')}.`] : []),
     ].join(' '),
@@ -427,9 +446,10 @@ function summarize(
 
 function frame(
   source: OverviewSource,
-  summary: Summary,
+  summary: Summary & { readonly lines: readonly string[] },
   number: number,
   warnings: number,
+  lift: number,
   measurer: TextMeasurer,
 ): SheetPrimitive[] {
   const right = (value: string, y: number, font: SheetFont, options: TextOptions = {}) =>
@@ -440,27 +460,32 @@ function frame(
       'Линейная схема в масштабе по километрам: главные пути, станции по осям, линейные (ПД) и эксплуатационные (ПЧУ) участки',
       measurer,
     ),
-    thick(LEFT, 280, RIGHT, 280, 0.3),
-    {
-      kind: 'rect',
-      x: mm(LEFT),
-      y: mm(282.6),
-      width: mm(2.8),
-      height: mm(2.8),
-      shade: false,
-      border: true,
-    },
-    text('станция (ось)', LEFT + 4.5, 285, regular(2.6)),
-    colored(thick(42, 282.4, 42, 285.8, 0.35, { dashed: true }), DISTRICT_RED),
-    text('граница ПД', 44, 285, regular(2.6)),
-    colored(thick(64, 282.4, 64, 285.8, 0.7), DISTRICT_RED),
-    text('граница ПЧУ', 66, 285, regular(2.6)),
-    text('«3 п. · 10 стр.» — станционных путей / стрелочных переводов', 88, 285, regular(2.6)),
-    right(summary.totals, 285, bold(2.6)),
-    text(summary.notes, LEFT, 290, regular(2.4)),
+    ...moveShapes(
+      [
+        thick(LEFT, 280, RIGHT, 280, 0.3),
+        {
+          kind: 'rect',
+          x: mm(LEFT),
+          y: mm(282.6),
+          width: mm(2.8),
+          height: mm(2.8),
+          shade: false,
+          border: true,
+        },
+        text('станция (ось)', LEFT + 4.5, 285, regular(2.6)),
+        colored(thick(42, 282.4, 42, 285.8, 0.35, { dashed: true }), DISTRICT_RED),
+        text('граница ПД', 44, 285, regular(2.6)),
+        colored(thick(64, 282.4, 64, 285.8, 0.7), DISTRICT_RED),
+        text('граница ПЧУ', 66, 285, regular(2.6)),
+        text('«3 п. · 10 стр.» — станционных путей / стрелочных переводов', 88, 285, regular(2.6)),
+        right(summary.totals, 285, bold(2.6)),
+        ...summary.lines.map((line, k) => text(line, LEFT, 290 + k * NOTE_STEP, regular(2.4))),
+      ],
+      -lift,
+    ),
     ...(warnings
       ? [
-          right(`Замечаний: ${warnings}; список — в предпросмотре.`, 290, regular(2.4), {
+          right(`Замечаний: ${warnings}; список — в предпросмотре.`, 294.5, regular(2.2), {
             color: DISTRICT_RED,
           }),
         ]
@@ -482,19 +507,13 @@ export function buildDistrictSchemeA(
 ): Result<DistrictDocument, SheetError> {
   const prepared = prepareLines(source)
   if (!prepared.ok) return prepared
-  const kmPerCm = districtKmPerCm(prepared.value)
+  const kmPerCm = districtKmPerCm(
+    prepared.value.map((l) => ({ meters: l.meters, gaps: l.parts.length - 1 })),
+  )
   const unbound = new Set(source.unboundStations ?? [])
   const warnings = [...source.warnings]
   for (const axis of source.axes)
-    if (
-      !source.lines.some(
-        (l) =>
-          l.id === axis.lineId &&
-          l.extents.some(
-            (e) => compareChainage(e.from, axis.at) <= 0 && compareChainage(axis.at, e.to) <= 0,
-          ),
-      )
-    )
+    if (!onExtent(source, axis))
       warnings.push(
         `Ось ${axis.name} ${formatPlus(axis.at)} вне протяжения направления и не показана.`,
       )
@@ -521,12 +540,22 @@ export function buildDistrictSchemeA(
     ),
     counted: new Set(),
   }
+  // Примечания переносятся по ширине листа; подвал растёт вверх на число строк.
+  const summary = summarize(source, prepared.value, unbound, kmPerCm)
+  const wrapped = wrapText(summary.notes, RIGHT - LEFT, regular(2.4), measurer)
+  const notes = wrapped.ok ? wrapped.value : [summary.notes]
+  const lift = (notes.length - 1) * NOTE_STEP
+  const bottom = BOTTOM - lift
   const blocks: Block[] = []
   for (const current of prepared.value) {
     const block = drawBlock(current, context)
     if (!block.ok) return block
-    if (TOP + block.value.height > BOTTOM)
+    if (TOP + block.value.height > bottom)
       return err({ message: `${current.line.name}: направление не помещается на лист по высоте.` })
+    if (LEFT + INDENT + block.value.width > RIGHT)
+      return err({
+        message: `${current.line.name}: направление не помещается на лист по ширине — слишком много частей протяжения.`,
+      })
     blocks.push(block.value)
   }
   // Ряды: направление встаёт правее предыдущего, если ряд вмещает его целиком.
@@ -541,7 +570,7 @@ export function buildDistrictSchemeA(
   let y = TOP
   for (const row of rows) {
     const height = Math.max(...row.map((b) => b.height))
-    if (y + height > BOTTOM && y > TOP) {
+    if (y + height > bottom && y > TOP) {
       if (bodies.length >= MAX_PAGES) return err({ message: 'Документ превышает 50 листов.' })
       bodies.push([])
       y = TOP
@@ -562,12 +591,14 @@ export function buildDistrictSchemeA(
     bodies[0]?.push(
       text('Нет направлений. Загрузите оргструктуру паспорта.', LEFT, TOP + 10, regular()),
     )
-  const summary = summarize(source, prepared.value, unbound, kmPerCm)
   const pages: SheetPage[] = bodies.map((body, i) => ({
     width: mm(420),
     height: mm(297),
     number: i + 1,
-    primitives: [...frame(source, summary, i + 1, warnings.length, measurer), ...body],
+    primitives: [
+      ...frame(source, { ...summary, lines: notes }, i + 1, warnings.length, lift, measurer),
+      ...body,
+    ],
   }))
   return ok({ pages, warnings, kmPerCm })
 }

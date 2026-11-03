@@ -8,7 +8,14 @@ const editionData = {
   lines: [],
   segments: [],
   stations: [],
-  manual: { workKinds: [], repairNorms: [], tolerances: [], trainPairs: [], kilometres: [] },
+  manual: {
+    workKinds: [],
+    repairNorms: [],
+    tolerances: [],
+    trainPairs: [],
+    kilometres: [],
+    heads: [],
+  },
   org: { subdivisions: [], boundaries: [], stations: [], tracks: [] },
 }
 

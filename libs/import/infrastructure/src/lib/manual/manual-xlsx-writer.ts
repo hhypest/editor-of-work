@@ -3,6 +3,8 @@ import type { ManualBasis } from '@eow/passport/import-api'
 import { MANUAL_SHEETS } from '@eow/passport/import-api'
 import { columnLetter } from '../export/sheet'
 import { MANUAL_COLUMNS, MANUAL_KEYS, manualCells, type ManualCell } from './manual-layout'
+/** Версия 2 — лист «Руководители» (ADR-0051); книги версии 1 принимаются без него. */
+export const MANUAL_TEMPLATE_VERSION = 2
 const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
 const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 const xml = (s: string): string =>
@@ -79,10 +81,10 @@ export function writeManualXlsx(basis: ManualBasis): Uint8Array {
     ),
   )
   add(
-    'xl/worksheets/sheet6.xml',
+    `xl/worksheets/sheet${MANUAL_KEYS.length + 1}.xml`,
     sheet(
       [
-        ['editor-of-work/manual-data', 1],
+        ['editor-of-work/manual-data', MANUAL_TEMPLATE_VERSION],
         ['Дата редакции', basis.date],
         ['Основа', basis.token],
       ],

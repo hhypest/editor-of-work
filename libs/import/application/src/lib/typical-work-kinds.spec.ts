@@ -19,6 +19,7 @@ const empty: ManualData = {
   tolerances: [],
   trainPairs: [],
   kilometres: [],
+  heads: [],
 }
 const typical: readonly TypicalWorkKind[] = [
   { code: 'УЧ-1', name: 'Учебная выправка', unit: 'км', group: 'current', includedIn: null },

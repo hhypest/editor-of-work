@@ -28,4 +28,5 @@ export const editionTables = [
   'seg_sleeper',
   'seg_ballast',
   'seg_train_pairs',
+  'subdivision_head',
 ] as const

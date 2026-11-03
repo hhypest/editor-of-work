@@ -65,7 +65,7 @@ describe('SQLite паспорта', () => {
     const database = inspect()
     expect(database.prepare('PRAGMA journal_mode').get()).toMatchObject({ journal_mode: 'wal' })
     expect(database.prepare('SELECT count(*) AS n FROM schema_migrations').get()).toMatchObject({
-      n: 7,
+      n: 8,
     })
     for (const table of editionTables)
       expect(database.prepare(`SELECT count(*) AS n FROM ${table}`).get()).toMatchObject({ n: 0 })

@@ -34,7 +34,14 @@ function editionData(id: number, trackClass: string | null): EditionData {
     lines: [{ id: 'line-1', name: 'УЧЕБНОЕ', extents: [], kmLengths: [] }],
     segments: [classRow(trackClass)],
     stations: [],
-    manual: { workKinds: [], repairNorms: [], tolerances: [], trainPairs: [], kilometres: [] },
+    manual: {
+      workKinds: [],
+      repairNorms: [],
+      tolerances: [],
+      trainPairs: [],
+      kilometres: [],
+      heads: [],
+    },
     org: { subdivisions: [], boundaries: [], stations: [], tracks: [] },
   }
 }

@@ -34,6 +34,7 @@ export const MANUAL_COLUMNS = {
     ...period,
   ],
   kilometres: ['Направление', 'Км', 'Длина, м', ...period],
+  heads: ['Подразделение', 'Наименование', 'Руководитель', ...period],
 } as const
 export const MANUAL_KEYS = [
   'workKinds',
@@ -41,6 +42,7 @@ export const MANUAL_KEYS = [
   'tolerances',
   'trainPairs',
   'kilometres',
+  'heads',
 ] as const
 export const GROUP_LABELS: Readonly<Record<string, string>> = {
   current: 'текущее',
@@ -97,5 +99,6 @@ export function manualCells(
       ...end(r),
     ]),
     kilometres: data.kilometres.map((r) => [r.line, r.km, r.length, ...end(r)]),
+    heads: data.heads.map((r) => [r.subdivision, r.title, r.head, ...end(r)]),
   }
 }

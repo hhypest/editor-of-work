@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { validateManualData, type ManualBasis, type ManualData } from '@eow/passport/import-api'
+import {
+  headOn,
+  validateManualData,
+  type ManualBasis,
+  type ManualData,
+} from '@eow/passport/import-api'
 const period = { id: 'one', validFrom: null, validTo: null }
 const empty: ManualData = {
   workKinds: [],
@@ -7,6 +12,7 @@ const empty: ManualData = {
   tolerances: [],
   trainPairs: [],
   kilometres: [],
+  heads: [],
 }
 const basis: Pick<ManualBasis, 'lines' | 'trackClasses'> = {
   trackClasses: ['УЧЕБНЫЙ'],
@@ -197,5 +203,50 @@ describe('Ручные данные — правила до записи', () =>
       expect(validateManualData({ ...empty, kilometres }, basis)).toContainEqual(
         expect.objectContaining({ sheet: 'Нестандартные километры', row: expect.any(Number) }),
       )
+  })
+
+  it('проверяет лист «Руководители»: код подразделения, название дистанции, периоды', () => {
+    const head = (id: string, subdivision: string, extra: object = {}) => ({
+      id,
+      validFrom: null,
+      validTo: null,
+      subdivision,
+      title: null,
+      head: 'Учебный И.И.',
+      ...extra,
+    })
+    const withOrg = { ...basis, subdivisions: ['ПД-1', 'ПЧУ-1'] }
+    const ok = [
+      head('d', 'Дистанция', { title: 'Учебная дистанция', head: null }),
+      head('a', 'ПД-1', { validTo: '2026-12-31' }),
+      head('b', 'ПД-1', { validFrom: '2027-01-01', head: 'Другой Д.Д.' }),
+    ]
+    expect(validateManualData({ ...empty, heads: ok }, withOrg)).toEqual([])
+    const messages = validateManualData(
+      {
+        ...empty,
+        heads: [
+          head('x', 'ПД-9'),
+          head('y', 'Дистанция', { head: null }),
+          head('z', 'ПЧУ-1', { head: null }),
+          head('p', 'ПД-1'),
+          head('q', 'ПД-1'),
+          head('l', 'ПЧУ-1', { head: 'Ф'.repeat(101) }),
+        ],
+      },
+      withOrg,
+    ).map((i) => `${i.row}:${i.column}:${i.message}`)
+    expect(messages).toEqual([
+      '2:Подразделение:Нет подразделения с таким кодом; для названия дистанции — «Дистанция»',
+      '3:Наименование:Укажите название дистанции',
+      '3:Руководитель:Заполните наименование или руководителя',
+      '4:Руководитель:Заполните наименование или руководителя',
+      '6:Подразделение:Подразделение повторяется в пересекающихся периодах',
+      '7:Руководитель:Длиннее 100 знаков',
+      '7:Подразделение:Подразделение повторяется в пересекающихся периодах',
+    ])
+    expect(headOn(ok, 'ПД-1', '2026-06-01')?.head).toBe('Учебный И.И.')
+    expect(headOn(ok, 'ПД-1', '2027-06-01')?.head).toBe('Другой Д.Д.')
+    expect(headOn(ok, 'ПЧУ-1', '2027-06-01')).toBeUndefined()
   })
 })

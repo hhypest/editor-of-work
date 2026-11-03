@@ -28,7 +28,14 @@ const base: EditionData = {
   lines: [{ id: 'line-1', name: 'ГЛАВНАЯ', extents: [], kmLengths: [] }],
   segments: [classRow('["class","f","s",1]', '3')],
   stations: [],
-  manual: { workKinds: [], repairNorms: [], tolerances: [], trainPairs: [], kilometres: [] },
+  manual: {
+    workKinds: [],
+    repairNorms: [],
+    tolerances: [],
+    trainPairs: [],
+    kilometres: [],
+    heads: [],
+  },
   org: { subdivisions: [], boundaries: [], stations: [], tracks: [] },
 }
 
@@ -89,6 +96,7 @@ describe('сравнение редакций', () => {
           },
         ],
         kilometres: [],
+        heads: [],
       },
     }
     const after: EditionData = {
@@ -177,5 +185,41 @@ describe('повторяющиеся ключи строк', () => {
     expect(added).toHaveLength(2)
     expect(new Set(removed.map((r) => r.key)).size).toBe(2)
     expect(new Set(added.map((r) => r.key)).size).toBe(2)
+  })
+
+  it('показывает изменения руководителей и названия дистанции', () => {
+    const head = (id: string, subdivision: string, extra: object) => ({
+      id,
+      validFrom: null,
+      validTo: null,
+      subdivision,
+      title: null,
+      head: null,
+      ...extra,
+    })
+    const before: EditionData = {
+      ...base,
+      manual: {
+        ...base.manual,
+        heads: [
+          head('d', 'Дистанция', { title: 'Учебная дистанция' }),
+          head('a', 'ПД-1', { head: 'Учебный И.И.' }),
+        ],
+      },
+    }
+    const after: EditionData = {
+      ...base,
+      manual: {
+        ...base.manual,
+        heads: [
+          head('d2', 'Дистанция', { title: 'Опытная дистанция' }),
+          head('b', 'ПЧУ-1', { head: 'Пробный П.П.' }),
+        ],
+      },
+    }
+    const manual = compareEditionData(before, after).sections.find((s) => s.section === 'manual')
+    expect(manual?.changed.map((r) => r.label)).toEqual(['Название дистанции'])
+    expect(manual?.added.map((r) => r.label)).toEqual(['Руководитель ПЧУ-1'])
+    expect(manual?.removed.map((r) => r.label)).toEqual(['Руководитель ПД-1'])
   })
 })

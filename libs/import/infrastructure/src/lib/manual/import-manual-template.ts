@@ -60,13 +60,20 @@ export async function prepareManualTemplate(
         .map((e) => `Лист «${e.sheet}», строка ${e.row}, «${e.column}»: ${e.message}`)
         .join('\n'),
     })
-  if (read.value.date !== basis.date || read.value.basisToken !== basis.token)
+  // Книга формата 1 выдана до листа «Руководители»: её отпечаток считался без него.
+  const current =
+    read.value.basisToken === basis.token ||
+    (read.value.keepHeads && read.value.basisToken === basis.legacyToken)
+  if (read.value.date !== basis.date || !current)
     return err({
       kind: 'invalid-import',
       message:
         'Ручные данные или основа паспорта изменились. Выдайте новый шаблон и перенесите изменения.',
     })
-  const issues = validateManualData(read.value.data, basis)
+  const data = read.value.keepHeads
+    ? { ...read.value.data, heads: basis.data.heads }
+    : read.value.data
+  const issues = validateManualData(data, basis)
   if (issues.length)
     return err({
       kind: 'invalid-import',
@@ -84,14 +91,14 @@ export async function prepareManualTemplate(
     command: {
       basisToken: basis.token,
       date: basis.date,
-      data: read.value.data,
+      data,
       file: {
         id: JSON.stringify(['manual-data', file.name]),
         form: 'manual-data',
         name: file.name,
         importedAt,
         sha256: createHash('sha256').update(file.bytes).digest('hex'),
-        rowCount: MANUAL_KEYS.reduce((n, k) => n + read.value.data[k].length, 0),
+        rowCount: MANUAL_KEYS.reduce((n, k) => n + data[k].length, 0),
         warnings: [],
       },
     },
@@ -105,7 +112,7 @@ export async function prepareManualTemplate(
           ]),
         )
       const before = rows(basis.data[key]),
-        after = rows(read.value.data[key])
+        after = rows(data[key])
       return {
         sheet: MANUAL_SHEETS[key],
         added: [...after.keys()].filter((id) => !before.has(id)).length,

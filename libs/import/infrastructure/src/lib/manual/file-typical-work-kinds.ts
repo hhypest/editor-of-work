@@ -56,6 +56,7 @@ export function parseTypicalWorkKinds(
       tolerances: [],
       trainPairs: [],
       kilometres: [],
+      heads: [],
     },
     { lines: [], trackClasses: [] },
   )

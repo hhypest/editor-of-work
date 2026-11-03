@@ -5,6 +5,11 @@ export interface ManualTemplateContent {
   readonly basisToken: string
   readonly data: ManualData
   readonly sourceRows: Readonly<Record<keyof ManualData, readonly number[]>>
+  /**
+   * Книга версии 1 выдана до листа «Руководители» (ADR-0051): его строки в паспорте
+   * остаются прежними, а не стираются.
+   */
+  readonly keepHeads?: boolean
 }
 export interface ManualDataTemplate {
   write(basis: ManualBasis): Promise<Result<Uint8Array, readonly ManualIssue[]>>

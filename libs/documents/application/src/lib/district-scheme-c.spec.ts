@@ -136,4 +136,95 @@ describe('Схема дистанции, вариант C — схема-таб�
   it('фиксирует геометрию листа', () => {
     expect(built().pages[0]).toMatchSnapshot()
   })
+
+  it('станция примыкания вне ПД на первом направлении учитывается по второму', () => {
+    const source = fictionalDistrict()
+    const document = built({
+      ...source,
+      axes: [
+        ...source.axes,
+        { id: 'o1', lineId: 'L1', name: 'Общая', at: { km: 100, m: 0 } },
+        { id: 'o2', lineId: 'L3', name: 'Общая', at: { km: 17, m: 0 } },
+      ],
+      boundaries: source.boundaries.map((b) =>
+        b.code === 'ПД-1' ? { ...b, from: { km: 100, m: 500 } } : b,
+      ),
+      stationStats: { ...source.stationStats, Общая: { tracks: 1, meters: 1000, switches: 50 } },
+    })
+    const words = texts(document.pages[0]!.primitives)
+    // Без участка ПД на первом направлении «*» не ставится, итоги ПЧУ-2 включают 50 стрелок.
+    expect(words.filter((t) => t === '*')).toHaveLength(3)
+    expect(words).toContain('140')
+    expect(document.warnings).toContain('Станции вне участков ПД (в итоги не входят): Общая.')
+  })
+
+  it('границы ПД из нескольких частей не пропадают в узком столбце', () => {
+    const source = fictionalDistrict()
+    const document = built({
+      ...source,
+      lines: [{ ...source.lines[2]!, extents: [{ from: { km: 0, m: 0 }, to: { km: 160, m: 0 } }] }],
+      axes: [{ id: 'x', lineId: 'L3', name: 'Учебная', at: { km: 105, m: 0 } }],
+      boundaries: [
+        {
+          lineId: 'L3',
+          code: 'ПД-1',
+          pchu: 'ПЧУ-1',
+          from: { km: 100, m: 0 },
+          to: { km: 110, m: 0 },
+        },
+        {
+          lineId: 'L3',
+          code: 'ПД-1',
+          pchu: 'ПЧУ-1',
+          from: { km: 120, m: 0 },
+          to: { km: 130, m: 0 },
+        },
+        {
+          lineId: 'L3',
+          code: 'ПД-1',
+          pchu: 'ПЧУ-1',
+          from: { km: 140, m: 0 },
+          to: { km: 150, m: 0 },
+        },
+      ],
+      unboundStations: [],
+    })
+    const red = document.pages[0]!.primitives.flatMap((s) =>
+      s.kind === 'text' && s.color === DISTRICT_RED ? [s.text] : [],
+    )
+    expect(red.join(' ')).toContain('150+000')
+    expect(red.length).toBeGreaterThan(3)
+  })
+
+  it('итоги длиннее листа переносятся на следующие листы', () => {
+    const source = fictionalDistrict()
+    const lines = Array.from({ length: 40 }, (_, i) => ({
+      ...source.lines[2]!,
+      id: `P${i}`,
+      name: `Ветвь ${i + 1}`,
+    }))
+    const document = built({
+      ...source,
+      lines,
+      axes: lines.map((l, i) => ({
+        id: `s${i}`,
+        lineId: l.id,
+        name: `Станция ${i + 1}`,
+        at: { km: 5, m: 0 },
+      })),
+      boundaries: lines.map((l, i) => ({
+        lineId: l.id,
+        code: `ПД-${i + 1}`,
+        pchu: `ПЧУ-${i + 1}`,
+        from: { km: 0, m: 0 },
+        to: { km: 18, m: 0 },
+      })),
+      unboundStations: [],
+    })
+    const ys = document.pages.flatMap((p) =>
+      p.primitives.flatMap((s) => (s.kind === 'text' ? [s.y.value] : [])),
+    )
+    expect(Math.max(...ys)).toBeLessThanOrEqual(297)
+    expect(document.pages.flatMap((p) => texts(p.primitives))).toContain('ВСЕГО')
+  })
 })

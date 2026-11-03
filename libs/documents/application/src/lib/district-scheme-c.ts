@@ -55,6 +55,8 @@ const CELL = regular(2.6)
 const CELL_BOLD = bold(2.6)
 const LABEL = bold(2.4)
 const EPS = 1e-9
+const BOUNDS = narrow(2.2)
+const BOUNDS_STEP = 2.75
 
 interface Span {
   readonly code: string
@@ -140,8 +142,9 @@ function prepare(source: OverviewSource): Result<readonly Prepared[], SheetError
       done.find((s) => inside(s, at, true))
     const columns: Column[] = []
     const column = (name: string, at: Chainage | undefined, span: Span | undefined): Column => {
-      const repeated = name !== '' && seen.has(name)
-      if (name) seen.add(name)
+      // Учтённой считается только станция в участке ПД: вхождение вне ПД не прячет следующее.
+      const repeated = name !== '' && span !== undefined && seen.has(name)
+      if (name && span) seen.add(name)
       return { line: line.name, name, at, span, repeated }
     }
     let next = 0
@@ -214,6 +217,24 @@ function table(
   measurer: TextMeasurer,
 ): { readonly shapes: SheetPrimitive[]; readonly height: number } {
   const width = Math.min(MAX_COLUMN, TABLE_WIDTH / columns.length)
+  // Границы ПД переносятся по ширине участка; строка растёт под самый длинный перечень.
+  const boundsText = (span: Span) =>
+    span.ranges.map(([a, z]) => `${formatPlus(a)} — ${formatPlus(z)}`).join('; ')
+  const boundsLines = new Map<Span, readonly string[]>()
+  for (let i = 0; i < columns.length;) {
+    const span = columns[i]?.span
+    let j = i
+    while (j + 1 < columns.length && columns[j + 1]?.span === span) j++
+    if (span) {
+      const wrapped = wrapText(boundsText(span), (j - i + 1) * width - 1.5, BOUNDS, measurer)
+      boundsLines.set(span, wrapped.ok ? wrapped.value : [boundsText(span)])
+    }
+    i = j + 1
+  }
+  const boundsHeight = Math.max(
+    11,
+    ...[...boundsLines.values()].map((l) => l.length * BOUNDS_STEP + 3),
+  )
   const x0 = LEFT + LABEL_WIDTH
   const xOf = (i: number) => x0 + i * width
   const longest = (values: readonly string[], font: SheetFont) =>
@@ -249,7 +270,7 @@ function table(
     { label: 'Стрелочные переводы, шт.', height: 7 },
     { label: 'Линейный участок, руководитель', height: 13 },
     { label: 'Главный путь ПД, км', height: 8 },
-    { label: 'Границы ПД, км+м', height: 11 },
+    { label: 'Границы ПД, км+м', height: boundsHeight },
     { label: 'Эксплуатационный участок', height: 11 },
   ]
   const tops: number[] = []
@@ -355,25 +376,19 @@ function table(
     if (words[0]) front.push(centered(words[0], x + w / 2, top(7) - 2.2, height(7), CELL_BOLD))
     if (words[1]) front.push(centered(words[1], x + w / 2, top(7) + 2.2, height(7), CELL))
     front.push(centered(kmText(span.meters), x + w / 2, top(8), height(8), CELL_BOLD))
-    const bounds = span.ranges.map(([a, z]) => `${formatPlus(a)} — ${formatPlus(z)}`).join('; ')
-    for (const font of [narrow(2.4), narrow(2)]) {
-      const wrapped = wrapText(bounds, w - 1.5, font, measurer)
-      if (!wrapped.ok || wrapped.value.length > 3) continue
-      const step = font.size.value * 1.25
-      const first = top(9) + height(9) / 2 - ((wrapped.value.length - 1) * step) / 2
-      for (const [k, line] of wrapped.value.entries())
-        front.push(
-          centered(
-            line,
-            x + w / 2,
-            first + k * step - height(9) / 2,
-            height(9),
-            font,
-            DISTRICT_RED,
-          ),
-        )
-      break
-    }
+    const lines = boundsLines.get(span) ?? []
+    const first = top(9) + height(9) / 2 - ((lines.length - 1) * BOUNDS_STEP) / 2
+    for (const [k, line] of lines.entries())
+      front.push(
+        centered(
+          line,
+          x + w / 2,
+          first + k * BOUNDS_STEP - height(9) / 2,
+          height(9),
+          BOUNDS,
+          DISTRICT_RED,
+        ),
+      )
   }
   // Участки ПЧУ: подряд идущие ПД одного ПЧУ — одна ячейка.
   // Ключ включает направление: ПЧУ соседних направлений — разные ячейки.
@@ -444,9 +459,8 @@ function totals(prepared: readonly Prepared[], source: OverviewSource): Map<stri
 function summary(
   prepared: readonly Prepared[],
   source: OverviewSource,
-  y0: number,
   measurer: TextMeasurer,
-): { readonly shapes: SheetPrimitive[]; readonly height: number } {
+): Summary {
   const byPchu = totals(prepared, source)
   const codes = [...byPchu.keys()].toSorted((a, b) =>
     a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, 'ru', { numeric: true }),
@@ -463,10 +477,8 @@ function summary(
     'Станций',
   ]
   const xs = widths.map((_, i) => LEFT + widths.slice(0, i).reduce((n, w) => n + w, 0))
-  const shapes: SheetPrimitive[] = [
-    text('Итоги по эксплуатационным участкам', LEFT, y0 + 4, bold(3)),
-  ]
-  let y = y0 + 7
+  const title = text('Итоги по эксплуатационным участкам', LEFT, 4, bold(3))
+  const rowsOut: Piece[] = []
   /** Строка итогов: длинный перечень ПД переносится, высота строки растёт. */
   const row = (
     values: readonly string[],
@@ -483,6 +495,8 @@ function summary(
     })
     const rows = Math.max(1, ...lines.map((l) => l.length))
     const h = Math.max(7, rows * 3.4 + 3)
+    const y = 0
+    const shapes: SheetPrimitive[] = []
     for (const [i, words] of lines.entries()) {
       const x = xs[i] ?? LEFT,
         w = widths[i] ?? 0
@@ -502,7 +516,7 @@ function summary(
         )
       }
     }
-    y += h
+    rowsOut.push({ shapes, height: h })
   }
   row(titles, { fill: LABEL_FILL, font: LABEL })
   const all: Totals = { meters: 0, stationMeters: 0, switches: 0, stations: 0, pds: [] }
@@ -567,17 +581,37 @@ function summary(
         ]
       : []),
   ]
-  let ny = y0 + 9
+  const noteLines: Piece[] = []
   for (const note of notes) {
     const wrapped = wrapText(note.text, RIGHT - notesX, regular(2.6), measurer)
-    for (const line of wrapped.ok ? wrapped.value : [note.text]) {
-      shapes.push(text(line, notesX, ny, regular(2.6), note.color ? { color: note.color } : {}))
-      ny += 3.6
-    }
-    ny += 1.4
+    const lines = wrapped.ok ? wrapped.value : [note.text]
+    for (const [k, line] of lines.entries())
+      noteLines.push({
+        shapes: [text(line, notesX, 2, regular(2.6), note.color ? { color: note.color } : {})],
+        height: k === lines.length - 1 ? 5 : 3.6,
+      })
   }
-  return { shapes, height: Math.max(y, ny) - y0 }
+  const [header, ...body] = rowsOut
+  return {
+    title: { shapes: [title], height: 7 },
+    header: header ?? { shapes: [], height: 0 },
+    rows: body,
+    notes: noteLines,
+  }
 }
+
+interface Piece {
+  readonly shapes: readonly SheetPrimitive[]
+  readonly height: number
+}
+/** Итоги по частям: заголовок, шапка таблицы, строки и строки примечаний справа. */
+interface Summary {
+  readonly title: Piece
+  readonly header: Piece
+  readonly rows: readonly Piece[]
+  readonly notes: readonly Piece[]
+}
+const sum = (pieces: readonly Piece[]) => pieces.reduce((n, p) => n + p.height, 0)
 
 /** Текст, укороченный многоточием до ширины ячейки итогов. */
 function fit(value: string, width: number, font: SheetFont, measurer: TextMeasurer): string {
@@ -659,12 +693,45 @@ export function buildDistrictSchemeC(
     bodies[0]?.push(
       text('Нет направлений. Загрузите оргструктуру паспорта.', LEFT, TOP + 10, regular()),
     )
-  const totalsBlock = summary(prepared.value, source, 0, measurer)
-  if (y + totalsBlock.height > BOTTOM) {
+  // Итоги: целиком, если помещаются на лист; иначе строки таблицы и примечания по листам.
+  const parts = summary(prepared.value, source, measurer)
+  const tableHeight = parts.title.height + parts.header.height + sum(parts.rows)
+  const notes = 2 + sum(parts.notes)
+  const whole = Math.max(tableHeight, parts.title.height + notes)
+  const page = () => {
     bodies.push([])
     y = TOP + 4
   }
-  bodies.at(-1)?.push(...moveShapes(totalsBlock.shapes, y))
+  const put = (piece: Piece) => {
+    bodies.at(-1)?.push(...moveShapes(piece.shapes, y))
+    y += piece.height
+  }
+  if (whole <= BOTTOM - TOP - 4) {
+    if (y + whole > BOTTOM) page()
+    const top = y
+    put(parts.title)
+    put(parts.header)
+    for (const r of parts.rows) put(r)
+    y = top + parts.title.height + 2
+    for (const n of parts.notes) put(n)
+  } else {
+    if (y + parts.title.height + parts.header.height + (parts.rows[0]?.height ?? 0) > BOTTOM) page()
+    put(parts.title)
+    put(parts.header)
+    for (const r of parts.rows) {
+      if (y + r.height > BOTTOM) {
+        page()
+        put(parts.header)
+      }
+      put(r)
+    }
+    y += 4
+    for (const n of parts.notes) {
+      if (y + n.height > BOTTOM) page()
+      put(n)
+    }
+  }
+  if (bodies.length > MAX_PAGES) return err({ message: 'Документ превышает 50 листов.' })
   const pages: SheetPage[] = bodies.map((body, i) => ({
     width: mm(420),
     height: mm(297),

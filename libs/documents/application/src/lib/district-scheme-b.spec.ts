@@ -121,4 +121,54 @@ describe('Схема дистанции, вариант B — топологич
   it('фиксирует геометрию листа', () => {
     expect(built(withNode()).pages[0]).toMatchSnapshot()
   })
+
+  it('итоги длиннее места под схемой переносятся на следующий лист', () => {
+    const source = fictionalDistrict()
+    const boundaries = Array.from({ length: 30 }, (_, i) => ({
+      lineId: 'L1',
+      code: `ПД-${i + 1}`,
+      pchu: 'ПЧУ-1',
+      from: { km: 100 + i * 3, m: 0 },
+      to: { km: 103 + i * 3, m: 0 },
+    }))
+    const document = built({ ...source, boundaries, heads: undefined })
+    expect(document.pages.length).toBeGreaterThan(1)
+    const ys = document.pages.flatMap((p) =>
+      p.primitives.flatMap((s) => (s.kind === 'text' ? [s.y.value] : [])),
+    )
+    expect(Math.max(...ys)).toBeLessThanOrEqual(297)
+    const all = document.pages.flatMap((p) => texts(p.primitives))
+    expect(all.filter((t) => t.startsWith('ПД-30 — гл. путь'))).toHaveLength(1)
+  })
+
+  it('станция примыкания рисуется на каждом листе, где есть её направление', () => {
+    const source = fictionalDistrict()
+    const lines = Array.from({ length: 5 }, (_, i) => ({
+      ...source.lines[2]!,
+      id: `J${i}`,
+      name: `Ветвь ${i + 1}`,
+    }))
+    const document = built({
+      ...source,
+      lines,
+      axes: lines.map((l, i) => ({ id: `j${i}`, lineId: l.id, name: 'Узел', at: { km: 9, m: 0 } })),
+      boundaries: [],
+      unboundStations: [],
+    })
+    expect(document.pages.length).toBeGreaterThan(1)
+    for (const page of document.pages)
+      expect(texts(page.primitives).filter((t) => t === 'Узел')).toHaveLength(1)
+  })
+
+  it('станции вне участков ПД — замечание: в итоги они не входят', () => {
+    const source = fictionalDistrict()
+    const document = built({
+      ...source,
+      axes: [...source.axes, { id: 'x', lineId: 'L2', name: 'Вне ПД', at: { km: 82, m: 500 } }],
+      boundaries: source.boundaries.map((b) =>
+        b.code === 'ПД-5' ? { ...b, to: { km: 80, m: 0 } } : b,
+      ),
+    })
+    expect(document.warnings).toContain('Станции вне участков ПД (в итоги не входят): Вне ПД.')
+  })
 })

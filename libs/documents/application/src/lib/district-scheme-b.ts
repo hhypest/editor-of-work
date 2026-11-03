@@ -18,7 +18,7 @@ import {
   type TextMeasurer,
 } from './sheet-model'
 import { bold, regular } from './sheet-text'
-import { moveShapes, sheetThickLine as thick } from './sheet-drawing'
+import { sheetThickLine as thick } from './sheet-drawing'
 import {
   CAPTION,
   colored,
@@ -267,6 +267,7 @@ function drawRow(
   pchuOrder: readonly string[],
   junctions: ReadonlySet<string>,
   attached: ReadonlySet<'left' | 'right'>,
+  page: { readonly anchorOf: ReadonlyMap<string, Row>; readonly drawn: Set<string> },
   measurer: TextMeasurer,
 ): SheetPrimitive[] {
   const { line } = row.track
@@ -375,9 +376,12 @@ function drawRow(
     }
   // Станции: кружок на оси, название наискось над ним.
   for (const c of line.columns) {
-    if (!c.at || !c.name || c.repeated) continue
+    if (!c.at || !c.name) continue
+    // Станция рисуется один раз на листе — в ряду, к которому сходятся линии примыкания.
+    if (page.drawn.has(c.name) || page.anchorOf.get(c.name) !== row) continue
     const x = at(c.at)
     if (x === undefined) continue
+    page.drawn.add(c.name)
     const junction = junctions.has(c.name)
     front.push({
       kind: 'circle',
@@ -427,36 +431,79 @@ function pdTotals(lines: readonly DistrictLine[], source: OverviewSource) {
   return result
 }
 
+/** Нижняя граница итогов над подвалом, мм. */
+const LEGEND_BOTTOM = 276
+const LEGEND_LINE = 4
+const LEGEND_TITLE = 11
+
+/**
+ * Итоги по ПЧУ: группы по три в ряд. Ряд, не поместившийся по высоте, уходит на новый лист;
+ * группа длиннее листа делится на части «(продолжение)».
+ */
 function legend(
   lines: readonly DistrictLine[],
   source: OverviewSource,
   pchuOrder: readonly string[],
-  y0: number,
   measurer: TextMeasurer,
-): SheetPrimitive[] {
+): SheetPrimitive[][] {
   const totals = pdTotals(lines, source)
   const heads = source.heads ?? {}
   const groups = [...pchuOrder, ...([...totals.values()].some((t) => !t.pchu) ? [undefined] : [])]
   const width = (RIGHT - LEFT - 2 * 8) / 3
-  const shapes: SheetPrimitive[] = []
-  for (const [i, pchu] of groups.entries()) {
-    const x = LEFT + (i % 3) * (width + 8),
-      y = y0 + Math.floor(i / 3) * 34
+  const capacity = Math.floor((LEGEND_BOTTOM - TOP - 4 - LEGEND_TITLE) / LEGEND_LINE)
+  interface Chunk {
+    readonly pchu: string | undefined
+    readonly title: string
+    readonly lines: readonly string[]
+  }
+  const chunks: Chunk[] = []
+  for (const pchu of groups) {
     const pds = [...totals.entries()]
       .filter(([, t]) => t.pchu === pchu)
       .toSorted(([a], [b]) => a.localeCompare(b, 'ru', { numeric: true }))
     const meters = pds.reduce((n, [, t]) => n + t.meters, 0)
-    shapes.push(colored(thick(x, y, x + width, y, 1.2), colorOf(pchu, pchuOrder)))
     const title = pchu
       ? `${pchu}${heads[pchu] ? ` · ${heads[pchu]}` : ''} — ${kmText(meters)} км`
       : `Без ПЧУ — ${kmText(meters)} км`
-    shapes.push(text(fit(title, width, bold(2.8), measurer), x, y + 6, bold(2.8)))
-    for (const [k, [code, t]] of pds.entries()) {
-      const line = `${code}${heads[code] ? ` · ${heads[code]}` : ''} — гл. путь ${kmText(t.meters)} км · ${t.stations} ст. · ст. пути ${kmText(t.stationMeters)} км · ${t.switches} стр.`
-      shapes.push(text(fit(line, width, regular(2.5), measurer), x, y + 11 + k * 4, regular(2.5)))
-    }
+    const rows = pds.map(
+      ([code, t]) =>
+        `${code}${heads[code] ? ` · ${heads[code]}` : ''} — гл. путь ${kmText(t.meters)} км · ${t.stations} ст. · ст. пути ${kmText(t.stationMeters)} км · ${t.switches} стр.`,
+    )
+    for (let i = 0; i === 0 || i < rows.length; i += capacity)
+      chunks.push({
+        pchu,
+        title: i === 0 ? title : `${pchu ?? 'Без ПЧУ'} (продолжение)`,
+        lines: rows.slice(i, i + capacity),
+      })
   }
-  return shapes
+  const pages: SheetPrimitive[][] = [[]]
+  let y = LEGEND
+  for (let i = 0; i < chunks.length; i += 3) {
+    const row = chunks.slice(i, i + 3)
+    const height = LEGEND_TITLE + Math.max(...row.map((c) => c.lines.length)) * LEGEND_LINE
+    if (y + height > LEGEND_BOTTOM) {
+      pages.push([])
+      y = TOP + 4
+    }
+    for (const [k, chunk] of row.entries()) {
+      const x = LEFT + k * (width + 8)
+      const shapes = pages.at(-1)
+      shapes?.push(
+        colored(thick(x, y, x + width, y, 1.2), colorOf(chunk.pchu, pchuOrder)),
+        text(fit(chunk.title, width, bold(2.8), measurer), x, y + 6, bold(2.8)),
+        ...chunk.lines.map((line, n) =>
+          text(
+            fit(line, width, regular(2.5), measurer),
+            x,
+            y + LEGEND_TITLE + n * LEGEND_LINE,
+            regular(2.5),
+          ),
+        ),
+      )
+    }
+    y += height + 4
+  }
+  return pages
 }
 
 function fit(value: string, width: number, font: SheetFont, measurer: TextMeasurer): string {
@@ -487,6 +534,11 @@ export function buildDistrictSchemeB(
   }
   if (!source.district?.trim())
     warnings.push('Нет названия дистанции: заполните строку «Дистанция» листа «Руководители».')
+  const outside = lines.flatMap((l) => l.columns.filter((c) => c.name && !c.span))
+  if (outside.length)
+    warnings.push(
+      `Станции вне участков ПД (в итоги не входят): ${[...new Set(outside.map((c) => c.name))].join(', ')}.`,
+    )
   const pchuOrder = [
     ...new Set(source.boundaries.flatMap((b) => (b.pchu ? [b.pchu] : []))),
   ].toSorted((a, b) => a.localeCompare(b, 'ru', { numeric: true }))
@@ -498,9 +550,11 @@ export function buildDistrictSchemeB(
   )
   const tracks = lines.map((l) => track(l, (available * 0.8) / longest))
   const rows = arrange(lines, tracks)
-  const junctions = new Set(
-    lines.flatMap((l) => l.columns.filter((c) => c.repeated).map((c) => c.name)),
-  )
+  const lineCount = new Map<string, Set<string>>()
+  for (const l of lines)
+    for (const c of l.columns)
+      if (c.name) lineCount.set(c.name, (lineCount.get(c.name) ?? new Set()).add(l.id))
+  const junctions = new Set([...lineCount].filter(([, ids]) => ids.size > 1).map(([name]) => name))
   // Ряды по листам; связи между листами не рисуются, концы подписаны направлениями.
   const pages: SheetPrimitive[][] = [[]]
   const pageRows: Row[][] = [[]]
@@ -578,24 +632,38 @@ export function buildDistrictSchemeB(
         text(note, nx, nodeY + 3.5, regular(2.4), { color: CAPTION }),
       )
     }
-    // Станции примыкания: вертикаль от первого появления к линии другого направления.
+    // Станции примыкания: вертикаль от листа, где станция нарисована, к линии другого направления.
+    const counted = new Set(
+      onPage.flatMap((r) =>
+        r.track.line.columns.filter((c) => c.name && !c.repeated && c.span).map((c) => c.name),
+      ),
+    )
+    const anchorOf = new Map<string, Row>()
+    for (const row of onPage)
+      for (const c of row.track.line.columns)
+        if (
+          c.name &&
+          c.at &&
+          !anchorOf.has(c.name) &&
+          (counted.has(c.name) ? !c.repeated && c.span : true)
+        )
+          anchorOf.set(c.name, row)
     for (const row of onPage)
       for (const c of row.track.line.columns) {
-        if (!c.repeated || !c.at) continue
-        const firstRow = onPage.find(
-          (r) => r !== row && r.track.line.columns.some((d) => d.name === c.name && !d.repeated),
-        )
-        const there = firstRow && stationAt(firstRow.track.line, c.name)
-        const x1 = there && xOf(firstRow, there),
+        const anchor = c.name ? anchorOf.get(c.name) : undefined
+        if (!c.at || !anchor || anchor === row) continue
+        const there = stationAt(anchor.track.line, c.name)
+        const x1 = there && xOf(anchor, there),
           x2 = xOf(row, c.at)
-        if (!firstRow || x1 === undefined || x2 === undefined) continue
+        if (x1 === undefined || x2 === undefined) continue
         const color = colorOf(c.span?.pchu, pchuOrder)
         connectors.push(
-          colored(thick(X(x1), firstRow.y, X(x1), row.y, LINE_WEIGHT), color),
+          colored(thick(X(x1), anchor.y, X(x1), row.y, LINE_WEIGHT), color),
           colored(thick(X(x1), row.y, X(x2), row.y, LINE_WEIGHT), color),
         )
       }
     body.push(...connectors)
+    const page = { anchorOf, drawn: new Set<string>() }
     for (const row of onPage)
       body.push(
         ...drawRow(
@@ -605,6 +673,7 @@ export function buildDistrictSchemeB(
           pchuOrder,
           junctions,
           attached.get(row) ?? new Set(),
+          page,
           measurer,
         ),
       )
@@ -625,7 +694,10 @@ export function buildDistrictSchemeB(
     }),
     { meters: 0, stationMeters: 0, switches: 0, stations: 0 },
   )
-  pages.at(-1)?.push(...moveShapes(legend(lines, source, pchuOrder, 0, measurer), LEGEND))
+  const [first = [], ...more] = legend(lines, source, pchuOrder, measurer)
+  pages.at(-1)?.push(...first)
+  pages.push(...more)
+  if (pages.length > MAX_PAGES) return err({ message: 'Документ превышает 50 листов.' })
   const unbound = source.unboundStations ?? []
   const footer = (number: number): SheetPrimitive[] => {
     const totalsText = `Всего: главный путь ${kmText(sum.meters)} км · станционные пути ${kmText(sum.stationMeters)} км · ${plural(sum.switches, 'стрелочный перевод', 'стрелочных перевода', 'стрелочных переводов')} · ${plural(sum.stations, 'станция', 'станции', 'станций')}`

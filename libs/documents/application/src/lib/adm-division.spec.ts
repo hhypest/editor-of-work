@@ -1,4 +1,4 @@
-import { ADM_SHEETS, buildAdmDivision, type AdmDivisionSource } from './adm-division'
+import { ADM_SHEETS, buildAdmDivision, MAX_HEIGHT, type AdmDivisionSource } from './adm-division'
 import { evaluateWorkbook } from './testing/workbook-evaluator'
 import { columnName, formulaText, sheetRef, type WorkbookCell } from './workbook-model'
 
@@ -147,8 +147,8 @@ describe('Административное деление (#32)', () => {
     ])
     expect(column(1)).toContain('ВСЕГО по дистанции · 2 ПЧУ · 3 ПД · станций: 4')
     expect(column(2).slice(5, 7)).toEqual([
-      `="ПД-1"&CHAR(10)&INDEX(Справочник!$C:$C,MATCH("ПД-1",Справочник!$A:$A,0))`,
-      `="ПД-2"&CHAR(10)&INDEX(Справочник!$C:$C,MATCH("ПД-2",Справочник!$A:$A,0))`,
+      `="ПД-1"&CHAR(10)&T(INDEX(Справочник!$C:$C,MATCH("ПД-1",Справочник!$A:$A,0)))`,
+      `="ПД-2"&CHAR(10)&T(INDEX(Справочник!$C:$C,MATCH("ПД-2",Справочник!$A:$A,0)))`,
     ])
     expect(main.rows[5]?.[1]).toMatchObject({ result: 'ПЧУ-1\nТестовый Ж.Ж.' })
     expect(main.merges).toEqual(expect.arrayContaining(['B6:B7', 'B8:E8']))
@@ -258,5 +258,56 @@ describe('Административное деление (#32)', () => {
     expect(sheetRef("Д'Арк")).toBe("'Д''Арк'!")
     expect(columnName(1)).toBe('A')
     expect(columnName(27)).toBe('AA')
+  })
+
+  it('пустая редакция: итоги — нули без ссылок на себя, все формулы вычисляются', () => {
+    const source = fictionalSource()
+    const { workbook } = buildAdmDivision({
+      ...source,
+      boundaries: [],
+      bindings: [],
+      tracks: [],
+      switches: [],
+    })
+    const stations = workbook.sheets[1]!
+    expect(stations.rows[1]?.slice(6, 10).map((c) => c && 'formula' in c && c.formula)).toEqual([
+      '=0',
+      '=0',
+      '=0',
+      '=0',
+    ])
+    expect(workbook.sheets[2]!.rows[1]?.[7]).toMatchObject({ formula: '=0', result: 0 })
+    const read = evaluateWorkbook(workbook)
+    expect(read(ADM_SHEETS.main, 'F6')).toBe(0)
+    expect(read(ADM_SHEETS.stations, 'G2')).toBe(0)
+  })
+
+  it('руководитель без ФИО не превращается в «0» при пересчёте', () => {
+    const source = fictionalSource()
+    const { workbook } = buildAdmDivision({
+      ...source,
+      units: source.units.map((u) => (u.code === 'ПД-1' ? { ...u, head: undefined } : u)),
+    })
+    const main = workbook.sheets[0]!
+    expect(main.rows[5]?.[2]).toMatchObject({
+      formula: `="ПД-1"&CHAR(10)&T(INDEX(Справочник!$C:$C,MATCH("ПД-1",Справочник!$A:$A,0)))`,
+      result: 'ПД-1\n',
+    })
+    expect(evaluateWorkbook(workbook)(ADM_SHEETS.main, 'C6')).toBe('ПД-1\n')
+  })
+
+  it('высота строки не превышает предела Excel, длинный перечень границ — замечание', () => {
+    const source = fictionalSource()
+    const many = Array.from({ length: 40 }, (_, i) => ({
+      pd: 'ПД-10',
+      line: 'Озёрная — Ключи',
+      from: { km: 100 + i * 2, m: 0 },
+      to: { km: 101 + i * 2, m: 0 },
+      statedLength: null,
+    }))
+    const division = buildAdmDivision({ ...source, boundaries: [...source.boundaries, ...many] })
+    const heights = Object.values(division.workbook.sheets[0]!.heights ?? {})
+    expect(Math.max(...heights)).toBeLessThanOrEqual(MAX_HEIGHT)
+    expect(division.warnings).toContainEqual(expect.stringContaining('ПД-10: 41 участков границ'))
   })
 })

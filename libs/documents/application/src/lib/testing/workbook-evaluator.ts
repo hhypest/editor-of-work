@@ -117,7 +117,8 @@ export function evaluateWorkbook(workbook: Workbook): (sheet: string, address: s
           return index + 1
         }
         case 'INDEX':
-          return values(ref(0))[Number(scalar(args[1] ?? null)) - 1] ?? null
+          // Как в Excel: INDEX пустой ячейки — число 0.
+          return values(ref(0))[Number(scalar(args[1] ?? null)) - 1] ?? 0
         case 'T': {
           const value = scalar(args[0] ?? null)
           return typeof value === 'string' ? value : ''

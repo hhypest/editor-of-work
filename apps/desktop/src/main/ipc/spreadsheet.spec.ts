@@ -113,6 +113,9 @@ describe('Книга xlsx', () => {
     expect(parse('=HYPERLINK("http://example.invalid","x")')).toBe(false)
     expect(parse('=WEBSERVICE("x")')).toBe(false)
     expect(parse('=[1]Лист!A1')).toBe(false)
+    expect(parse("='[другая.xlsx]Лист'!A1")).toBe(false)
+    expect(parse("='C:\\папка\\[другая.xlsx]Лист'!A1")).toBe(false)
+    expect(parse("=SUM('Пути (исх.)'!D:D)&\"'[x]'!\"")).toBe(true)
     expect(parse('=SUM("A1)')).toBe(false)
     expect(parse('SUM(A1)')).toBe(false)
     expect(
